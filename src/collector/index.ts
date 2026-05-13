@@ -1,0 +1,138 @@
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import axios from 'axios';
+import {
+  SystemSnapshot,
+  ContainerStatus,
+  DiskStatus,
+  MemoryStatus,
+  NginxStatus,
+  HealthCheckResult,
+} from '../types';
+import { error } from '../logger';
+
+const execAsync = promisify(exec);
+
+const HEALTH_CHECK_URLS: string[] = (process.env.HEALTH_CHECK_URLS ?? '')
+  .split(',')
+  .map((u) => u.trim())
+  .filter(Boolean);
+
+// ─── Docker ──────────────────────────────────────────────────────────────────
+
+async function getContainers(): Promise<ContainerStatus[]> {
+  try {
+    const { stdout } = await execAsync(
+      `docker ps -a --format '{"id":"{{.ID}}","name":"{{.Names}}","state":"{{.State}}","status":"{{.Status}}","runningFor":"{{.RunningFor}}"}'`
+    );
+
+    return stdout
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as ContainerStatus);
+  } catch (err) {
+    error('Failed to fetch container statuses', err);
+    return [];
+  }
+}
+ 
+
+async function getDisk(): Promise<DiskStatus> {
+  try {
+    const { stdout } = await execAsync(`df -h / | tail -1`);
+    // Output: /dev/sda1   20G  9.0G   10G  48%  /
+    const parts = stdout.trim().split(/\s+/);
+    const usedPercent = parseInt(parts[4] ?? '0', 10);
+
+    return {
+      usedPercent,
+      total: parts[1] ?? '?',
+      used: parts[2] ?? '?',
+      available: parts[3] ?? '?',
+    };
+  } catch (err) {
+    error('Failed to fetch disk status', err);
+    return { usedPercent: 0, total: '?', used: '?', available: '?' };
+  }
+}
+
+
+async function getMemory(): Promise<MemoryStatus> {
+  try {
+    const { stdout } = await execAsync(`free -m | grep Mem`);
+    // Output: Mem:   7976   2123   421   234   5431   5360
+    const parts = stdout.trim().split(/\s+/);
+    const totalMb = parseInt(parts[1] ?? '0', 10);
+    const usedMb = parseInt(parts[2] ?? '0', 10);
+    const freeMb = parseInt(parts[3] ?? '0', 10);
+    const usedPercent = totalMb > 0 ? Math.round((usedMb / totalMb) * 100) : 0;
+
+    return { usedPercent, usedMb, totalMb, freeMb };
+  } catch (err) {
+    error('Failed to fetch memory status', err);
+    return { usedPercent: 0, usedMb: 0, totalMb: 0, freeMb: 0 };
+  }
+}
+
+
+async function getNginx(): Promise<NginxStatus> {
+  // systemctl is Linux-only — skip on macOS/Windows
+  if (process.platform !== 'linux') {
+    return { running: true }; // assume fine on non-Linux (local dev)
+  }
+
+  try {
+    const { stdout } = await execAsync(`systemctl is-active nginx`);
+    return { running: stdout.trim() === 'active' };
+  } catch {
+    return { running: false };
+  }
+}
+
+
+async function checkHealth(url: string): Promise<HealthCheckResult> {
+  const start = Date.now();
+  try {
+    const response = await axios.get(url, { timeout: 5000 });
+    return {
+      url,
+      statusCode: response.status,
+      healthy: response.status >= 200 && response.status < 400,
+      responseTimeMs: Date.now() - start,
+    };
+  } catch (err) {
+    const statusCode =
+      axios.isAxiosError(err) && err.response ? err.response.status : null;
+    return {
+      url,
+      statusCode,
+      healthy: false,
+      responseTimeMs: Date.now() - start,
+    };
+  }
+}
+
+async function getHealthChecks(): Promise<HealthCheckResult[]> {
+  return Promise.all(HEALTH_CHECK_URLS.map(checkHealth));
+}
+
+
+export async function collect(): Promise<SystemSnapshot> {
+  const [containers, disk, memory, nginx, healthChecks] = await Promise.all([
+    getContainers(),
+    getDisk(),
+    getMemory(),
+    getNginx(),
+    getHealthChecks(),
+  ]);
+
+  return {
+    timestamp: new Date(),
+    containers,
+    disk,
+    memory,
+    nginx,
+    healthChecks,
+  };
+}

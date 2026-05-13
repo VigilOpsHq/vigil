@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  vigil:
+    build: .
+    container_name: vigil
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "3100:3100"   # webhook server
+    volumes:
+      # Persist audit logs
+      - ./logs:/app/logs
+      # Mount Docker socket so Vigil can inspect and manage containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount your apps' directories so Vigil can run docker compose commands on them
+      - /opt:/opt:ro
+    network_mode: host  # needed for systemctl and host-level commands

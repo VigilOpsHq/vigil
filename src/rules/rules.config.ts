@@ -1,0 +1,128 @@
+import { Rule, SystemSnapshot, RestartHistory } from '../types';
+
+const DISK_ALERT = parseInt(process.env.DISK_ALERT_PERCENT ?? '85', 10);
+const MEMORY_ALERT = parseInt(process.env.MEMORY_ALERT_PERCENT ?? '90', 10);
+const CRASH_LOOP_THRESHOLD = parseInt(process.env.CRASH_LOOP_THRESHOLD ?? '3', 10);
+const CRASH_LOOP_WINDOW_MS =
+  parseInt(process.env.CRASH_LOOP_WINDOW_MINUTES ?? '10', 10) * 60 * 1000;
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function isInCrashLoop(containerName: string, history: RestartHistory): boolean {
+  const timestamps = history[containerName] ?? [];
+  const now = Date.now();
+  const recent = timestamps.filter((t) => now - t < CRASH_LOOP_WINDOW_MS);
+  return recent.length >= CRASH_LOOP_THRESHOLD;
+}
+
+function downContainers(snapshot: SystemSnapshot) {
+  return snapshot.containers.filter(
+    (c) => c.state === 'exited' || c.state === 'dead'
+  );
+}
+
+function unhealthyChecks(snapshot: SystemSnapshot) {
+  return snapshot.healthChecks.filter((h) => !h.healthy);
+}
+
+// ─── Rules ───────────────────────────────────────────────────────────────────
+
+export const rules: Rule[] = [
+  // ── Container down (not in crash loop) ────────────────────────────────────
+  {
+    id: 'container-down',
+    description: 'Restart a stopped/exited container',
+    condition: (snapshot, history) => {
+      const down = downContainers(snapshot);
+      if (down.length === 0) return false;
+      // Only handle if none of the down containers are in a crash loop
+      return down.every((c) => !isInCrashLoop(c.name, history));
+    },
+    action: (snapshot) => {
+      const down = downContainers(snapshot);
+      return {
+        tier: 'auto',
+        ruleId: 'container-down',
+        commands: down.map((c) => `docker restart ${c.name}`),
+        message: `Container(s) down — restarting: ${down.map((c) => c.name).join(', ')}`,
+      };
+    },
+  },
+
+  // ── Container crash loop (escalate to AI) ─────────────────────────────────
+  {
+    id: 'crash-loop',
+    description: 'Container restarted too many times — escalate, do not auto-fix',
+    condition: (snapshot, history) => {
+      const down = downContainers(snapshot);
+      return down.some((c) => isInCrashLoop(c.name, history));
+    },
+    action: (snapshot) => {
+      const down = downContainers(snapshot);
+      const looping = down.map((c) => c.name).join(', ');
+      return {
+        tier: 'alert',
+        ruleId: 'crash-loop',
+        commands: [],
+        message: `🔁 Crash loop detected on: ${looping}. Escalating to AI for diagnosis.`,
+      };
+    },
+  },
+
+  // ── Disk usage high ───────────────────────────────────────────────────────
+  {
+    id: 'disk-high',
+    description: 'Prune unused Docker images when disk usage crosses threshold',
+    condition: (snapshot) => snapshot.disk.usedPercent >= DISK_ALERT,
+    action: (snapshot) => ({
+      tier: 'auto',
+      ruleId: 'disk-high',
+      commands: ['docker image prune -f', 'docker system prune -f --volumes=false'],
+      message: `Disk at ${snapshot.disk.usedPercent}% (threshold: ${DISK_ALERT}%) — pruning unused Docker images`,
+    }),
+  },
+
+  // ── Memory critical ───────────────────────────────────────────────────────
+  {
+    id: 'memory-critical',
+    description: 'Alert when memory crosses threshold — no auto-fix, too risky',
+    condition: (snapshot) => snapshot.memory.usedPercent >= MEMORY_ALERT,
+    action: (snapshot) => ({
+      tier: 'alert',
+      ruleId: 'memory-critical',
+      commands: [],
+      message: `⚠️ Memory at ${snapshot.memory.usedPercent}% (${snapshot.memory.usedMb}MB / ${snapshot.memory.totalMb}MB). Manual review needed.`,
+    }),
+  },
+
+  // ── Nginx down ────────────────────────────────────────────────────────────
+  {
+    id: 'nginx-down',
+    description: 'Restart nginx if it is not running',
+    condition: (snapshot) => !snapshot.nginx.running,
+    action: () => ({
+      tier: 'auto',
+      ruleId: 'nginx-down',
+      commands: ['systemctl restart nginx'],
+      message: 'nginx is not running — restarting',
+    }),
+  },
+
+  // ── HTTP health check failing ─────────────────────────────────────────────
+  {
+    id: 'health-check-failed',
+    description: 'Restart container associated with a failing health check URL',
+    condition: (snapshot) => unhealthyChecks(snapshot).length > 0,
+    action: (snapshot) => {
+      const failed = unhealthyChecks(snapshot);
+      return {
+        tier: 'alert',
+        ruleId: 'health-check-failed',
+        commands: [],
+        message: `🔴 Health check(s) failing:\n${failed
+          .map((h) => `  • ${h.url} → ${h.statusCode ?? 'no response'} (${h.responseTimeMs}ms)`)
+          .join('\n')}`,
+      };
+    },
+  },
+];
