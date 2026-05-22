@@ -9,8 +9,6 @@ const ALLOWED_COMMANDS: RegExp[] = [
   /^docker restart [a-zA-Z0-9][a-zA-Z0-9_.-]+$/,
   /^docker image prune -f$/,
   /^docker system prune -f(?: --volumes=false)?$/,
-  /^nsenter -t 1 -m -u -i -n -p -- \/usr\/bin\/systemctl restart nginx$/,
-  /^nsenter -t 1 -m -u -i -n -p -- \/usr\/bin\/systemctl reload nginx$/,
 ];
 
 export function isSafeCommand(command: string): boolean {

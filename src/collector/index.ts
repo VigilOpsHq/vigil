@@ -65,11 +65,12 @@ async function getMemory(): Promise<MemoryStatus> {
 async function getNginx(): Promise<NginxStatus> {
   if (process.platform !== 'linux') return { running: true };
   try {
-    const { stdout } = await execAsync(
-      `nsenter -t 1 -m -u -i -n -p -- /usr/bin/systemctl is-active nginx`
-    );
-    return { running: stdout.trim() === 'active' };
-  } catch {
+    await axios.get('http://localhost', { timeout: 2000 });
+    return { running: true };
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response) {
+      return { running: true };
+    }
     return { running: false };
   }
 }

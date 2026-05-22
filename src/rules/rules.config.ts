@@ -90,12 +90,13 @@ export const rules: Rule[] = [
 
   {
     id: 'nginx-down',
-    description: 'Restart nginx if it is not running',
+    description: 'Alert when nginx is not responding — manual intervention required',
     condition: (snapshot) => !snapshot.nginx.running,
     action: () => ({
-      tier: 'auto',
+      tier: 'alert',
       ruleId: 'nginx-down',
-      commands: ['nsenter -t 1 -m -u -i -n -p -- /usr/bin/systemctl restart nginx'],      message: 'nginx is not running — restarting',
+      commands: [],
+      message: '🔴 nginx is not responding on port 80. SSH in and check: systemctl status nginx',
     }),
   },
 
