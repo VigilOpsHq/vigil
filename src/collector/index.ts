@@ -12,13 +12,17 @@ const execAsync = promisify(exec);
 const HEALTH_CHECK_URLS: string[] = (process.env.HEALTH_CHECK_URLS ?? '')
   .split(',').map((u) => u.trim()).filter(Boolean);
 
+const EXCLUDED_CONTAINERS: string[] = (process.env.EXCLUDED_CONTAINERS ?? '')
+  .split(',').map((c) => c.trim()).filter(Boolean);
+
 async function getContainers(): Promise<ContainerStatus[]> {
   try {
     const { stdout } = await execAsync(
       `docker ps -a --format '{"id":"{{.ID}}","name":"{{.Names}}","state":"{{.State}}","status":"{{.Status}}","runningFor":"{{.RunningFor}}"}'`
     );
     return stdout.trim().split('\n').filter(Boolean)
-      .map((line) => JSON.parse(line) as ContainerStatus);
+      .map((line) => JSON.parse(line) as ContainerStatus)
+      .filter((c) => !EXCLUDED_CONTAINERS.includes(c.name));
   } catch (err) {
     error('Failed to fetch container statuses', err);
     return [];
@@ -62,7 +66,7 @@ async function getNginx(): Promise<NginxStatus> {
   if (process.platform !== 'linux') return { running: true };
   try {
     const { stdout } = await execAsync(
-      `nsenter -t 1 -m -u -i -n -p -- systemctl is-active nginx`
+      `nsenter -t 1 -m -u -i -n -p -- /usr/bin/systemctl is-active nginx`
     );
     return { running: stdout.trim() === 'active' };
   } catch {
@@ -74,7 +78,12 @@ async function checkHealth(url: string): Promise<HealthCheckResult> {
   const start = Date.now();
   try {
     const response = await axios.get(url, { timeout: 5000 });
-    return { url, statusCode: response.status, healthy: response.status >= 200 && response.status < 400, responseTimeMs: Date.now() - start };
+    return {
+      url,
+      statusCode: response.status,
+      healthy: response.status >= 200 && response.status < 400,
+      responseTimeMs: Date.now() - start,
+    };
   } catch (err) {
     const statusCode = axios.isAxiosError(err) && err.response ? err.response.status : null;
     return { url, statusCode, healthy: false, responseTimeMs: Date.now() - start };
