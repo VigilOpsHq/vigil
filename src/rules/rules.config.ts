@@ -103,7 +103,7 @@ export const rules: Rule[] = [
     action: () => ({
       tier: 'auto',
       ruleId: 'nginx-down',
-      commands: ['systemctl restart nginx'],
+      commands: ['nsenter -t 1 -m -u -i -n -p -- systemctl restart nginx'],
       message: 'nginx is not running — restarting',
     }),
   },
