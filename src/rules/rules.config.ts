@@ -6,7 +6,6 @@ const CRASH_LOOP_THRESHOLD = parseInt(process.env.CRASH_LOOP_THRESHOLD ?? '3', 1
 const CRASH_LOOP_WINDOW_MS =
   parseInt(process.env.CRASH_LOOP_WINDOW_MINUTES ?? '10', 10) * 60 * 1000;
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function isInCrashLoop(containerName: string, history: RestartHistory): boolean {
   const timestamps = history[containerName] ?? [];
@@ -25,17 +24,14 @@ function unhealthyChecks(snapshot: SystemSnapshot) {
   return snapshot.healthChecks.filter((h) => !h.healthy);
 }
 
-// ─── Rules ───────────────────────────────────────────────────────────────────
 
 export const rules: Rule[] = [
-  // ── Container down (not in crash loop) ────────────────────────────────────
   {
     id: 'container-down',
     description: 'Restart a stopped/exited container',
     condition: (snapshot, history) => {
       const down = downContainers(snapshot);
       if (down.length === 0) return false;
-      // Only handle if none of the down containers are in a crash loop
       return down.every((c) => !isInCrashLoop(c.name, history));
     },
     action: (snapshot) => {
@@ -49,7 +45,6 @@ export const rules: Rule[] = [
     },
   },
 
-  // ── Container crash loop (escalate to AI) ─────────────────────────────────
   {
     id: 'crash-loop',
     description: 'Container restarted too many times — escalate, do not auto-fix',
@@ -69,7 +64,6 @@ export const rules: Rule[] = [
     },
   },
 
-  // ── Disk usage high ───────────────────────────────────────────────────────
   {
     id: 'disk-high',
     description: 'Prune unused Docker images when disk usage crosses threshold',
@@ -82,7 +76,6 @@ export const rules: Rule[] = [
     }),
   },
 
-  // ── Memory critical ───────────────────────────────────────────────────────
   {
     id: 'memory-critical',
     description: 'Alert when memory crosses threshold — no auto-fix, too risky',
@@ -95,7 +88,6 @@ export const rules: Rule[] = [
     }),
   },
 
-  // ── Nginx down ────────────────────────────────────────────────────────────
   {
     id: 'nginx-down',
     description: 'Restart nginx if it is not running',
@@ -103,12 +95,10 @@ export const rules: Rule[] = [
     action: () => ({
       tier: 'auto',
       ruleId: 'nginx-down',
-      commands: ['nsenter -t 1 -m -u -i -n -p -- systemctl restart nginx'],
-      message: 'nginx is not running — restarting',
+      commands: ['nsenter -t 1 -m -u -i -n -p -- /usr/bin/systemctl restart nginx'],      message: 'nginx is not running — restarting',
     }),
   },
 
-  // ── HTTP health check failing ─────────────────────────────────────────────
   {
     id: 'health-check-failed',
     description: 'Restart container associated with a failing health check URL',
