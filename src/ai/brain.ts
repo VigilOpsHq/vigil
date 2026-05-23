@@ -1,8 +1,9 @@
-import Anthropic from '@anthropic-ai/sdk';
+import axios from 'axios';
 import { SystemSnapshot, AIDecision } from '../types';
 import { error } from '../logger';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? '';
+const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
 
 const SYSTEM_PROMPT = `You are Vigil, an autonomous DevOps agent monitoring a Linux VPS.
 You are called only when the rule engine cannot resolve an issue automatically.
@@ -43,22 +44,27 @@ export async function escalate(snapshot: SystemSnapshot): Promise<AIDecision | n
   const snapshotSummary = buildSnapshotSummary(snapshot);
 
   try {
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      system: SYSTEM_PROMPT,
-      messages: [
-        {
-          role: 'user',
-          content: `System snapshot:\n\n${snapshotSummary}\n\nWhat should I do?`,
+    const res = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        system_instruction: {
+          parts: [{ text: SYSTEM_PROMPT }],
         },
-      ],
-    });
+        contents: [
+          {
+            parts: [{ text: `System snapshot:\n\n${snapshotSummary}\n\nWhat should I do?` }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 1000,
+        },
+      }
+    );
 
-    const text = response.content
-      .filter((b) => b.type === 'text')
-      .map((b) => (b as { type: 'text'; text: string }).text)
-      .join('');
+    const text = res.data?.candidates?.[0]?.content?.parts
+      ?.map((p: { text: string }) => p.text)
+      .join('') ?? '';
 
     const clean = text.replace(/```json|```/g, '').trim();
     return JSON.parse(clean) as AIDecision;
