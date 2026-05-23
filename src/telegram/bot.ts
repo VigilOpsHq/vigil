@@ -18,9 +18,19 @@ export const bot = new TelegramBot(TOKEN, { polling: true });
 const pendingApprovals = new Map<string, PendingApproval>();
 
 
+function mdToHtml(text: string): string {
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return escaped
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*([^*]+)\*/g, '<b>$1</b>');
+}
+
 export async function notify(message: string): Promise<void> {
   try {
-    await bot.sendMessage(CHAT_ID, message, { parse_mode: 'Markdown' });
+    await bot.sendMessage(CHAT_ID, mdToHtml(message), { parse_mode: 'HTML' });
   } catch (err) {
     error('Failed to send Telegram notification', err);
   }
@@ -68,8 +78,8 @@ async function handleHelp(): Promise<void> {
   const text =
     `🤖 *Vigil Commands*\n\n` +
     `Tap a button below or type the command.`;
-  await bot.sendMessage(CHAT_ID, text, {
-    parse_mode: 'Markdown',
+  await bot.sendMessage(CHAT_ID, mdToHtml(text), {
+    parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
         [{ text: '📊 Status', callback_data: 'cmd:status' }],
@@ -154,8 +164,8 @@ export async function requestApproval(
     timeoutHandle,
   });
 
-  await bot.sendMessage(CHAT_ID, text, {
-    parse_mode: 'Markdown',
+  await bot.sendMessage(CHAT_ID, mdToHtml(text), {
+    parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
         [
