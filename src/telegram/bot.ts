@@ -27,41 +27,7 @@ export async function notify(message: string): Promise<void> {
 }
 
 
-export async function requestApproval(
-  approvalId: string,
-  commands: string[],
-  message: string,
-  snapshot: SystemSnapshot
-): Promise<void> {
-  const text =
-    `⚠️ *Approval Required*\n\n` +
-    `${message}\n\n` +
-    `Commands:\n${commands.map((c) => `\`${c}\``).join('\n')}\n\n` +
-    `Reply /approve_${approvalId} to run or /deny_${approvalId} to cancel.\n` +
-    `Auto-denies in ${process.env.APPROVAL_TIMEOUT_MINUTES ?? '10'} minutes.`;
-
-  const timeoutHandle = setTimeout(async () => {
-    if (pendingApprovals.has(approvalId)) {
-      pendingApprovals.delete(approvalId);
-      await notify(`⏱ Approval \`${approvalId}\` timed out — action denied.`);
-      log({ trigger: 'approval', action: commands.join(' && '), result: 'timeout', message });
-    }
-  }, APPROVAL_TIMEOUT_MS);
-
-  pendingApprovals.set(approvalId, {
-    id: approvalId,
-    commands,
-    message,
-    snapshot,
-    createdAt: new Date(),
-    timeoutHandle,
-  });
-
-  await notify(text);
-}
-
-
-bot.onText(/\/status/, async () => {
+async function handleStatus(): Promise<void> {
   const { collect } = await import('../collector');
   const snapshot = await collect();
 
@@ -86,13 +52,35 @@ bot.onText(/\/status/, async () => {
     (healthLines.length > 0 ? `*Health Checks*\n${healthLines.join('\n')}` : '');
 
   await notify(text);
-});
+}
 
+async function handleApps(): Promise<void> {
+  const { listApps } = await import('../deploy/deployer');
+  const apps = listApps();
+  const text =
+    apps.length > 0
+      ? `📦 *Deployable apps:*\n${apps.map((a) => `  • \`${a}\``).join('\n')}`
+      : '📦 No apps registered in deploy.config.ts yet.';
+  await notify(text);
+}
 
-bot.onText(/\/approve_([a-zA-Z0-9]+)/, async (_, match) => {
-  const approvalId = match?.[1];
-  if (!approvalId) return;
+async function handleHelp(): Promise<void> {
+  const text =
+    `🤖 *Vigil Commands*\n\n` +
+    `Tap a button below or type the command.`;
+  await bot.sendMessage(CHAT_ID, text, {
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '📊 Status', callback_data: 'cmd:status' }],
+        [{ text: '📦 Apps', callback_data: 'cmd:apps' }],
+        [{ text: '❓ Help', callback_data: 'cmd:help' }],
+      ],
+    },
+  });
+}
 
+async function executeApproval(approvalId: string): Promise<void> {
   const pending = pendingApprovals.get(approvalId);
   if (!pending) {
     await notify(`No pending approval found for ID \`${approvalId}\`.`);
@@ -120,13 +108,9 @@ bot.onText(/\/approve_([a-zA-Z0-9]+)/, async (_, match) => {
       log({ trigger: 'approval', action: cmd, result: 'failed', message: result.error ?? 'unknown error' });
     }
   }
-});
+}
 
-
-bot.onText(/\/deny_([a-zA-Z0-9]+)/, async (_, match) => {
-  const approvalId = match?.[1];
-  if (!approvalId) return;
-
+async function denyApproval(approvalId: string): Promise<void> {
   const pending = pendingApprovals.get(approvalId);
   if (!pending) {
     await notify(`No pending approval found for ID \`${approvalId}\`.`);
@@ -138,29 +122,68 @@ bot.onText(/\/deny_([a-zA-Z0-9]+)/, async (_, match) => {
 
   await notify(`🚫 Denied. No action taken.`);
   log({ trigger: 'approval', action: pending.commands.join(' && '), result: 'denied', message: pending.message });
+}
+
+
+export async function requestApproval(
+  approvalId: string,
+  commands: string[],
+  message: string,
+  snapshot: SystemSnapshot
+): Promise<void> {
+  const text =
+    `⚠️ *Approval Required*\n\n` +
+    `${message}\n\n` +
+    `Commands:\n${commands.map((c) => `\`${c}\``).join('\n')}\n\n` +
+    `Auto-denies in ${process.env.APPROVAL_TIMEOUT_MINUTES ?? '10'} minutes.`;
+
+  const timeoutHandle = setTimeout(async () => {
+    if (pendingApprovals.has(approvalId)) {
+      pendingApprovals.delete(approvalId);
+      await notify(`⏱ Approval \`${approvalId}\` timed out — action denied.`);
+      log({ trigger: 'approval', action: commands.join(' && '), result: 'timeout', message });
+    }
+  }, APPROVAL_TIMEOUT_MS);
+
+  pendingApprovals.set(approvalId, {
+    id: approvalId,
+    commands,
+    message,
+    snapshot,
+    createdAt: new Date(),
+    timeoutHandle,
+  });
+
+  await bot.sendMessage(CHAT_ID, text, {
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: '✅ Approve', callback_data: `approve:${approvalId}` },
+          { text: '❌ Deny', callback_data: `deny:${approvalId}` },
+        ],
+      ],
+    },
+  });
+}
+
+
+bot.onText(/\/status/, handleStatus);
+
+bot.onText(/\/apps/, handleApps);
+
+bot.onText(/\/help/, handleHelp);
+
+bot.onText(/\/approve_([a-zA-Z0-9]+)/, async (_, match) => {
+  const approvalId = match?.[1];
+  if (!approvalId) return;
+  await executeApproval(approvalId);
 });
 
-// /help
-bot.onText(/\/help/, async () => {
-  const text =
-    `🤖 *Vigil Commands*\n\n` +
-    `/status — current system snapshot\n` +
-    `/apps — list deployable apps\n` +
-    `/deploy <appname> — deploy an app\n` +
-    `/approve_<id> — approve a pending action\n` +
-    `/deny_<id> — deny a pending action\n` +
-    `/help — show this message`;
-  await notify(text);
-});
-
-bot.onText(/\/apps/, async () => {
-  const { listApps } = await import('../deploy/deployer');
-  const apps = listApps();
-  const text =
-    apps.length > 0
-      ? `📦 *Deployable apps:*\n${apps.map((a) => `  • \`${a}\``).join('\n')}`
-      : '📦 No apps registered in deploy.config.ts yet.';
-  await notify(text);
+bot.onText(/\/deny_([a-zA-Z0-9]+)/, async (_, match) => {
+  const approvalId = match?.[1];
+  if (!approvalId) return;
+  await denyApproval(approvalId);
 });
 
 bot.onText(/\/deploy(?:\s+(.+))?/, async (_, match) => {
@@ -190,6 +213,28 @@ bot.onText(/\/deploy(?:\s+(.+))?/, async (_, match) => {
     await notify(`✅ *Deploy succeeded*: \`${appName}\`\nHealthy in ${result.duration}s`);
   } else {
     await notify(`❌ *Deploy failed*: \`${appName}\`\n${result.message}`);
+  }
+});
+
+bot.on('callback_query', async (query) => {
+  const data = query.data ?? '';
+  const [prefix, id] = data.includes(':') ? data.split(':') : [data, ''];
+
+  await bot.answerCallbackQuery(query.id);
+
+  if (prefix === 'cmd') {
+    if (id === 'status') await handleStatus();
+    else if (id === 'apps') await handleApps();
+    else if (id === 'help') await handleHelp();
+    return;
+  }
+
+  if (prefix === 'approve') {
+    await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: query.message!.chat.id, message_id: query.message!.message_id });
+    await executeApproval(id);
+  } else if (prefix === 'deny') {
+    await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: query.message!.chat.id, message_id: query.message!.message_id });
+    await denyApproval(id);
   }
 });
 
