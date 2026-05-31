@@ -6,6 +6,17 @@ const CRASH_LOOP_THRESHOLD = parseInt(process.env.CRASH_LOOP_THRESHOLD ?? '3', 1
 const CRASH_LOOP_WINDOW_MS =
   parseInt(process.env.CRASH_LOOP_WINDOW_MINUTES ?? '10', 10) * 60 * 1000;
 
+// Maps health check URLs to container names so the system can restart the right container.
+// Format: URL:container,URL:container (e.g. https://api.example.com/health:my-api)
+const HEALTH_CHECK_CONTAINER_MAP = Object.fromEntries(
+  (process.env.HEALTH_CHECK_CONTAINER_MAP ?? '')
+    .split(',').map((pair) => pair.trim()).filter(Boolean)
+    .map((pair) => {
+      const [url, container] = pair.split(':').map((s) => s.trim());
+      return [url, container];
+    })
+);
+
 
 function isInCrashLoop(containerName: string, history: RestartHistory): boolean {
   const timestamps = history[containerName] ?? [];
@@ -106,13 +117,17 @@ export const rules: Rule[] = [
     condition: (snapshot) => unhealthyChecks(snapshot).length > 0,
     action: (snapshot) => {
       const failed = unhealthyChecks(snapshot);
+      const matchedContainers = failed
+        .map((h) => HEALTH_CHECK_CONTAINER_MAP[h.url])
+        .filter(Boolean) as string[];
+      const commands = matchedContainers.map((name) => `docker restart ${name}`);
       return {
-        tier: 'alert',
+        tier: commands.length > 0 ? 'auto' : 'alert',
         ruleId: 'health-check-failed',
-        commands: [],
+        commands,
         message: `🔴 Health check(s) failing:\n${failed
           .map((h) => `  • ${h.url} → ${h.statusCode ?? 'no response'} (${h.responseTimeMs}ms)`)
-          .join('\n')}`,
+          .join('\n')}${commands.length > 0 ? `\n\nRestarting: ${matchedContainers.join(', ')}` : ''}`,
       };
     },
   },
