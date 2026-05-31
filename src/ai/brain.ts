@@ -3,7 +3,7 @@ import { SystemSnapshot, AIDecision } from '../types';
 import { error } from '../logger';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY ?? '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL ?? 'gemini-2.0-flash-lite';
 
 const SYSTEM_PROMPT = `You are Vigil, an autonomous DevOps agent monitoring a Linux VPS.
 You are called only when the rule engine cannot resolve an issue automatically.
@@ -40,38 +40,74 @@ Allowed commands for AUTO_FIX:
 - systemctl restart nginx
 - systemctl reload nginx`;
 
+function validateDecision(raw: unknown): AIDecision | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const obj = raw as Record<string, unknown>;
+  if (typeof obj.type !== 'string') return null;
+
+  if (obj.type === 'AUTO_FIX' || obj.type === 'SUGGEST') {
+    if (typeof obj.command !== 'string' || !obj.command.trim()) return null;
+    if (typeof obj.message !== 'string' || !obj.message.trim()) return null;
+    return {
+      type: obj.type,
+      command: obj.command.trim(),
+      message: obj.message.trim(),
+      reasoning: typeof obj.reasoning === 'string' ? obj.reasoning.trim() : '',
+    };
+  }
+
+  if (obj.type === 'ALERT') {
+    return {
+      type: 'ALERT',
+      message: typeof obj.message === 'string' ? obj.message.trim() : 'Unknown alert',
+      reasoning: typeof obj.reasoning === 'string' ? obj.reasoning.trim() : '',
+    };
+  }
+
+  return null;
+}
+
 export async function escalate(snapshot: SystemSnapshot): Promise<AIDecision | null> {
   const snapshotSummary = buildSnapshotSummary(snapshot);
 
-  try {
-    const res = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        system_instruction: {
-          parts: [{ text: SYSTEM_PROMPT }],
-        },
-        contents: [
-          {
-            parts: [{ text: `System snapshot:\n\n${snapshotSummary}\n\nWhat should I do?` }],
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          system_instruction: {
+            parts: [{ text: SYSTEM_PROMPT }],
           },
-        ],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 1000,
+          contents: [
+            {
+              parts: [{ text: `System snapshot:\n\n${snapshotSummary}\n\nWhat should I do?` }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 1000,
+          },
         },
-      }
-    );
+        { timeout: 15_000 }
+      );
 
-    const text = res.data?.candidates?.[0]?.content?.parts
-      ?.map((p: { text: string }) => p.text)
-      .join('') ?? '';
+      const text = res.data?.candidates?.[0]?.content?.parts
+        ?.map((p: { text: string }) => p.text)
+        .join('') ?? '';
 
-    const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean) as AIDecision;
-  } catch (err) {
-    error('AI escalation failed', err);
-    return null;
+      const clean = text.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+      const decision = validateDecision(parsed);
+
+      if (decision) return decision;
+
+      error(`AI returned invalid response format (attempt ${attempt + 1}): ${clean}`);
+    } catch (err) {
+      error(`AI escalation failed (attempt ${attempt + 1})`, err);
+    }
   }
+
+  return null;
 }
 
 function buildSnapshotSummary(snapshot: SystemSnapshot): string {

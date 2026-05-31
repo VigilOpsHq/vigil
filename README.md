@@ -2,7 +2,7 @@
 
 **Self-hosted AI DevOps agent for your VPS.**
 
-Vigil watches your Docker containers, disk, memory, nginx, and HTTP endpoints. It fixes known issues automatically, escalates unknown ones to Claude AI, and keeps you in the loop via Telegram.
+Vigil watches your Docker containers, disk, memory, nginx, and HTTP endpoints. It fixes known issues automatically, escalates unknown ones to Gemini AI, and keeps you in the loop via Telegram.
 
 ---
 
@@ -12,7 +12,7 @@ Vigil watches your Docker containers, disk, memory, nginx, and HTTP endpoints. I
 Every 60s:
   1. Collect snapshot — Docker, disk, memory, nginx, HTTP health checks
   2. Rule engine runs first — known issue? fix it immediately, no AI call
-  3. Unknown anomaly? — escalate to Claude AI
+   3. Unknown anomaly? — escalate to Gemini AI
   4. AI decides: auto-fix, suggest (needs your approval), or alert
   5. Everything logged to logs/audit.jsonl
   6. You get notified on Telegram for anything non-trivial
@@ -26,7 +26,7 @@ The AI is only called on escalation — roughly 5% of polls. The other 95% is ha
 
 - **Auto-healing** — restarts stopped containers, prunes disk, reloads nginx
 - **Crash loop detection** — stops blindly restarting containers that keep dying, escalates to AI instead
-- **AI escalation** — sends unknown errors to Claude with full context, gets a reasoned fix back
+- **AI escalation** — sends unknown errors to Gemini with full context, gets a reasoned fix back
 - **Approval flow** — risky actions come to you on Telegram as `/approve` or `/deny`
 - **Deploy from CI/CD** — webhook endpoint lets GitHub Actions trigger deploys with health-check + rollback
 - **Deploy from Telegram** — `/deploy myapp` triggers a pull → restart → health-check flow
@@ -40,7 +40,7 @@ The AI is only called on escalation — roughly 5% of polls. The other 95% is ha
 - Linux VPS (Ubuntu 20.04+)
 - Docker + Docker Compose
 - Node.js 20+ (for local dev) or just Docker (for production)
-- [Anthropic API key](https://console.anthropic.com) — usage is minimal, ~$1/month
+- [Gemini API key](https://aistudio.google.com/apikey) — usage is minimal, typically free tier suffices
 - Telegram bot token — create one via [@BotFather](https://t.me/botfather)
 
 ---
@@ -57,11 +57,13 @@ cp .env.example .env
 Fill in `.env`:
 
 ```env
-ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=AIza...
 TELEGRAM_BOT_TOKEN=7123456789:AAF...
 TELEGRAM_CHAT_ID=123456789
 HEALTH_CHECK_URLS=https://yourapp.com/health
 VIGIL_WEBHOOK_SECRET=your-random-secret
+# Optional: map health check URLs to Docker containers for auto-restart
+# HEALTH_CHECK_CONTAINER_MAP=https://api.example.com/health:my-api,https://app.example.com/health:my-app
 ```
 
 Run locally:

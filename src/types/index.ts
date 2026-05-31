@@ -95,6 +95,11 @@ export interface PendingApproval {
 export type AuditTrigger = 'rule' | 'ai' | 'manual' | 'approval';
 export type AuditResult = 'success' | 'failed' | 'pending_approval' | 'denied' | 'alert' | 'timeout';
 
+export interface HealthCheckMapping {
+  url: string;
+  container: string;
+}
+
 export interface AuditEntry {
   timestamp: string;
   trigger: AuditTrigger;
