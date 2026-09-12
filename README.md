@@ -206,6 +206,126 @@ Vigil can't alert you if your VPS goes completely down. Add your health check UR
 
 ---
 
+## MCP Server
+
+Vigil exposes an MCP (Model Context Protocol) server so AI agents like Claude, Cursor, and any MCP-compatible client can directly manage your infrastructure.
+
+### What it does
+
+Any AI agent connected to Vigil's MCP server can:
+- **Query system status** — containers, disk, memory, nginx, GPU, health checks
+- **Read container logs** — tail logs from any Docker container
+- **Restart containers** — safe, allowlist-enforced restarts
+- **Run health checks** — ad-hoc HTTP checks against any URL
+- **Trigger deploys** — deploy registered apps with health-check + rollback
+- **View audit history** — see everything Vigil has done
+- **Send notifications** — alert you on Telegram from the agent
+
+### Available MCP Tools
+
+| Tool | Description |
+|---|---|
+| `get_system_snapshot` | Full system state — containers, disk, memory, nginx, health checks |
+| `get_container_status` | Docker container status, optionally filtered by name |
+| `get_container_logs` | Recent log output from a container |
+| `restart_container` | Restart a Docker container (allowlist enforced) |
+| `run_health_check` | HTTP health check against any URL |
+| `get_disk_usage` | Root filesystem disk usage |
+| `get_memory_usage` | System memory usage |
+| `get_gpu_status` | GPU utilization, VRAM, temperature (nvidia-smi) |
+| `get_audit_history` | Past actions with timestamps and results |
+| `deploy_app` | Deploy a registered app (pull → restart → health check → rollback) |
+| `get_deployable_apps` | List apps registered for deployment |
+| `execute_safe_command` | Run an allowlisted shell command |
+| `notify` | Send a Telegram notification |
+
+### Running the MCP server
+
+**stdio mode** (for Claude Desktop, Cursor, local agents):
+
+```bash
+npm run dev:mcp
+```
+
+**HTTP mode** (for remote agents, Docker):
+
+```bash
+MCP_MODE=http MCP_PORT=3200 npm run start:mcp
+```
+
+**Both simultaneously**:
+
+```bash
+MCP_MODE=both npm run start:mcp
+```
+
+### Connecting from Claude Desktop
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "vigil": {
+      "command": "node",
+      "args": ["dist/mcp/index.js"],
+      "env": {
+        "MCP_MODE": "stdio"
+      }
+    }
+  }
+}
+```
+
+Or for remote HTTP:
+
+```json
+{
+  "mcpServers": {
+    "vigil": {
+      "url": "http://your-vps:3200/mcp"
+    }
+  }
+}
+```
+
+### Connecting from Cursor
+
+Settings → MCP Servers → Add:
+
+```json
+{
+  "name": "Vigil",
+  "type": "stdio",
+  "command": "node dist/mcp/index.js"
+}
+```
+
+### Docker (add to docker-compose.yml)
+
+```yaml
+services:
+  vigil:
+    # ... existing config ...
+    environment:
+      - MCP_MODE=http
+      - MCP_PORT=3200
+    ports:
+      - "3200:3200"
+```
+
+### Environment variables
+
+```env
+# MCP mode: stdio | http | both
+MCP_MODE=stdio
+
+# HTTP port (only used when MCP_MODE includes http)
+MCP_PORT=3200
+```
+
+---
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).

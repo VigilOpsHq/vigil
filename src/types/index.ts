@@ -108,3 +108,23 @@ export interface AuditEntry {
   result: AuditResult;
   message: string;
 }
+
+export interface ContainerLogs {
+  name: string;
+  logs: string;
+}
+
+export interface GpuStatus {
+  available: boolean;
+  gpus: GpuInfo[];
+}
+
+export interface GpuInfo {
+  index: number;
+  name: string;
+  utilizationPercent: number;
+  memoryUsedMb: number;
+  memoryTotalMb: number;
+  temperatureC: number;
+  powerW: number;
+}
