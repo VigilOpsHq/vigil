@@ -42,9 +42,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 });
 
 
-/**
- * GET /api/status - Full system snapshot
- */
+
 app.get('/api/status', async (req: Request, res: Response) => {
   try {
     const snapshot = await collect();
@@ -61,9 +59,7 @@ app.get('/api/status', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * GET /api/containers - List containers
- */
+
 app.get('/api/containers', async (req: Request, res: Response) => {
   try {
     const containers = await getContainers();
