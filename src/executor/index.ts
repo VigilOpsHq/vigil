@@ -6,11 +6,20 @@ import { error } from '../logger';
 const execAsync = promisify(exec);
 
 const ALLOWED_COMMANDS: RegExp[] = [
+  // Docker commands
   /^docker restart [a-zA-Z0-9][a-zA-Z0-9_.-]+$/,
   /^docker image prune -f$/,
   /^docker system prune -f(?: --volumes=false)?$/,
+
+  // Systemctl commands
   /^systemctl restart nginx$/,
   /^systemctl reload nginx$/,
+
+  // System update/install commands (ADD THESE)
+  /^sudo apt update$/,
+  /^sudo apt upgrade -y$/,
+  /^sudo apt install -y [a-zA-Z0-9][a-zA-Z0-9\-_.]*(?:\s+[a-zA-Z0-9][a-zA-Z0-9\-_.]*)*$/,
+  /^sudo apt remove -y [a-zA-Z0-9][a-zA-Z0-9\-_.]*$/,
 ];
 
 export function isSafeCommand(command: string): boolean {
