@@ -6,11 +6,15 @@
   "scripts": {
     "dev": "ts-node src/index.ts",
     "dev:mcp": "ts-node src/mcp/index.ts",
+    "dev:cli": "ts-node src/cli/index.ts",
+    "dev:api": "ts-node src/api/server.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "start:mcp": "node dist/mcp/index.js",
     "start:mcp:http": "MCP_MODE=http node dist/mcp/index.js",
     "start:mcp:stdio": "MCP_MODE=stdio node dist/mcp/index.js",
+    "start:cli": "node dist/cli/index.js",
+    "start:api": "node dist/api/server.js",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
