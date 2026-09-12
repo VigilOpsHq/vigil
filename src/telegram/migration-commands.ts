@@ -29,6 +29,7 @@ export function setupMigrationCommands(): void {
   // ===== /migrate =====
   bot.onText(/\/migrate(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
+    if (!match) return;
     const args = match[1]?.trim();
 
     if (!args) {
@@ -306,6 +307,7 @@ export function setupMigrationCommands(): void {
   // ===== /migration_history =====
   bot.onText(/\/migration_history(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
+    if (!match) return;
     const migrationId = match[1]?.trim();
 
     if (!migrationId) {
