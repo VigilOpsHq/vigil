@@ -53,7 +53,7 @@ export function registerMigrationTools(server: McpServer): void {
         name,
         source: { type: source as any },
         target: { type: 'contabo', ip: target_ip, sshKey: target_ssh_key },
-        apps,
+        apps: apps.map((a) => ({ ...a, sourceId: a.source_id })),
       };
 
       const plan = await createMigrationPlan(config);
