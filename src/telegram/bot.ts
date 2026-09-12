@@ -2,6 +2,7 @@ import TelegramBot from 'node-telegram-bot-api';
 import { PendingApproval, SystemSnapshot } from '../types';
 import { execute, isSafeCommand } from '../executor';
 import { log, error, info } from '../logger';
+import { setupMigrationCommands } from './migration-commands';
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? '';
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID ?? '';
@@ -247,5 +248,8 @@ bot.on('callback_query', async (query) => {
     await denyApproval(id);
   }
 });
+
+// Register migration commands
+setupMigrationCommands();
 
 info('Telegram bot is listening for commands...');
