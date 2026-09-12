@@ -4,6 +4,7 @@ import axios from 'axios';
 import {
   SystemSnapshot, ContainerStatus, DiskStatus,
   MemoryStatus, NginxStatus, HealthCheckResult,
+  ContainerLogs, GpuStatus, GpuInfo,
 } from '../types';
 import { error } from '../logger';
 
@@ -15,7 +16,7 @@ const HEALTH_CHECK_URLS: string[] = (process.env.HEALTH_CHECK_URLS ?? '')
 const EXCLUDED_CONTAINERS: string[] = (process.env.EXCLUDED_CONTAINERS ?? '')
   .split(',').map((c) => c.trim()).filter(Boolean);
 
-async function getContainers(): Promise<ContainerStatus[]> {
+export async function getContainers(): Promise<ContainerStatus[]> {
   try {
     const { stdout } = await execAsync(
       `docker ps -a --format '{"id":"{{.ID}}","name":"{{.Names}}","state":"{{.State}}","status":"{{.Status}}","runningFor":"{{.RunningFor}}"}'`
@@ -29,7 +30,19 @@ async function getContainers(): Promise<ContainerStatus[]> {
   }
 }
 
-async function getDisk(): Promise<DiskStatus> {
+export async function getContainerLogs(name: string, lines: number = 100): Promise<ContainerLogs> {
+  try {
+    const { stdout } = await execAsync(
+      `docker logs --tail ${lines} ${name} 2>&1`
+    );
+    return { name, logs: stdout.trim() };
+  } catch (err) {
+    error(`Failed to fetch logs for container: ${name}`, err);
+    return { name, logs: `Error fetching logs: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+export async function getDisk(): Promise<DiskStatus> {
   try {
     const { stdout } = await execAsync(`df -h / | tail -1`);
     const parts = stdout.trim().split(/\s+/);
@@ -45,7 +58,7 @@ async function getDisk(): Promise<DiskStatus> {
   }
 }
 
-async function getMemory(): Promise<MemoryStatus> {
+export async function getMemory(): Promise<MemoryStatus> {
   try {
     const { stdout } = await execAsync(`free -m | grep Mem`);
     const parts = stdout.trim().split(/\s+/);
@@ -62,7 +75,7 @@ async function getMemory(): Promise<MemoryStatus> {
   }
 }
 
-async function getNginx(): Promise<NginxStatus> {
+export async function getNginx(): Promise<NginxStatus> {
   if (process.platform !== 'linux') return { running: true };
   try {
     await axios.get('http://localhost', { timeout: 2000 });
@@ -91,8 +104,32 @@ async function checkHealth(url: string): Promise<HealthCheckResult> {
   }
 }
 
-async function getHealthChecks(): Promise<HealthCheckResult[]> {
+export async function getHealthChecks(): Promise<HealthCheckResult[]> {
   return Promise.all(HEALTH_CHECK_URLS.map(checkHealth));
+}
+
+export async function getGpuStatus(): Promise<GpuStatus> {
+  if (process.platform !== 'linux') return { available: false, gpus: [] };
+  try {
+    const { stdout } = await execAsync(
+      `nvidia-smi --query-gpu=index,name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw --format=csv,noheader,nounits`
+    );
+    const gpus: GpuInfo[] = stdout.trim().split('\n').filter(Boolean).map((line) => {
+      const parts = line.split(',').map((s) => s.trim());
+      return {
+        index: parseInt(parts[0] ?? '0', 10),
+        name: parts[1] ?? 'unknown',
+        utilizationPercent: parseInt(parts[2] ?? '0', 10),
+        memoryUsedMb: parseInt(parts[3] ?? '0', 10),
+        memoryTotalMb: parseInt(parts[4] ?? '0', 10),
+        temperatureC: parseInt(parts[5] ?? '0', 10),
+        powerW: parseFloat(parts[6] ?? '0'),
+      };
+    });
+    return { available: true, gpus };
+  } catch {
+    return { available: false, gpus: [] };
+  }
 }
 
 export async function collect(): Promise<SystemSnapshot> {
