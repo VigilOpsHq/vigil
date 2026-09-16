@@ -137,7 +137,7 @@ async function start(): Promise<void> {
   startWebhookServer();
   startBackupScheduler();
 
-  await notify(`🟢 *Vigil ${currentVersion()} started* — I am watching your server.`);
+  await notify(`🟢 *VigilOps ${currentVersion()} started* — I am watching your server.`);
 
   await loop();
 
@@ -146,7 +146,7 @@ async function start(): Promise<void> {
   const shutdown = async (signal: string) => {
     info(`${signal} received — shutting down`);
     clearInterval(interval);
-    await notify('🔴 *Vigil stopped* — shutting down gracefully.');
+    await notify('🔴 *VigilOps stopped* — shutting down gracefully.');
     process.exit(0);
   };
 
