@@ -6,6 +6,7 @@ import { execute } from './executor';
 import { notify, requestApproval } from './telegram/bot';
 import { startWebhookServer } from './webhook/server';
 import { startBackupScheduler } from './backup/schedule';
+import { currentVersion } from './update';
 import { log, info, error } from './logger';
 import { RestartHistory, AIDecision, SystemSnapshot } from './types';
 import crypto from 'crypto';
@@ -136,7 +137,7 @@ async function start(): Promise<void> {
   startWebhookServer();
   startBackupScheduler();
 
-  await notify('🟢 *Vigil started* — I am watching your server.');
+  await notify(`🟢 *Vigil ${currentVersion()} started* — I am watching your server.`);
 
   await loop();
 
