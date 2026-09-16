@@ -2,7 +2,7 @@
 
 **Self-hosted AI DevOps agent for your VPS.**
 
-Vigil watches your Docker containers, disk, memory, nginx, and HTTP endpoints. It fixes known issues automatically, escalates unknown ones to Gemini AI, and keeps you in the loop via Telegram.
+Vigil watches your Docker containers, disk, memory, nginx, and HTTP endpoints. It fixes known issues automatically, escalates unknown ones to DeepSeek AI, and keeps you in the loop via Telegram.
 
 ---
 
@@ -12,13 +12,21 @@ Vigil watches your Docker containers, disk, memory, nginx, and HTTP endpoints. I
 Every 60s:
   1. Collect snapshot — Docker, disk, memory, nginx, HTTP health checks
   2. Rule engine runs first — known issue? fix it immediately, no AI call
-   3. Unknown anomaly? — escalate to Gemini AI
+  3. Unknown anomaly? — escalate to DeepSeek AI
   4. AI decides: auto-fix, suggest (needs your approval), or alert
   5. Everything logged to logs/audit.jsonl
   6. You get notified on Telegram for anything non-trivial
 ```
 
-The AI is only called on escalation — roughly 5% of polls. The other 95% is handled by the rule engine at zero cost.
+The AI is only called on escalation — roughly 5% of polls. The other 95% is handled by the rule engine at near-zero cost.
+
+## Access Methods
+
+Once deployed, control Vigil via:
+
+- **Telegram** — `/status`, `/restart <app>`, `/deploy <app>` from your phone
+- **CLI** — `vigil status`, `vigil restart api`, `vigil logs redis` on the VPS
+- **HTTP API** — `curl http://localhost:3200/api/status` for automation & scripts
 
 ---
 
@@ -38,9 +46,9 @@ The AI is only called on escalation — roughly 5% of polls. The other 95% is ha
 ## Requirements
 
 - Linux VPS (Ubuntu 20.04+)
-- Docker + Docker Compose
-- Node.js 20+ (for local dev) or just Docker (for production)
-- [Gemini API key](https://aistudio.google.com/apikey) — usage is minimal, typically free tier suffices
+- Docker + Docker Compose (installation steps provided below)
+- Node.js 20+ (for CLI commands, installation steps provided below)
+- [DeepSeek API key](https://platform.deepseek.com) — free tier available with generous limits
 - Telegram bot token — create one via [@BotFather](https://t.me/botfather)
 
 ---
@@ -57,13 +65,20 @@ cp .env.example .env
 Fill in `.env`:
 
 ```env
-GEMINI_API_KEY=AIza...
+# AI Backend (DeepSeek)
+DEEPSEEK_API_KEY=sk-...
+DEEPSEEK_MODEL=deepseek-chat
+
+# Telegram notifications
 TELEGRAM_BOT_TOKEN=7123456789:AAF...
 TELEGRAM_CHAT_ID=123456789
+
+# Health checks (optional)
 HEALTH_CHECK_URLS=https://yourapp.com/health
-VIGIL_WEBHOOK_SECRET=your-random-secret
-# Optional: map health check URLs to Docker containers for auto-restart
 # HEALTH_CHECK_CONTAINER_MAP=https://api.example.com/health:my-api,https://app.example.com/health:my-app
+
+# Webhook security (optional)
+VIGIL_WEBHOOK_SECRET=your-random-secret
 ```
 
 Run locally:
@@ -78,14 +93,57 @@ Vigil sends a Telegram message on startup. Send `/status` to verify everything i
 
 ## Deploy to VPS
 
-```bash
-# On your VPS
-git clone https://github.com/yourorg/vigilops /opt/vigil
-cd /opt/vigil
-cp .env.example .env && nano .env
+### Prerequisites (run once)
 
+```bash
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Install Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+
+# Install Node.js (for CLI commands)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Verify installations
+docker --version
+docker-compose --version
+node --version
+npm --version
+```
+
+### Deploy Vigil
+
+```bash
+# Clone repository
+git clone https://github.com/VigilOpsHq/vigil /opt/vigil
+cd /opt/vigil
+
+# Install dependencies & build
+npm install
+npm run build
+
+# Configure environment
+cp .env.example .env
+nano .env
+# Add: DEEPSEEK_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, etc.
+
+# Create CLI command (optional but recommended)
+sudo bash -c 'cat > /usr/local/bin/vigil << "EOF"
+#!/bin/bash
+node /opt/vigil/dist/cli/index.js "$@"
+EOF'
+sudo chmod +x /usr/local/bin/vigil
+
+# Start Vigil
 docker compose up -d --build
 docker compose logs -f
+
+# Test
+vigil status
 ```
 
 ### Nginx config (optional — for the webhook endpoint)
@@ -105,6 +163,82 @@ server {
     }
 }
 ```
+
+---
+
+## Database Backups
+
+Vigil can automatically backup your MySQL, PostgreSQL, and MongoDB databases with Telegram notifications.
+
+### Setup
+
+Create backup configurations in `src/backup/backup.config.ts`:
+
+```typescript
+import { BackupConfig } from '../backup/backup.types';
+
+const backupConfigs: BackupConfig[] = [
+  {
+    id: 'mysql_prod',
+    name: 'Production MySQL',
+    type: 'mysql',
+    container: 'mysql',
+    database: 'myapp_prod',
+    schedule: '0 2 * * *', // daily at 2am
+    retentionDays: 30,
+    enabled: true,
+  },
+  {
+    id: 'postgres_dev',
+    name: 'Development PostgreSQL',
+    type: 'postgres',
+    container: 'postgres_dev',
+    database: 'dev_db',
+    schedule: '0 6 * * *', // daily at 6am
+    retentionDays: 7,
+    enabled: true,
+  },
+  {
+    id: 'mongodb_analytics',
+    name: 'Analytics MongoDB',
+    type: 'mongodb',
+    container: 'mongodb',
+    database: 'analytics',
+    retentionDays: 60,
+    enabled: false, // manual backups only
+  },
+];
+
+export default backupConfigs;
+```
+
+Then in your startup code (e.g., `src/index.ts`):
+
+```typescript
+import backupConfigs from './backup/backup.config';
+import { scheduleBackups } from './backup/scheduler';
+import { registerBackupConfig } from './backup/backup-commands';
+
+// Load configurations
+backupConfigs.forEach(config => registerBackupConfig(config));
+
+// Schedule automatic backups
+scheduleBackups(backupConfigs);
+```
+
+### Features
+
+- **Manual backups** — Trigger anytime via `/trigger_backup <id>`
+- **Scheduled backups** — Automatic backups on cron schedule
+- **Retention policy** — Automatically deletes backups older than `retentionDays`
+- **Telegram notifications** — Get alerted on backup success/failure
+- **Database support** — MySQL (mysqldump), PostgreSQL (pg_dump), MongoDB (mongodump)
+- **Compressed storage** — Backups stored as gzip for space efficiency
+- **Restore capability** — Restore from any backup via `/restore_backup`
+
+### Backup storage
+
+Backups are stored in `./backups/<config_id>/<backup_id>.sql.gz` by default.
 
 ---
 
@@ -146,6 +280,8 @@ Vigil pulls the new image, restarts the container, waits for the health check to
 
 ## Telegram commands
 
+### System & Deployment
+
 | Command | Description |
 |---|---|
 | `/status` | Full system snapshot — containers, disk, memory, nginx, health checks |
@@ -154,6 +290,22 @@ Vigil pulls the new image, restarts the container, waits for the health check to
 | `/approve_<id>` | Approve a pending suggested action |
 | `/deny_<id>` | Deny a pending suggested action |
 | `/help` | Show all commands |
+
+### Database Backups
+
+| Command | Description |
+|---|---|
+| `/backup_status` | Show all backup configurations and recent backups |
+| `/trigger_backup <id>` | Manually trigger a backup now |
+| `/schedule_backup <id> <cron>` | Setup automatic backup scheduling |
+| `/backup_history <id>` | View backup history and file sizes |
+| `/restore_backup <id> <filename>` | Restore from a backup |
+
+**Backup cron examples:**
+- `0 2 * * *` — Daily at 2:00 AM
+- `0 */6 * * *` — Every 6 hours
+- `0 1 * * 0` — Weekly on Sunday at 1:00 AM
+- `0 0 1 * *` — Monthly on the 1st at midnight
 
 ---
 

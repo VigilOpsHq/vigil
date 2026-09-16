@@ -3,6 +3,7 @@ import { PendingApproval, SystemSnapshot } from '../types';
 import { execute, isSafeCommand } from '../executor';
 import { log, error, info } from '../logger';
 import { setupMigrationCommands } from './migration-commands';
+import { setupBackupCommands } from '../backup/backup-commands';
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? '';
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID ?? '';
@@ -251,5 +252,8 @@ bot.on('callback_query', async (query) => {
 
 // Register migration commands
 setupMigrationCommands();
+
+// Register backup commands
+setupBackupCommands(bot);
 
 info('Telegram bot is listening for commands...');
