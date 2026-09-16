@@ -7,6 +7,9 @@ import { collect, getContainers, getContainerLogs, getDisk, getMemory, getNginx,
 import { execute, isSafeCommand } from '../executor';
 import { deploy, listApps } from '../deploy/deployer';
 import { info, error } from '../logger';
+import readline from 'readline';
+import { BACKUP_DIR, backupAndNotify, detectDatabase, formatSize, listBackups, parseBackupFile, restore } from '../backup/engine';
+import { describeSchedule, loadSchedules, removeSchedule, setSchedule } from '../backup/schedule';
 
 export interface CLICommand {
   name: string;
@@ -275,6 +278,103 @@ export const deployCommand: CLICommand = {
   },
 };
 
+export const backupCommand: CLICommand = {
+  name: 'backup',
+  description: 'Back up a database container, or manage backup schedules',
+  usage: 'vigil backup <container> [database]',
+  handler: async (args) => {
+    const [first, ...rest] = args;
+
+    if (first === 'schedules') {
+      const schedules = loadSchedules();
+      console.log('\n🗓  BACKUP SCHEDULES\n');
+      if (schedules.length === 0) console.log('   (none) — add one: vigil backup schedule <container> daily 02:00');
+      schedules.forEach((s) => console.log(`   • ${s.container.padEnd(30)} ${describeSchedule(s)}`));
+      console.log('');
+      return;
+    }
+
+    if (first === 'schedule') {
+      const [container, ...spec] = rest;
+      if (!container || spec.length === 0) {
+        console.error('❌ Usage: vigil backup schedule <container> hourly | daily [HH:MM] | weekly [day] [HH:MM]');
+        process.exit(1);
+      }
+      await detectDatabase(container);
+      const s = setSchedule(container, spec);
+      console.log(`\n🗓  ${container} will be backed up ${describeSchedule(s)} (server time)\n`);
+      return;
+    }
+
+    if (first === 'unschedule') {
+      if (!rest[0]) {
+        console.error('❌ Usage: vigil backup unschedule <container>');
+        process.exit(1);
+      }
+      console.log(removeSchedule(rest[0]) ? `\n🗓  Schedule removed for ${rest[0]}\n` : `\n${rest[0]} had no schedule\n`);
+      return;
+    }
+
+    if (!first) {
+      console.error('❌ Usage: vigil backup <container> [database]');
+      console.error('   Example: vigil backup songdis-postgres');
+      process.exit(1);
+    }
+
+    console.log(`\n⏳ Backing up ${first}...`);
+    const r = await backupAndNotify(first, rest[0]);
+    console.log(`✅ Saved ${r.path} (${formatSize(r.sizeBytes)}, ${Math.round(r.durationMs / 1000)}s)`);
+    console.log(`   Copies: server disk${r.offsite.length ? ', ' + r.offsite.join(', ') : ' only'}\n`);
+  },
+};
+
+export const backupsCommand: CLICommand = {
+  name: 'backups',
+  description: 'List backups stored on this server',
+  usage: 'vigil backups [container]',
+  handler: async (args) => {
+    const files = listBackups(args[0]);
+    console.log(`\n🗄  BACKUPS in ${BACKUP_DIR}\n`);
+    if (files.length === 0) console.log('   (none)');
+    files.forEach((b) => console.log(`   ${b.file}\n      ${formatSize(b.sizeBytes)} — ${b.createdAt.toLocaleString()}`));
+    console.log('');
+  },
+};
+
+export const restoreCommand: CLICommand = {
+  name: 'restore',
+  description: 'Restore a database from a backup file',
+  usage: 'vigil restore <file> [container] [--yes]',
+  handler: async (args) => {
+    const yes = args.includes('--yes');
+    const [file, container] = args.filter((a) => a !== '--yes');
+    if (!file) {
+      console.error('❌ Usage: vigil restore <file> [container] [--yes]');
+      console.error('   See files: vigil backups');
+      process.exit(1);
+    }
+
+    const parsed = parseBackupFile(file);
+    const target = container ?? parsed.container;
+
+    if (!yes) {
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      const answer = await new Promise<string>((resolve) =>
+        rl.question(`⚠️  This will OVERWRITE database "${parsed.database}" in ${target}. Type "yes" to continue: `, resolve)
+      );
+      rl.close();
+      if (answer.trim().toLowerCase() !== 'yes') {
+        console.log('Cancelled.');
+        return;
+      }
+    }
+
+    console.log(`\n⏳ Taking a safety backup, then restoring ${file} into ${target}...`);
+    const { safetyBackup } = await restore(file, container);
+    console.log(`✅ Restore complete. Previous data saved as ${safetyBackup}\n`);
+  },
+};
+
 /**
  * help - Show help
  */
@@ -301,6 +401,14 @@ COMMANDS:
   deploy <app>        Deploy an app
   help                Show this help
 
+BACKUPS:
+  backup <container> [db]                 Back up a database now
+  backups [container]                     List backups on this server
+  restore <file> [container] [--yes]      Restore a backup (safety backup taken first)
+  backup schedule <container> daily 02:00 Schedule backups (hourly | daily | weekly sun 03:00)
+  backup unschedule <container>           Remove a schedule
+  backup schedules                        List schedules
+
 EXAMPLES:
   vigil status
   vigil restart api
@@ -324,6 +432,9 @@ export const commands: CLICommand[] = [
   healthCommand,
   appsCommand,
   deployCommand,
+  backupCommand,
+  backupsCommand,
+  restoreCommand,
   helpCommand,
 ];
 

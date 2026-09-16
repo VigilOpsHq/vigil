@@ -5,6 +5,7 @@ import { escalate } from './ai/brain';
 import { execute } from './executor';
 import { notify, requestApproval } from './telegram/bot';
 import { startWebhookServer } from './webhook/server';
+import { startBackupScheduler } from './backup/schedule';
 import { log, info, error } from './logger';
 import { RestartHistory, AIDecision, SystemSnapshot } from './types';
 import crypto from 'crypto';
@@ -133,6 +134,7 @@ async function start(): Promise<void> {
   info(`🟢 Vigil is watching — polling every ${POLL_SECONDS}s`);
 
   startWebhookServer();
+  startBackupScheduler();
 
   await notify('🟢 *Vigil started* — I am watching your server.');
 
