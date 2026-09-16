@@ -13,7 +13,6 @@ VigilOps reads its settings from `/opt/vigil/.env`. After changing it, restart w
 |---|---|
 | `TELEGRAM_BOT_TOKEN` | Bot token from [@BotFather](https://t.me/botfather). Use a different bot on each server |
 | `TELEGRAM_CHAT_ID` | The chat VigilOps reports to and accepts commands from. See [Install](/docs/install/) for how to find it |
-| `VIGIL_WEBHOOK_SECRET` | Secret for the deploy webhook. Generate with `openssl rand -hex 32` |
 
 ## AI
 
@@ -61,6 +60,7 @@ VigilOps reads its settings from `/opt/vigil/.env`. After changing it, restart w
 
 | Variable | Default | Description |
 |---|---|---|
+| `VIGIL_WEBHOOK_SECRET` | — | Enables the deploy webhook and is the token CI must send. Generate with `openssl rand -hex 32`. Without it, `/webhook/*` returns 503 |
 | `WEBHOOK_PORT` | `3100` | Port for `/health` and the deploy webhook |
 | `MCP_MODE` | `stdio` | MCP server mode when started: `stdio`, `http` or `both` |
 | `MCP_PORT` | `3200` | Port for MCP HTTP mode |

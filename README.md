@@ -25,7 +25,7 @@ On an Ubuntu or Debian server:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/VigilOpsHq/vigil/main/install.sh | sudo sh
-sudo nano /opt/vigil/.env      # Telegram bot token, chat ID, webhook secret, DeepSeek key
+sudo nano /opt/vigil/.env      # Telegram bot token, chat ID, DeepSeek key
 vigil start
 ```
 

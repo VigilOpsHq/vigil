@@ -9,12 +9,12 @@ app.use(express.json());
 const WEBHOOK_SECRET = process.env.VIGIL_WEBHOOK_SECRET ?? '';
 const PORT = parseInt(process.env.WEBHOOK_PORT ?? '3100', 10);
 
-if (!WEBHOOK_SECRET) {
-  throw new Error('VIGIL_WEBHOOK_SECRET must be set in .env');
-}
-
-
 function authenticate(req: Request, res: Response, next: NextFunction): void {
+  if (!WEBHOOK_SECRET) {
+    res.status(503).json({ error: 'Deploy webhook is disabled. Set VIGIL_WEBHOOK_SECRET in .env to enable it.' });
+    return;
+  }
+
   const token = req.headers['x-vigil-token'];
 
   if (!token || token !== WEBHOOK_SECRET) {
