@@ -140,12 +140,27 @@ EOF'
 sudo chmod +x /usr/local/bin/vigil
 
 # Start Vigil
-docker compose up -d --build
-docker compose logs -f
+docker-compose up -d --build
+docker-compose logs -f
 
 # Test
 vigil status
 ```
+
+### Updating Vigil
+
+Vigil has two parts that both need updating: the `vigil` command (runs on the host from `/opt/vigil/dist`) and the background service (runs in the `vigil` container).
+
+```bash
+cd /opt/vigil
+git pull
+npm install
+npm run build                 # updates the vigil command
+docker-compose up -d --build  # updates the background service
+docker-compose logs --tail 30 vigil
+```
+
+If you only rebuild one of them, they can get out of sync. For example, a schedule set with `vigil backup schedule` never runs if the container is still on an older version.
 
 ### Nginx config (optional — for the webhook endpoint)
 
@@ -210,6 +225,39 @@ Local backups older than `BACKUP_KEEP_DAYS` (default 7) are deleted automaticall
 | `vigil backup schedule <container> <when>` | `/backup_schedule <container> <when>` | Back up automatically |
 | `vigil backup unschedule <container>` | `/backup_schedule <container> off` | Stop scheduled backups |
 | `vigil backup schedules` | `/backup_schedules` | List schedules |
+
+### First-time setup checklist
+
+After installing or updating Vigil, run through this once per server:
+
+```bash
+# 1. The background service has the backup scheduler
+docker-compose logs vigil | grep "Scheduler started"
+
+# 2. The container can see the backup folder (should print [] or your schedules)
+docker exec vigil cat /var/backups/vigil/schedules.json
+
+# 3. A real backup works; you should also get a Telegram message
+vigil backup <your-db-container>
+vigil backups
+
+# 4. Schedule it
+vigil backup schedule <your-db-container> daily 02:00
+
+# 5. Check the server's clock, since schedules use server time
+date
+```
+
+If step 1 prints nothing or step 2 says "No such file", the container is on an older version. Run `docker-compose up -d --build`.
+
+### Time zone
+
+Schedule times follow the server's clock, and many VPS images default to UTC. To run schedules in your local time:
+
+```bash
+sudo timedatectl set-timezone Africa/Lagos   # list options: timedatectl list-timezones
+docker-compose restart vigil
+```
 
 `<when>` is one of:
 
