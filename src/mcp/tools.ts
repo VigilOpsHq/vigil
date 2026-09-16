@@ -309,8 +309,9 @@ export function registerTools(server: McpServer): void {
     async ({ message }) => {
       info(`[mcp] notify: ${message}`);
       try {
-        const { notify } = await import('../telegram/bot');
-        await notify(`📡 *MCP*: ${message}`);
+        // Not telegram/bot: importing it starts a second poller that conflicts with the running service
+        const { notifyText } = await import('../backup/offsite');
+        await notifyText(`📡 MCP: ${message}`);
         return { content: [{ type: 'text', text: 'Notification sent.' }] };
       } catch (err) {
         return { content: [{ type: 'text', text: `Failed to send notification: ${err instanceof Error ? err.message : String(err)}` }] };

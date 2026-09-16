@@ -382,7 +382,7 @@ export const versionCommand: CLICommand = {
   usage: 'vigil version',
   handler: async () => {
     const current = currentVersion();
-    console.log(`\nVigil ${current}`);
+    console.log(`\nVigilOps ${current}`);
     try {
       const latest = await latestRelease();
       console.log(

@@ -88,7 +88,11 @@ async function startHttp(): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  info(`Vigil MCP Server starting (mode: ${MCP_MODE})`);
+  if (MCP_MODE === 'stdio' || MCP_MODE === 'both') {
+    // stdout carries the MCP protocol in stdio mode; log lines there would corrupt it
+    console.log = console.error;
+  }
+  info(`VigilOps MCP Server starting (mode: ${MCP_MODE})`);
 
   if (MCP_MODE === 'http' || MCP_MODE === 'both') {
     await startHttp();

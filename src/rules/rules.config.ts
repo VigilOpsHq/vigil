@@ -12,8 +12,9 @@ const HEALTH_CHECK_CONTAINER_MAP = Object.fromEntries(
   (process.env.HEALTH_CHECK_CONTAINER_MAP ?? '')
     .split(',').map((pair) => pair.trim()).filter(Boolean)
     .map((pair) => {
-      const [url, container] = pair.split(':').map((s) => s.trim());
-      return [url, container];
+      // Split on the last colon: the URL itself contains "https:"
+      const i = pair.lastIndexOf(':');
+      return [pair.slice(0, i).trim(), pair.slice(i + 1).trim()];
     })
 );
 

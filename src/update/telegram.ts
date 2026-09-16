@@ -13,7 +13,7 @@ export function setupUpdateCommands(bot: TelegramBot): void {
   const offerUpdate = (release: ReleaseInfo, current: string) =>
     bot.sendMessage(
       CHAT_ID,
-      `⬆️ Vigil ${release.version} is available (running ${current}).\n\n` +
+      `⬆️ VigilOps ${release.version} is available (running ${current}).\n\n` +
         `${release.notes.slice(0, 1500)}\n\nRelease notes: ${release.url}`,
       { reply_markup: { inline_keyboard: [[{ text: `⬆️ Update to ${release.version}`, callback_data: 'vigil-update' }]] } }
     ).then(() => undefined);
@@ -24,16 +24,16 @@ export function setupUpdateCommands(bot: TelegramBot): void {
     try {
       const latest = await latestRelease();
       if (isNewer(latest.version, current)) return offerUpdate(latest, current);
-      await reply(`✅ Vigil ${current} — up to date.`);
+      await reply(`✅ VigilOps ${current} — up to date.`);
     } catch (err) {
-      await reply(`Vigil ${current} (couldn't check for updates: ${errMsg(err)})`);
+      await reply(`VigilOps ${current} (couldn't check for updates: ${errMsg(err)})`);
     }
   });
 
   const runUpdate = async () => {
     try {
       await startSelfUpdate();
-      await reply('⏳ Updating Vigil — it will restart in a moment and say hello when it is back.');
+      await reply('⏳ Updating VigilOps — it will restart in a moment and say hello when it is back.');
     } catch (err) {
       await reply(`❌ Update failed to start: ${errMsg(err)}\nOn the server run: vigil update`);
     }
