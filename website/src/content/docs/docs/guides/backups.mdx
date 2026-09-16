@@ -13,13 +13,33 @@ vigil backup myapp-postgres
 
 ## Supported databases
 
-| Database | Detected from image name | User and database taken from | Tool used |
-|---|---|---|---|
-| PostgreSQL (incl. PostGIS, TimescaleDB) | `postgres`, `postgis`, `timescale` | `POSTGRES_USER` (default `postgres`), `POSTGRES_DB` (default: the user) | `pg_dump` |
-| MySQL / MariaDB | `mysql`, `mariadb` | root with `MYSQL_ROOT_PASSWORD` / `MARIADB_ROOT_PASSWORD`, database from `MYSQL_DATABASE` / `MARIADB_DATABASE` | `mysqldump` / `mariadb-dump` |
-| MongoDB | `mongo` | `MONGO_INITDB_ROOT_USERNAME` / `_PASSWORD`, database from `MONGO_INITDB_DATABASE` (default: all databases) | `mongodump` |
+VigilOps recognises the database from the container's image name, then reads the login details from the container's environment variables. The dump tools run **inside** your database container, so their versions always match your database.
 
-The dump tools run **inside** your database container, so their versions always match your database.
+### PostgreSQL
+
+Includes PostGIS and TimescaleDB. Backed up with `pg_dump`.
+
+- **Recognised images:** anything with `postgres`, `postgis` or `timescale` in the name
+- **User:** `POSTGRES_USER`, or `postgres` if it isn't set
+- **Database:** `POSTGRES_DB`, or the user name if it isn't set
+
+### MySQL and MariaDB
+
+Backed up with `mysqldump` (or `mariadb-dump` on newer MariaDB images).
+
+- **Recognised images:** anything with `mysql` or `mariadb` in the name
+- **User:** `root`, with the password from `MYSQL_ROOT_PASSWORD` or `MARIADB_ROOT_PASSWORD`
+- **Database:** `MYSQL_DATABASE` or `MARIADB_DATABASE`. If neither is set, pass the name yourself (see below)
+
+### MongoDB
+
+Backed up with `mongodump`.
+
+- **Recognised images:** anything with `mongo` in the name
+- **User:** `MONGO_INITDB_ROOT_USERNAME` and `MONGO_INITDB_ROOT_PASSWORD`, if set
+- **Database:** `MONGO_INITDB_DATABASE`, or all databases if it isn't set
+
+### Naming the database yourself
 
 If the container has several databases, or the database name isn't in its environment, name it:
 

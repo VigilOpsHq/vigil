@@ -2,7 +2,6 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
 export default defineConfig({
-  devToolbar: { enabled: false },
   integrations: [
     starlight({
       title: 'VigilOps',
