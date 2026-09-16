@@ -1,0 +1,62 @@
+---
+title: What is VigilOps?
+description: VigilOps is a self-hosted ops agent that watches your Docker server, fixes common problems, backs up databases and keeps you informed on Telegram.
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+VigilOps is an **ops agent that lives on your server**. It runs as one Docker container next to your apps and handles the day-to-day work of keeping a server healthy:
+
+- **Watches** your containers, disk, memory and health-check URLs every minute
+- **Fixes** known problems on its own, like restarting a stopped container or clearing old Docker images when the disk fills up
+- **Backs up** your Postgres, MySQL and MongoDB databases, on demand or on a schedule
+- **Asks you** on Telegram before doing anything risky, and tells you what it did
+- **Deploys** your apps with a health check and automatic rollback
+
+You control it with the `vigil` command on the server, or from your phone through a Telegram bot.
+
+```bash
+vigil status
+vigil backup my-postgres
+vigil backup schedule my-postgres daily 02:00
+```
+
+## How VigilOps is different
+
+Tools like Terraform and Ansible **build and configure** infrastructure: you describe what a server should look like, and they make it so. VigilOps does the other half, **running** servers that already exist.
+
+| | Terraform / Ansible | VigilOps |
+|---|---|---|
+| Job | Create and configure servers | Keep running servers healthy |
+| When it runs | When you apply a change | All the time, every minute |
+| You write | Configuration files and playbooks | Nothing. It inspects what's already running |
+| Typical task | "Install Postgres on 10 servers" | "Postgres stopped at 3am, so restart it, then tell me" |
+
+They work well together: provision with Terraform or Ansible, then let VigilOps look after the server.
+
+## How it works
+
+Every minute (configurable), VigilOps:
+
+1. **Collects a snapshot:** container states, disk, memory, whether port 80 answers, and your health-check URLs.
+2. **Checks built-in rules.** Known problems with a safe fix, like a stopped container or a full disk, are fixed right away.
+3. **Escalates anything unusual to AI** (DeepSeek). The AI proposes a fix, a suggestion that needs your approval, or an alert.
+4. **Runs only allowlisted commands.** Anything outside a short list of safe commands is blocked, including AI suggestions.
+5. **Logs every action** to an audit log and reports anything important on Telegram.
+
+Backups, deploys and updates run whenever you ask for them, or on a schedule.
+
+## Is VigilOps for me?
+
+VigilOps is a good fit if you:
+
+- run apps with Docker or Docker Compose on one or a few Linux servers (a VPS from Contabo, Hetzner, DigitalOcean, AWS and so on)
+- don't have a dedicated ops team watching those servers
+- want backups and basic self-healing without assembling a monitoring stack
+
+It isn't meant to replace Kubernetes, a full observability platform like Prometheus + Grafana, or configuration management.
+
+<CardGrid>
+  <LinkCard title="Install VigilOps" description="One command on your server." href="/docs/install/" />
+  <LinkCard title="First steps" description="Check the server, take your first backup." href="/docs/first-steps/" />
+</CardGrid>

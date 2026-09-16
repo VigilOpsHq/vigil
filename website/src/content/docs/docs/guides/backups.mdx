@@ -1,0 +1,128 @@
+---
+title: Database backups
+description: Back up Postgres, MySQL/MariaDB and MongoDB containers on demand or on a schedule.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+VigilOps backs up databases that run in Docker containers. There's nothing to configure per database: it reads the container's image and environment variables to work out what to do.
+
+```bash
+vigil backup myapp-postgres
+```
+
+## Supported databases
+
+| Database | Detected from image name | User and database taken from | Tool used |
+|---|---|---|---|
+| PostgreSQL (incl. PostGIS, TimescaleDB) | `postgres`, `postgis`, `timescale` | `POSTGRES_USER` (default `postgres`), `POSTGRES_DB` (default: the user) | `pg_dump` |
+| MySQL / MariaDB | `mysql`, `mariadb` | root with `MYSQL_ROOT_PASSWORD` / `MARIADB_ROOT_PASSWORD`, database from `MYSQL_DATABASE` / `MARIADB_DATABASE` | `mysqldump` / `mariadb-dump` |
+| MongoDB | `mongo` | `MONGO_INITDB_ROOT_USERNAME` / `_PASSWORD`, database from `MONGO_INITDB_DATABASE` (default: all databases) | `mongodump` |
+
+The dump tools run **inside** your database container, so their versions always match your database.
+
+If the container has several databases, or the database name isn't in its environment, name it:
+
+```bash
+vigil backup myapp-mysql shop
+```
+
+## Back up now
+
+```bash
+vigil backup <container> [database]
+```
+
+From Telegram: `/backup <container> [database]`.
+
+Postgres and MySQL backups are plain SQL, compressed with gzip. MongoDB backups are `mongodump` archives. Postgres dumps include `DROP ... IF EXISTS` statements, so they restore cleanly over an existing database.
+
+## Schedule backups
+
+```bash
+vigil backup schedule myapp-postgres daily 02:00
+vigil backup schedule myapp-postgres hourly
+vigil backup schedule myapp-postgres weekly sun 03:00
+```
+
+| Schedule | Runs |
+|---|---|
+| `hourly` | Every hour, on the hour |
+| `daily HH:MM` | Every day at that time (default `02:00`) |
+| `weekly <day> HH:MM` | Once a week. Days: `sun`, `mon`, `tue`, `wed`, `thu`, `fri`, `sat` |
+
+A container has one schedule. Setting a new one replaces the old one.
+
+```bash
+vigil backup schedules                     # list
+vigil backup unschedule myapp-postgres     # remove
+```
+
+From Telegram: `/backup_schedule myapp-postgres daily 02:00`, `/backup_schedule myapp-postgres off`, `/backup_schedules`.
+
+The VigilOps service runs scheduled backups. Schedules are saved in `/var/backups/vigil/schedules.json` and re-read every minute, so changes apply straight away. If the server is off at the scheduled time, the backup runs once as soon as VigilOps is back.
+
+### Time zone
+
+Schedules use the server's clock, and many VPS images default to UTC. Check with `date`. To use your local time:
+
+```bash
+sudo timedatectl set-timezone Africa/Lagos     # list options: timedatectl list-timezones
+docker restart vigil
+```
+
+## Notifications
+
+Every backup, manual or scheduled, sends a Telegram message:
+
+```
+✅ Backup done: myapp-postgres
+File: myapp-postgres__myapp__20260916-020000.sql.gz
+Size: 48.2 MB in 12s
+Copies: server disk, storage (myapp-backups), Telegram
+Restore: /restore myapp-postgres__myapp__20260916-020000.sql.gz
+```
+
+A failed backup sends `❌ Backup FAILED` with the error. **If you get no message at all around the scheduled time, check that VigilOps is running.**
+
+## Where backups are stored
+
+Each backup is saved in up to three places:
+
+| Copy | Location | When |
+|---|---|---|
+| Server disk | `/var/backups/vigil/` | Always |
+| Object storage | Your S3-compatible bucket | When [off-server storage](/docs/guides/offsite-storage/) is set up |
+| Telegram | Sent as a file to your chat | Files up to 50 MB (Telegram's limit for bots) |
+
+<Aside type="caution">A backup that only exists on the same server won't help if the server is lost, hacked or its disk fails. Set up [off-server storage](/docs/guides/offsite-storage/) for anything that matters.</Aside>
+
+Backup files are named:
+
+```
+<container>__<database>__<YYYYMMDD-HHMMSS>.sql.gz      # Postgres, MySQL
+<container>__<database>__<YYYYMMDD-HHMMSS>.archive.gz  # MongoDB
+```
+
+## Retention
+
+Backups on the server older than `BACKUP_KEEP_DAYS` (default `7`) are deleted after each backup. **The newest backup of each container is always kept**, however old it is.
+
+VigilOps doesn't delete copies in object storage. Set a lifecycle rule on the bucket, for example "delete objects after 30 days".
+
+## Check a backup
+
+These commands only read the file:
+
+```bash
+gunzip -t /var/backups/vigil/<file>.sql.gz && echo OK         # file is not corrupted
+zcat /var/backups/vigil/<file>.sql.gz | grep -c "CREATE TABLE" # number of tables in the backup
+```
+
+The only real proof is a test restore. See [Restoring a backup](/docs/guides/restore/#test-your-backups).
+
+## Security
+
+- Backups contain all your data. `/var/backups/vigil` is readable by root only; keep it that way.
+- Anyone in your Telegram chat can download the backups sent there. Use a private chat, or set `BACKUP_SEND_TO_TELEGRAM=false`.
+- Database passwords are read from inside the container at backup time. VigilOps never stores them.

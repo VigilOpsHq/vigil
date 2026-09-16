@@ -1,0 +1,96 @@
+---
+title: Install
+description: Install VigilOps on a Linux server with one command.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+## Requirements
+
+- A Linux server: Ubuntu 20.04+ or Debian, amd64 or arm64. Docker is installed for you if it's missing
+- Root access (`sudo`)
+- A Telegram account
+- A [DeepSeek API key](https://platform.deepseek.com). Optional, but without it unusual problems are reported without an AI diagnosis
+
+You don't need Node.js or git. VigilOps runs from a ready-built Docker image.
+
+## Install
+
+<Steps>
+
+1. **Run the installer** on your server:
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/VigilOpsHq/vigil/main/install.sh | sudo sh
+   ```
+
+   It installs Docker and the Docker Compose plugin if needed, creates `/opt/vigil` and `/var/backups/vigil`, and installs the `vigil` command.
+
+2. **Create a Telegram bot.** In Telegram, message [@BotFather](https://t.me/botfather), send `/newbot` and follow the prompts. Copy the **token** it gives you.
+
+   <Aside type="caution">Use a **different bot for each server**. If two servers share one bot token, Telegram disconnects them from each other and both log `409 Conflict` errors.</Aside>
+
+3. **Find your chat ID.** Send any message to your new bot, then open this URL in a browser (with your token filled in):
+
+   ```
+   https://api.telegram.org/bot<YOUR_TOKEN>/getUpdates
+   ```
+
+   Find `"chat":{"id":123456789` in the response. That number is your chat ID. VigilOps only answers commands from this chat.
+
+4. **Add your settings:**
+
+   ```bash
+   sudo nano /opt/vigil/.env
+   ```
+
+   Fill in at least:
+
+   ```ini
+   TELEGRAM_BOT_TOKEN=7123456789:AAF...
+   TELEGRAM_CHAT_ID=123456789
+   VIGIL_WEBHOOK_SECRET=paste-a-random-string-here
+   DEEPSEEK_API_KEY=sk-...
+   ```
+
+   Generate the webhook secret with `openssl rand -hex 32`. Every other setting is optional. See [Configuration](/docs/reference/configuration/).
+
+5. **Start VigilOps:**
+
+   ```bash
+   vigil start
+   vigil status
+   ```
+
+   Your bot sends **"🟢 VigilOps 1.x started"** on Telegram. Reply `/status` to check it answers.
+
+</Steps>
+
+## What the installer changes
+
+| Path | What it is |
+|---|---|
+| `/opt/vigil/docker-compose.yml` | Runs the `ghcr.io/vigilopshq/vigil` image |
+| `/opt/vigil/.env` | Your settings (readable by root only) |
+| `/opt/vigil/logs/` | Audit log |
+| `/var/backups/vigil/` | Database backups and backup schedules |
+| `/usr/local/bin/vigil` | The `vigil` command |
+
+VigilOps runs as a container named `vigil` with access to the Docker socket, so it can see and manage your other containers. It uses the host network and runs privileged. Treat access to the server, and to your Telegram chat, as admin access.
+
+## Already running an older git-based install?
+
+Run the same install command. It keeps your `.env`, logs, backups and schedules, saves your old `docker-compose.yml` as `docker-compose.yml.bak`, and switches you to the image. See [Updating VigilOps](/docs/guides/updating/#moving-from-a-git-based-install).
+
+## Uninstall
+
+```bash
+vigil stop
+sudo rm /usr/local/bin/vigil
+sudo rm -rf /opt/vigil                 # settings and logs
+sudo rm -rf /var/backups/vigil         # ⚠️ your database backups
+```
+
+## Next
+
+Continue with [First steps](/docs/first-steps/).

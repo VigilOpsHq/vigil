@@ -1,0 +1,66 @@
+---
+title: Using VigilOps from AI agents (MCP)
+description: Let Claude, Cursor and other MCP clients check and manage your server through VigilOps.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+VigilOps includes a [Model Context Protocol](https://modelcontextprotocol.io) server, so AI assistants such as Claude Desktop, Claude Code and Cursor can check your server's status, read logs, restart containers and trigger deploys.
+
+<Aside type="caution">An MCP client can restart containers and deploy apps on your server. Only connect assistants you trust, and don't expose the HTTP mode to the internet without a firewall or authenticating proxy in front.</Aside>
+
+## Tools
+
+| Tool | What it does |
+|---|---|
+| `get_system_snapshot` | Containers, disk, memory, nginx and health checks |
+| `get_container_status` | Container states, optionally filtered by name |
+| `get_container_logs` | Recent logs from a container |
+| `restart_container` | Restart a container (allowlist enforced) |
+| `run_health_check` | HTTP check against any URL |
+| `get_disk_usage` | Disk usage |
+| `get_memory_usage` | Memory usage |
+| `get_gpu_status` | GPU usage via `nvidia-smi` |
+| `get_audit_history` | Past actions from the audit log |
+| `deploy_app` | Deploy a registered app |
+| `get_deployable_apps` | List registered apps |
+| `execute_safe_command` | Run an allowlisted command |
+| `notify` | Send a Telegram message |
+
+## Connect a local assistant over SSH
+
+Assistants running on your computer can start the MCP server inside the VigilOps container over SSH (stdio mode). For example, in Claude Desktop's `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "vigilops": {
+      "command": "ssh",
+      "args": ["root@my-server", "docker", "exec", "-i", "-e", "MCP_MODE=stdio", "vigil", "node", "dist/mcp/index.js"]
+    }
+  }
+}
+```
+
+This needs SSH key login to the server, with no password prompt.
+
+## HTTP mode
+
+For remote agents, run the MCP server over HTTP on the server:
+
+```bash
+docker exec -d -e MCP_MODE=http -e MCP_PORT=3200 vigil node dist/mcp/index.js
+```
+
+Clients connect to `http://<server>:3200/mcp`. VigilOps uses the host network, so this port is open on the server. Firewall it, or reach it through an SSH tunnel:
+
+```bash
+ssh -L 3200:127.0.0.1:3200 root@my-server
+```
+
+## Settings
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `MCP_MODE` | `stdio` | `stdio`, `http` or `both` |
+| `MCP_PORT` | `3200` | Port for HTTP mode |

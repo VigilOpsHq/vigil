@@ -1,0 +1,103 @@
+---
+title: Auto-fixes, AI and approvals
+description: What VigilOps fixes on its own, what it escalates to AI, what needs your approval, and how commands are kept safe.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Every minute VigilOps takes a snapshot of the server and checks it against built-in rules. Problems with a known, safe fix are fixed automatically. Everything else is escalated to AI or reported to you.
+
+## Built-in rules
+
+| Problem | What VigilOps does | Setting |
+|---|---|---|
+| A container has exited or died | Restarts it | `EXCLUDED_CONTAINERS` to ignore containers |
+| A container keeps crashing (3 restarts within 10 minutes) | Stops restarting it, alerts you and asks AI to diagnose | `CRASH_LOOP_THRESHOLD`, `CRASH_LOOP_WINDOW_MINUTES` |
+| Disk usage ≥ 85% | Removes unused Docker images (`docker image prune -f`, `docker system prune -f --volumes=false`) | `DISK_ALERT_PERCENT` |
+| Memory usage ≥ 90% | Alerts you. No automatic fix, because it's too risky | `MEMORY_ALERT_PERCENT` |
+| Nothing answers on port 80 | Alerts you | — |
+| A health-check URL fails | Restarts the linked container, or alerts you if none is linked | `HEALTH_CHECK_URLS`, `HEALTH_CHECK_CONTAINER_MAP` |
+
+Volumes are never pruned, so disk clean-up doesn't touch your data.
+
+## Health checks
+
+List the URLs VigilOps should check every minute:
+
+```ini
+HEALTH_CHECK_URLS=https://myapp.com/health,https://api.myapp.com/health
+```
+
+A URL counts as healthy if it answers with a 2xx or 3xx status within 5 seconds.
+
+To have VigilOps restart the right container when a URL fails, link them as `URL:container`:
+
+```ini
+HEALTH_CHECK_CONTAINER_MAP=https://api.myapp.com/health:myapp-api,https://myapp.com/health:myapp-web
+```
+
+## AI escalation
+
+When a rule raises an alert, or VigilOps sees something unusual that no rule covers, it sends the snapshot to DeepSeek. The AI replies with one of three decisions:
+
+| Decision | What happens |
+|---|---|
+| **Auto-fix** | VigilOps runs the command (if allowlisted) and tells you the result |
+| **Suggest** | You get the command on Telegram with **Approve** / **Deny** buttons |
+| **Alert** | You get the AI's explanation. Nothing is run |
+
+Without a working `DEEPSEEK_API_KEY` (missing, invalid, or out of credit), escalations fail and you get "AI escalation failed — manual review required" instead.
+
+## Approvals
+
+Suggested actions wait for you on Telegram:
+
+```
+⚠️ Approval Required
+
+🤖 AI suggests: ...
+
+Commands:
+docker restart myapp-api
+
+[✅ Approve] [❌ Deny]
+```
+
+If you don't respond within 10 minutes (`APPROVAL_TIMEOUT_MINUTES`), the action is denied.
+
+## Command allowlist
+
+VigilOps only runs commands that match a fixed allowlist. This applies to its rules, AI decisions and approved suggestions alike:
+
+```
+docker restart <container>
+docker image prune -f
+docker system prune -f [--volumes=false]
+systemctl restart nginx
+systemctl reload nginx
+sudo apt update
+sudo apt upgrade -y
+sudo apt install -y <packages>
+sudo apt remove -y <package>
+```
+
+Anything else is blocked and logged, whatever the AI suggests. The list lives in [`src/executor/index.ts`](https://github.com/VigilOpsHq/vigil/blob/main/src/executor/index.ts).
+
+<Aside>Backups, restores, deploys and updates don't go through the allowlist. They're built into VigilOps and only run when you, or a schedule you set, ask for them.</Aside>
+
+## Audit log
+
+Every action is appended to `/opt/vigil/logs/audit.jsonl`:
+
+```json
+{"timestamp":"2026-09-16T10:30:00.000Z","trigger":"rule","ruleId":"container-down","action":"docker restart my-api","result":"success","message":"Container(s) down — restarting: my-api"}
+{"timestamp":"2026-09-16T11:15:00.000Z","trigger":"ai","action":"docker image prune -f","result":"success","message":"Disk at 91%, pruning images to free space"}
+```
+
+## Too many messages?
+
+The usual cause is a container that exits every time it starts: VigilOps restarts it, detects a crash loop, and escalates every minute. Either fix the container, remove it (`docker rm <name>`), or add it to `EXCLUDED_CONTAINERS`.
+
+## External monitoring
+
+VigilOps can't tell you the server is down if the whole server is down. Add your public URLs to an external uptime service, such as UptimeRobot's free tier, as a backup alarm.

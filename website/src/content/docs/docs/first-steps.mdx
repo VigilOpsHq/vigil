@@ -1,0 +1,75 @@
+---
+title: First steps
+description: Check your server, quiet noisy containers, and take your first database backup.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+This takes about five minutes after [installing](/docs/install/).
+
+<Steps>
+
+1. **Look at your server:**
+
+   ```bash
+   vigil status
+   ```
+
+   ```
+   📊 VIGIL STATUS
+
+   🐳 CONTAINERS
+      🟢 vigil                [running] Up 2 minutes
+      🟢 myapp                [running] Up 5 hours
+      🟢 myapp-postgres       [running] Up 5 hours (healthy)
+
+   💾 DISK
+      ✅15% used (26.4G / 173.3G)
+   ```
+
+2. **Exclude containers that are meant to be stopped.** VigilOps restarts any container that has exited. If you keep stopped containers around on purpose (one-off jobs, old builds), list them so VigilOps leaves them alone:
+
+   ```bash
+   docker ps -a --filter status=exited      # find them
+   sudo nano /opt/vigil/.env
+   ```
+
+   ```ini
+   EXCLUDED_CONTAINERS=old-job,focused_hopper
+   ```
+
+   Then run `vigil stop && vigil start`.
+
+   <Aside>Without this, a container that exits every time it starts gets restarted, then flagged as a crash loop and escalated, again and again. That's the most common cause of too many Telegram messages.</Aside>
+
+3. **Take your first backup:**
+
+   ```bash
+   vigil backup myapp-postgres
+   ```
+
+   ```
+   ⏳ Backing up myapp-postgres...
+   ✅ Saved /var/backups/vigil/myapp-postgres__myapp__20260916-172240.sql.gz (156.1 MB, 35s)
+      Copies: server disk only
+   ```
+
+   VigilOps works out the database type, user and database name from the container. You also get a Telegram message.
+
+4. **Schedule it:**
+
+   ```bash
+   vigil backup schedule myapp-postgres daily 02:00
+   ```
+
+   Times use the server's clock. Run `date` to check it, and see [time zones](/docs/guides/backups/#time-zone) if it's not your local time.
+
+5. **Store copies off the server.** A backup on the same server doesn't help if you lose that server. Set up [off-server storage](/docs/guides/offsite-storage/). It takes a few minutes.
+
+</Steps>
+
+## Optional next steps
+
+- Add your app's public URLs to `HEALTH_CHECK_URLS` so VigilOps notices when a site is down. See [Auto-fixes, AI and approvals](/docs/guides/auto-fixes/#health-checks).
+- Register your apps for [deploys](/docs/guides/deploys/) from Telegram or GitHub Actions.
+- Browse every command in the [CLI reference](/docs/reference/cli/).
