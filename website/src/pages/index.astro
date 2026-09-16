@@ -1,0 +1,383 @@
+---
+const install = 'curl -fsSL https://raw.githubusercontent.com/VigilOpsHq/vigil/main/install.sh | sudo sh';
+const github = 'https://github.com/VigilOpsHq/vigil';
+
+const features = [
+  {
+    icon: '↻',
+    title: 'Fixes the usual problems',
+    body: 'Restarts containers that stop, clears old Docker images when the disk fills up, and restarts apps whose health check fails.',
+  },
+  {
+    icon: '⛁',
+    title: 'Database backups in one command',
+    body: 'Postgres, MySQL and MongoDB. Scheduled, compressed, sent off the server, and restored with a safety backup taken first.',
+  },
+  {
+    icon: '✈',
+    title: 'Runs from Telegram',
+    body: 'Check status, back up, restore, deploy and update from your phone. Every fix and every failure is reported.',
+  },
+  {
+    icon: '✓',
+    title: 'Asks before anything risky',
+    body: 'Only allowlisted commands can run. Anything uncertain comes to you with Approve and Deny buttons.',
+  },
+  {
+    icon: '◎',
+    title: 'AI when the rules run out',
+    body: 'Unusual problems go to AI with the full picture of the server, and come back as a fix, a suggestion or a clear explanation.',
+  },
+  {
+    icon: '⇪',
+    title: 'Deploys with rollback',
+    body: 'Pull, restart, wait for the health check, and roll back automatically if it fails. Trigger it from CI or Telegram.',
+  },
+];
+
+const steps = [
+  { title: 'Watch', body: 'Every minute: containers, disk, memory, web server and your health-check URLs.' },
+  { title: 'Fix', body: 'Known problems with a safe fix are handled immediately, with no AI call needed.' },
+  { title: 'Escalate', body: 'Anything unusual goes to AI, which proposes a fix, a suggestion, or an alert.' },
+  { title: 'Report', body: 'You hear about it on Telegram, and every action is written to an audit log.' },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VigilOps — the ops engineer that lives on your server</title>
+    <meta
+      name="description"
+      content="VigilOps is a self-hosted ops agent for Docker servers. It watches your containers, fixes common failures, backs up your databases and keeps you in the loop on Telegram."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta name="color-scheme" content="dark light" />
+  </head>
+  <body>
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="brand" href="/">
+          <img src="/favicon.svg" alt="" width="28" height="28" />
+          <span>VigilOps</span>
+        </a>
+        <nav class="nav-links">
+          <a href="/docs/">Docs</a>
+          <a href="/docs/guides/backups/">Backups</a>
+          <a href={github}>GitHub</a>
+          <a class="btn btn-small" href="/docs/install/">Install</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero wrap">
+        <div class="hero-copy">
+          <p class="eyebrow">Open source · Self-hosted · Docker</p>
+          <h1>The ops engineer that lives on your server.</h1>
+          <p class="lead">
+            VigilOps watches your Docker containers, fixes common failures, backs up your databases, and checks with you on
+            Telegram before doing anything risky.
+          </p>
+
+          <div class="install" data-copy={install}>
+            <code><span class="prompt">$</span> {install}</code>
+            <button type="button" class="copy" aria-label="Copy install command">Copy</button>
+          </div>
+
+          <div class="cta">
+            <a class="btn" href="/docs/install/">Get started</a>
+            <a class="btn btn-ghost" href="/docs/">How it works</a>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-hidden="true">
+          <div class="terminal">
+            <div class="terminal-bar"><i></i><i></i><i></i><span>root@server</span></div>
+            <pre><span class="dim">$</span> vigil status
+<span class="ok">🟢</span> api                [running] Up 5 days
+<span class="ok">🟢</span> api-postgres       [running] Up 5 days (healthy)
+<span class="ok">✅</span> Disk 15% used · Memory 5% used
+
+<span class="dim">$</span> vigil backup api-postgres
+<span class="ok">✅</span> Saved api-postgres__api__20260916-020000.sql.gz
+   156.1 MB in 35s · copies: server, storage</pre>
+          </div>
+
+          <div class="chat">
+            <div class="bubble">
+              <strong>🔧 Auto-fix</strong><br />
+              Container down, restarting: <code>worker</code><br />
+              ✅ <code>docker restart worker</code> — done
+            </div>
+            <div class="bubble">
+              <strong>⚠️ Approval required</strong><br />
+              AI suggests restarting <code>api</code> after repeated timeouts.
+              <div class="buttons"><span>✅ Approve</span><span>❌ Deny</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section wrap">
+        <h2>Everything a small team forgets to do at 3am</h2>
+        <p class="section-lead">One container on your server. No dashboards to build, no agents to wire together.</p>
+        <div class="grid">
+          {
+            features.map((f) => (
+              <article class="card">
+                <div class="icon">{f.icon}</div>
+                <h3>{f.title}</h3>
+                <p>{f.body}</p>
+              </article>
+            ))
+          }
+        </div>
+      </section>
+
+      <section class="section wrap">
+        <h2>How it works</h2>
+        <ol class="steps">
+          {
+            steps.map((s, i) => (
+              <li>
+                <span class="step-num">{i + 1}</span>
+                <h3>{s.title}</h3>
+                <p>{s.body}</p>
+              </li>
+            ))
+          }
+        </ol>
+      </section>
+
+      <section class="section wrap split">
+        <div>
+          <p class="eyebrow">Backups</p>
+          <h2>A backup you can actually restore</h2>
+          <p>
+            VigilOps reads your database containers to work out the type, user and database, so there's nothing to configure.
+            Every backup is compressed, copied off the server, and announced on Telegram. That includes the ones that fail.
+          </p>
+          <ul class="checks">
+            <li>Postgres, MySQL/MariaDB and MongoDB</li>
+            <li>Hourly, daily or weekly schedules</li>
+            <li>Copies to S3-compatible storage and Telegram</li>
+            <li>Restores take a safety backup first</li>
+          </ul>
+          <a class="link" href="/docs/guides/backups/">Read the backup guide →</a>
+        </div>
+        <div class="terminal">
+          <div class="terminal-bar"><i></i><i></i><i></i><span>root@server</span></div>
+          <pre><span class="dim">$</span> vigil backup schedule api-postgres daily 02:00
+🗓  api-postgres will be backed up every day at 02:00
+
+<span class="dim">$</span> vigil restore api-postgres__api__20260916-020000.sql.gz
+⚠️  This will OVERWRITE database "api". Type "yes": yes
+⏳ Taking a safety backup, then restoring...
+<span class="ok">✅</span> Restore complete.</pre>
+        </div>
+      </section>
+
+      <section class="section wrap">
+        <h2>Where VigilOps fits</h2>
+        <p class="section-lead">Terraform and Ansible build your servers. VigilOps keeps them running.</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th></th><th>Terraform / Ansible</th><th>VigilOps</th></tr>
+            </thead>
+            <tbody>
+              <tr><th>Job</th><td>Create and configure servers</td><td>Keep running servers healthy</td></tr>
+              <tr><th>Runs</th><td>When you apply a change</td><td>All the time, every minute</td></tr>
+              <tr><th>You write</th><td>Config files and playbooks</td><td>Nothing, it inspects what's running</td></tr>
+              <tr><th>Example</th><td>"Install Postgres on 10 servers"</td><td>"Postgres stopped at 3am, so restart it and tell me"</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section wrap final">
+        <h2>Install in a minute</h2>
+        <p class="section-lead">Ubuntu or Debian, amd64 or arm64. Docker is installed for you if it's missing.</p>
+        <div class="install" data-copy={install}>
+          <code><span class="prompt">$</span> {install}</code>
+          <button type="button" class="copy" aria-label="Copy install command">Copy</button>
+        </div>
+        <div class="cta center">
+          <a class="btn" href="/docs/install/">Installation guide</a>
+          <a class="btn btn-ghost" href={github}>Star on GitHub</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="wrap footer-inner">
+        <span>VigilOps · MIT licensed</span>
+        <nav>
+          <a href="/docs/">Docs</a>
+          <a href="/docs/reference/cli/">CLI</a>
+          <a href="/docs/reference/configuration/">Configuration</a>
+          <a href={github}>GitHub</a>
+        </nav>
+      </div>
+    </footer>
+
+    <script>
+      document.querySelectorAll<HTMLElement>('.install').forEach((box) => {
+        const button = box.querySelector('button');
+        button?.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(box.dataset.copy ?? '');
+            button.textContent = 'Copied';
+          } catch {
+            button.textContent = 'Select & copy';
+          }
+          setTimeout(() => (button.textContent = 'Copy'), 2000);
+        });
+      });
+    </script>
+
+    <style is:global>
+      :root {
+        --bg: #0b1110;
+        --bg-soft: #111a18;
+        --card: #131e1c;
+        --border: #22322f;
+        --text: #e6efed;
+        --muted: #93a8a3;
+        --accent: #2dd4bf;
+        --accent-strong: #14b8a6;
+        --accent-ink: #042f2b;
+        --ok: #4ade80;
+        --term-bg: #070b0a;
+        --term-text: #d1e0dc;
+        --bubble: #16312d;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f7faf9;
+          --bg-soft: #eef4f2;
+          --card: #ffffff;
+          --border: #d8e4e1;
+          --text: #0e1b19;
+          --muted: #4e625d;
+          --accent: #0f766e;
+          --accent-strong: #0f766e;
+          --accent-ink: #ffffff;
+          --ok: #15803d;
+          --term-bg: #0b1110;
+          --term-text: #d1e0dc;
+          --bubble: #e3f4f1;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { overflow-x: clip; }
+      html { -webkit-text-size-adjust: 100%; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      }
+      a { color: inherit; }
+      code, pre { font-family: ui-monospace, 'SFMono-Regular', 'Cascadia Code', Menlo, Consolas, monospace; }
+      .wrap { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+      h1, h2, h3 { line-height: 1.15; margin: 0; letter-spacing: -0.02em; }
+      h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); }
+      h2 { font-size: clamp(1.6rem, 3.4vw, 2.3rem); }
+      h3 { font-size: 1.08rem; }
+      p { margin: 0; }
+
+      .nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+      .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 12px; }
+      .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.1rem; text-decoration: none; }
+      .nav-links { display: flex; align-items: center; gap: 22px; font-size: 0.95rem; }
+      .nav-links a { text-decoration: none; color: var(--muted); }
+      .nav-links a:hover { color: var(--text); }
+      .nav-links a.btn { color: var(--accent-ink); }
+
+      .btn { display: inline-flex; align-items: center; justify-content: center; padding: 11px 20px; border-radius: 10px; background: var(--accent-strong); color: var(--accent-ink); font-weight: 600; text-decoration: none; border: 1px solid transparent; }
+      .btn:hover { filter: brightness(1.08); }
+      .btn-ghost { background: transparent; color: var(--text); border-color: var(--border); }
+      .btn-small { padding: 7px 14px; font-size: 0.9rem; }
+
+      .hero > *, .split > *, .grid > *, .steps > * { min-width: 0; }
+      .hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 48px; align-items: center; padding-top: 72px; padding-bottom: 56px; }
+      .eyebrow { color: var(--accent); font-weight: 600; font-size: 0.85rem; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 14px; }
+      .lead { color: var(--muted); font-size: 1.15rem; margin-top: 20px; max-width: 34rem; }
+
+      .install { display: flex; align-items: center; gap: 8px; margin-top: 28px; background: var(--term-bg); color: var(--term-text); border: 1px solid var(--border); border-radius: 12px; padding: 10px 10px 10px 16px; max-width: 100%; }
+      .install code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-size: 0.86rem; padding: 4px 0; scrollbar-width: thin; }
+      .install .prompt { color: #5eead4; user-select: none; }
+      .copy { flex: none; background: #1d2b28; color: #e6efed; border: 1px solid #2c3f3b; border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 0.85rem; cursor: pointer; }
+      .copy:hover { background: #26403b; }
+      .cta { display: flex; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
+      .cta.center { justify-content: center; }
+
+      .hero-visual { display: grid; gap: 16px; min-width: 0; }
+      .terminal { background: var(--term-bg); color: var(--term-text); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; min-width: 0; box-shadow: 0 20px 50px -20px rgba(0,0,0,.45); }
+      .terminal-bar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: #0f1715; border-bottom: 1px solid #1c2826; font-size: 0.78rem; color: #7f948f; }
+      .terminal-bar i { width: 10px; height: 10px; border-radius: 50%; background: #2a3a37; }
+      .terminal-bar span { margin-left: 8px; }
+      .terminal pre { margin: 0; padding: 16px 18px; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; }
+      .dim { color: #6b807b; }
+      .ok { color: #4ade80; }
+
+      .chat { display: grid; gap: 10px; justify-items: start; }
+      .bubble { background: var(--bubble); border: 1px solid var(--border); border-radius: 14px 14px 14px 4px; padding: 12px 14px; font-size: 0.9rem; max-width: 26rem; }
+      .bubble code { font-size: 0.82rem; }
+      .buttons { display: flex; gap: 8px; margin-top: 10px; }
+      .buttons span { flex: 1; text-align: center; border: 1px solid var(--border); background: var(--card); border-radius: 8px; padding: 5px 10px; font-size: 0.85rem; }
+
+      .section { padding-top: 72px; padding-bottom: 24px; }
+      .section-lead { color: var(--muted); margin-top: 12px; font-size: 1.05rem; }
+      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 32px; }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px; }
+      .card p { color: var(--muted); margin-top: 8px; font-size: 0.95rem; }
+      .icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); font-size: 1.15rem; margin-bottom: 14px; }
+
+      .steps { list-style: none; padding: 0; margin: 32px 0 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; counter-reset: none; }
+      .steps li { border-top: 2px solid var(--accent-strong); padding-top: 16px; }
+      .step-num { color: var(--accent); font-weight: 700; font-size: 0.9rem; }
+      .steps h3 { margin-top: 4px; }
+      .steps p { color: var(--muted); margin-top: 6px; font-size: 0.95rem; }
+
+      .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: center; }
+      .split > div > p { color: var(--muted); margin-top: 14px; }
+      .checks { list-style: none; padding: 0; margin: 20px 0; display: grid; gap: 8px; }
+      .checks li::before { content: '✓'; color: var(--accent); font-weight: 700; margin-right: 10px; }
+      .link { color: var(--accent); font-weight: 600; text-decoration: none; }
+
+      .table-wrap { margin-top: 28px; overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; }
+      table { width: 100%; border-collapse: collapse; min-width: 560px; background: var(--card); }
+      th, td { text-align: left; padding: 14px 18px; border-bottom: 1px solid var(--border); font-size: 0.95rem; vertical-align: top; }
+      thead th { color: var(--muted); font-weight: 600; background: var(--bg-soft); }
+      tbody th { color: var(--muted); font-weight: 600; width: 16%; }
+      tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
+      td:last-child { color: var(--text); font-weight: 500; }
+
+      .final { text-align: center; padding-bottom: 88px; }
+      .final .install { max-width: 720px; margin: 28px auto 0; text-align: left; }
+
+      .footer { border-top: 1px solid var(--border); padding: 28px 0; color: var(--muted); font-size: 0.9rem; }
+      .footer-inner { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+      .footer nav { display: flex; gap: 18px; flex-wrap: wrap; }
+      .footer a { text-decoration: none; }
+      .footer a:hover { color: var(--text); }
+
+      @media (max-width: 900px) {
+        .hero, .split { grid-template-columns: 1fr; gap: 36px; }
+        .hero { padding-top: 44px; }
+        .grid { grid-template-columns: repeat(2, 1fr); }
+        .steps { grid-template-columns: repeat(2, 1fr); }
+      }
+      @media (max-width: 600px) {
+        .nav-links a:not(.btn):not([href='/docs/']) { display: none; }
+        .grid, .steps { grid-template-columns: 1fr; }
+        .section { padding-top: 56px; }
+      }
+    </style>
+  </body>
+</html>

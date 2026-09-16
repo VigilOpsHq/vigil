@@ -1,0 +1,69 @@
+---
+title: Off-server backup storage
+description: Send a copy of every backup to S3-compatible object storage such as Contabo Object Storage, AWS S3, Backblaze B2 or Cloudflare R2.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+With object storage set up, every backup is uploaded to a bucket as soon as it finishes. You can then restore even if the server is gone.
+
+Any S3-compatible storage works: Contabo Object Storage, AWS S3, Backblaze B2, Cloudflare R2, Wasabi, MinIO and others.
+
+## Set up
+
+<Steps>
+
+1. **Create a bucket** in your provider's dashboard, for example `myapp-backups`. Keep it **private**.
+
+2. **Create access keys** (often called S3 credentials or an access key ID and secret key). If the provider lets you, limit them to this one bucket.
+
+3. **Add them to `/opt/vigil/.env`:**
+
+   ```ini
+   BACKUP_S3_ENDPOINT=https://eu2.contabostorage.com
+   BACKUP_S3_REGION=us-east-1
+   BACKUP_S3_BUCKET=myapp-backups
+   BACKUP_S3_ACCESS_KEY=...
+   BACKUP_S3_SECRET_KEY=...
+   ```
+
+4. **Restart and test:**
+
+   ```bash
+   vigil stop && vigil start
+   vigil backup myapp-postgres
+   ```
+
+   The output should include `Copies: server disk, storage (myapp-backups)`.
+
+</Steps>
+
+## Provider settings
+
+| Provider | `BACKUP_S3_ENDPOINT` | `BACKUP_S3_REGION` |
+|---|---|---|
+| Contabo Object Storage | The S3 URL shown in your Contabo panel, e.g. `https://eu2.contabostorage.com` | `us-east-1` |
+| AWS S3 | Leave empty | Your bucket's region, e.g. `eu-west-1` |
+| Backblaze B2 | `https://s3.<region>.backblazeb2.com` | Your bucket's region, e.g. `us-west-004` |
+| Cloudflare R2 | `https://<account-id>.r2.cloudflarestorage.com` | `auto` |
+| MinIO | Your MinIO URL | `us-east-1` |
+
+## How files are organised
+
+Backups are uploaded to:
+
+```
+<bucket>/vigil/<server-hostname>/<backup-file>
+```
+
+Several servers can share one bucket and each keeps its own folder. Change the folder with `BACKUP_S3_PREFIX`.
+
+## Retention
+
+VigilOps never deletes backups from storage. Add a **lifecycle rule** to the bucket, such as "delete objects older than 30 days". Most providers offer this in the bucket settings.
+
+## Keep your keys safe
+
+<Aside type="caution">Anyone with these keys can read and delete every backup in the bucket. Don't share them, don't commit `.env` to git, and use a separate bucket (or separate keys) for each customer or project.</Aside>
+
+If an upload fails, the backup is still saved on the server. The failure is logged, and the Telegram message lists only the copies that succeeded.

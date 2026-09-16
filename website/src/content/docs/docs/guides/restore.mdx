@@ -1,0 +1,108 @@
+---
+title: Restoring a backup
+description: Restore a database from a VigilOps backup, into the same container or a different one.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+<Aside type="danger">A restore **replaces** the data currently in the database. VigilOps takes a safety backup first, so you can undo it, but double-check the container name before confirming.</Aside>
+
+## Restore
+
+<Steps>
+
+1. **Find the backup:**
+
+   ```bash
+   vigil backups myapp-postgres
+   ```
+
+   ```
+   🗄  BACKUPS in /var/backups/vigil
+
+      myapp-postgres__myapp__20260916-020000.sql.gz
+         48.2 MB — 16/09/2026, 02:00:12
+   ```
+
+2. **Restore it:**
+
+   ```bash
+   vigil restore myapp-postgres__myapp__20260916-020000.sql.gz
+   ```
+
+   Type `yes` when asked. From Telegram, send `/restore <file>` and tap **Yes, restore**.
+
+</Steps>
+
+What happens:
+
+1. VigilOps looks for the file in `/var/backups/vigil/`. If it isn't there and [off-server storage](/docs/guides/offsite-storage/) is configured, it downloads the file.
+2. It backs up the current database as `<container>__<database>__<time>_pre-restore.sql.gz`.
+3. It loads the backup into the database named in the file name, inside the container named in the file name.
+
+If step 3 fails, the database may be partly restored. Restore the `_pre-restore` backup to get back to where you started.
+
+## Undo a restore
+
+Restore the safety backup that was taken just before:
+
+```bash
+vigil backups myapp-postgres        # look for the newest ..._pre-restore file
+vigil restore myapp-postgres__myapp__20260916-101500_pre-restore.sql.gz
+```
+
+## Restore into a different container
+
+Add the target container. For example, copy production data into staging:
+
+```bash
+vigil restore myapp-postgres__myapp__20260916-020000.sql.gz myapp-staging-postgres
+```
+
+The database **name** comes from the backup file, so the target container must use the same database name.
+
+## Restore on a new server
+
+If the original server is gone:
+
+<Steps>
+
+1. [Install VigilOps](/docs/install/) on the new server and start your database container.
+
+2. **Get the backup file onto the new server.** Either:
+   - **From object storage:** use the same `BACKUP_S3_*` settings, and set `BACKUP_S3_PREFIX` to the old server's folder (`vigil/<old-hostname>`). `vigil restore <file>` downloads it automatically.
+   - **From Telegram:** download the file from the chat to your computer, then upload it:
+
+     ```bash
+     scp myapp-postgres__myapp__20260916-020000.sql.gz root@new-server:/var/backups/vigil/
+     ```
+
+3. **Restore**, naming the new container if its name changed:
+
+   ```bash
+   vigil restore myapp-postgres__myapp__20260916-020000.sql.gz
+   ```
+
+</Steps>
+
+## Skip the confirmation
+
+For scripts, add `--yes`:
+
+```bash
+vigil restore <file> [container] --yes
+```
+
+## Test your backups
+
+A backup you've never restored is only a hope. Every so often, restore a recent backup into a throwaway container:
+
+```bash
+docker run -d --name restore-test -e POSTGRES_PASSWORD=test -e POSTGRES_DB=myapp postgres:17-alpine
+sleep 10
+vigil restore myapp-postgres__myapp__20260916-020000.sql.gz restore-test --yes
+docker exec restore-test psql -U postgres -d myapp -c "\dt"
+docker rm -f restore-test
+```
+
+Use the same database version as production.

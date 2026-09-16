@@ -1,0 +1,66 @@
+---
+title: Updating VigilOps
+description: How VigilOps tells you about new versions, how to update, and how to pin a version.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+## Update prompts
+
+VigilOps checks for a new release once a day. When one is available, you get a Telegram message with the release notes and an **Update** button:
+
+```
+⬆️ VigilOps 1.3.0 is available (running 1.2.4).
+
+- Faster MySQL backups
+- ...
+
+[⬆️ Update to 1.3.0]
+```
+
+Tap it, and VigilOps downloads the new version and restarts itself. When it's back, it sends **"🟢 VigilOps 1.3.0 started"**.
+
+Updates never install on their own. VigilOps has full control of Docker on your server, so a person always approves the update.
+
+## Update manually
+
+| Where | Command |
+|---|---|
+| On the server | `vigil update` |
+| Telegram | `/update` |
+| Check the version | `vigil version` or `/version` |
+
+Updating only replaces the VigilOps container. Your settings, logs, backups and schedules stay where they are.
+
+## Pin a version
+
+By default a server follows the newest release. To control what an update installs, set `VIGIL_TAG` in `/opt/vigil/.env`:
+
+| `VIGIL_TAG` | Updates to |
+|---|---|
+| `latest` (default) | Every new release |
+| `1.2` | Only `1.2.x` fixes |
+| `1.2.3` | Nothing. Stays on this exact version |
+
+Run `vigil update` after changing it. To turn off the daily check, set `VIGIL_UPDATE_CHECK=false`.
+
+## Roll back
+
+Pin the previous version and update:
+
+```bash
+sudo sed -i 's/^VIGIL_TAG=.*/VIGIL_TAG=1.2.4/' /opt/vigil/.env
+vigil update
+```
+
+## Moving from a git-based install
+
+Servers installed before VigilOps shipped as an image have `/opt/vigil` as a `git clone` and build the image locally. Switch them over by running the installer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/VigilOpsHq/vigil/main/install.sh | sudo sh
+```
+
+It keeps your `.env`, logs, backups and schedules. It replaces `docker-compose.yml` (the old one is saved as `docker-compose.yml.bak`) and the `vigil` command, then starts the published image. After that you don't need `git pull`, `npm` or Node.js on that server.
+
+<Aside>Settings in `.env` stay as they were. To see options added since you installed, compare your file with `/opt/vigil/.env.example`.</Aside>
