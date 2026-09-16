@@ -9,4 +9,6 @@ services:
       - ./logs:/app/logs
       - /var/run/docker.sock:/var/run/docker.sock
       - /opt:/opt:ro
+      - /var/backups/vigil:/var/backups/vigil
+      - /etc/localtime:/etc/localtime:ro
     network_mode: host

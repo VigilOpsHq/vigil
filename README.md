@@ -25,7 +25,7 @@ The AI is only called on escalation — roughly 5% of polls. The other 95% is ha
 Once deployed, control Vigil via:
 
 - **Telegram** — `/status`, `/restart <app>`, `/deploy <app>` from your phone
-- **CLI** — `vigil status`, `vigil restart api`, `vigil logs redis` on the VPS
+- **CLI** — `vigil status`, `vigil restart api`, `vigil backup songdis-postgres` on the VPS
 - **HTTP API** — `curl http://localhost:3200/api/status` for automation & scripts
 
 ---
@@ -34,7 +34,8 @@ Once deployed, control Vigil via:
 
 - **Auto-healing** — restarts stopped containers, prunes disk, reloads nginx
 - **Crash loop detection** — stops blindly restarting containers that keep dying, escalates to AI instead
-- **AI escalation** — sends unknown errors to Gemini with full context, gets a reasoned fix back
+- **AI escalation** — sends unknown errors to DeepSeek with full context, gets a reasoned fix back
+- **Database backups** — `vigil backup <container>` for Postgres/MySQL/MongoDB, with schedules, Telegram alerts, off-server copies and one-command restore
 - **Approval flow** — risky actions come to you on Telegram as `/approve` or `/deny`
 - **Deploy from CI/CD** — webhook endpoint lets GitHub Actions trigger deploys with health-check + rollback
 - **Deploy from Telegram** — `/deploy myapp` triggers a pull → restart → health-check flow
@@ -168,77 +169,117 @@ server {
 
 ## Database Backups
 
-Vigil can automatically backup your MySQL, PostgreSQL, and MongoDB databases with Telegram notifications.
+Back up any Postgres, MySQL/MariaDB or MongoDB container with one command. No config files needed: Vigil reads the container's image and environment variables (`POSTGRES_USER`, `POSTGRES_DB`, `MYSQL_ROOT_PASSWORD`, `MYSQL_DATABASE`, `MONGO_INITDB_ROOT_USERNAME`, ...) to work out the database type, user and database name.
 
-### Setup
-
-Create backup configurations in `src/backup/backup.config.ts`:
-
-```typescript
-import { BackupConfig } from '../backup/backup.types';
-
-const backupConfigs: BackupConfig[] = [
-  {
-    id: 'mysql_prod',
-    name: 'Production MySQL',
-    type: 'mysql',
-    container: 'mysql',
-    database: 'myapp_prod',
-    schedule: '0 2 * * *', // daily at 2am
-    retentionDays: 30,
-    enabled: true,
-  },
-  {
-    id: 'postgres_dev',
-    name: 'Development PostgreSQL',
-    type: 'postgres',
-    container: 'postgres_dev',
-    database: 'dev_db',
-    schedule: '0 6 * * *', // daily at 6am
-    retentionDays: 7,
-    enabled: true,
-  },
-  {
-    id: 'mongodb_analytics',
-    name: 'Analytics MongoDB',
-    type: 'mongodb',
-    container: 'mongodb',
-    database: 'analytics',
-    retentionDays: 60,
-    enabled: false, // manual backups only
-  },
-];
-
-export default backupConfigs;
+```bash
+vigil backup songdis-postgres              # back up now
+vigil backups                              # list backups
+vigil restore songdis-postgres__songdis__20260916-020000.sql.gz
+vigil backup schedule songdis-postgres daily 02:00
 ```
 
-Then in your startup code (e.g., `src/index.ts`):
+Or from Telegram: `/backup songdis-postgres`.
 
-```typescript
-import backupConfigs from './backup/backup.config';
-import { scheduleBackups } from './backup/scheduler';
-import { registerBackupConfig } from './backup/backup-commands';
+### Where backups go
 
-// Load configurations
-backupConfigs.forEach(config => registerBackupConfig(config));
+Every backup is saved in up to three places:
 
-// Schedule automatic backups
-scheduleBackups(backupConfigs);
+| Copy | Where | When |
+|---|---|---|
+| Server disk | `/var/backups/vigil/` on the host | Always |
+| Telegram | Sent as a file to your Vigil chat | When the file is under 50 MB (Telegram's bot limit). Turn off with `BACKUP_SEND_TO_TELEGRAM=false` |
+| Object storage | Any S3-compatible bucket: Contabo Object Storage, AWS S3, Backblaze B2, Cloudflare R2, MinIO | When `BACKUP_S3_*` is set |
+
+The server-disk copy makes restores instant. The other copies protect you if the server itself is lost. **A backup that only exists on the same server does not protect you against losing that server**, so set up object storage for anything that matters. If the file is too big for Telegram, storage is the only off-server copy.
+
+File names look like `<container>__<database>__<YYYYMMDD-HHMMSS>.sql.gz` (MongoDB uses `.archive.gz`), for example:
+
+```
+/var/backups/vigil/songdis-postgres__songdis__20260916-020000.sql.gz
 ```
 
-### Features
+Local backups older than `BACKUP_KEEP_DAYS` (default 7) are deleted automatically. The newest backup of each container is always kept. To expire old copies in object storage, set a lifecycle rule on the bucket.
 
-- **Manual backups** — Trigger anytime via `/trigger_backup <id>`
-- **Scheduled backups** — Automatic backups on cron schedule
-- **Retention policy** — Automatically deletes backups older than `retentionDays`
-- **Telegram notifications** — Get alerted on backup success/failure
-- **Database support** — MySQL (mysqldump), PostgreSQL (pg_dump), MongoDB (mongodump)
-- **Compressed storage** — Backups stored as gzip for space efficiency
-- **Restore capability** — Restore from any backup via `/restore_backup`
+### Commands
 
-### Backup storage
+| CLI | Telegram | What it does |
+|---|---|---|
+| `vigil backup <container> [database]` | `/backup <container> [database]` | Back up now. Pass `database` if the container has several databases or no `*_DATABASE` env var |
+| `vigil backups [container]` | `/backups [container]` | List backups on this server, newest first |
+| `vigil restore <file> [container] [--yes]` | `/restore <file> [container]` | Restore a backup. Asks for confirmation (a button in Telegram) |
+| `vigil backup schedule <container> <when>` | `/backup_schedule <container> <when>` | Back up automatically |
+| `vigil backup unschedule <container>` | `/backup_schedule <container> off` | Stop scheduled backups |
+| `vigil backup schedules` | `/backup_schedules` | List schedules |
 
-Backups are stored in `./backups/<config_id>/<backup_id>.sql.gz` by default.
+`<when>` is one of:
+
+- `hourly`: every hour, on the hour
+- `daily 02:00`: every day at 02:00
+- `weekly sun 03:00`: every Sunday at 03:00
+
+Times use the server's clock (Vigil's container shares the host's `/etc/localtime`). Schedules are saved in `/var/backups/vigil/schedules.json`, and the Vigil service runs them. You set them with the commands above, never by editing the file.
+
+Every backup, manual or scheduled, sends a Telegram message:
+
+```
+✅ Backup done: songdis-postgres
+File: songdis-postgres__songdis__20260916-020000.sql.gz
+Size: 48.2 MB in 12s
+Copies: server disk, storage (songdis-backups)
+Restore: /restore songdis-postgres__songdis__20260916-020000.sql.gz
+```
+
+If a backup fails you get `❌ Backup FAILED` with the error, so a missing message never silently means "no backup".
+
+### Restoring
+
+```bash
+vigil backups songdis-postgres
+vigil restore songdis-postgres__songdis__20260916-020000.sql.gz
+```
+
+What happens:
+
+1. Vigil looks for the file in `/var/backups/vigil/`. If it isn't there and object storage is configured, it downloads it.
+2. It takes a **safety backup** of the current data (`..._pre-restore.sql.gz`), so a restore can itself be undone.
+3. It loads the backup into the database, replacing what's there.
+
+To restore into a different container, for example copying production data into staging:
+
+```bash
+vigil restore songdis-postgres__songdis__20260916-020000.sql.gz songdis-staging-postgres
+```
+
+To restore a copy you only have in Telegram (for example, after rebuilding the server), download the file from the chat, upload it to the server, then restore:
+
+```bash
+scp songdis-postgres__songdis__20260916-020000.sql.gz root@your-server:/var/backups/vigil/
+vigil restore songdis-postgres__songdis__20260916-020000.sql.gz
+```
+
+### Settings (`.env`, all optional)
+
+```env
+BACKUP_DIR=/var/backups/vigil        # where backups are stored on the host
+BACKUP_KEEP_DAYS=7                   # delete local backups older than this
+BACKUP_SEND_TO_TELEGRAM=true         # send backups under 50 MB to the Telegram chat
+
+# Off-server copies in S3-compatible storage (example: Contabo Object Storage)
+BACKUP_S3_ENDPOINT=https://eu2.contabostorage.com
+BACKUP_S3_REGION=us-east-1
+BACKUP_S3_BUCKET=songdis-backups
+BACKUP_S3_ACCESS_KEY=...
+BACKUP_S3_SECRET_KEY=...
+BACKUP_S3_PREFIX=vigil/my-server     # defaults to vigil/<hostname>
+```
+
+For AWS S3, leave `BACKUP_S3_ENDPOINT` empty and set `BACKUP_S3_REGION` to your bucket's region.
+
+### Security notes
+
+- Backups contain your full data. `/var/backups/vigil` is readable only by root on a default Ubuntu install, so keep it that way.
+- Anyone in the Telegram chat can download backups sent there. Use a private chat.
+- Backup commands in Telegram only respond in the chat set as `TELEGRAM_CHAT_ID`.
 
 ---
 
@@ -295,17 +336,13 @@ Vigil pulls the new image, restarts the container, waits for the health check to
 
 | Command | Description |
 |---|---|
-| `/backup_status` | Show all backup configurations and recent backups |
-| `/trigger_backup <id>` | Manually trigger a backup now |
-| `/schedule_backup <id> <cron>` | Setup automatic backup scheduling |
-| `/backup_history <id>` | View backup history and file sizes |
-| `/restore_backup <id> <filename>` | Restore from a backup |
+| `/backup <container> [database]` | Back up a database now |
+| `/backups [container]` | List backups on the server |
+| `/restore <file> [container]` | Restore a backup (asks for confirmation) |
+| `/backup_schedule <container> daily 02:00` | Schedule backups (`hourly`, `daily HH:MM`, `weekly sun HH:MM`, or `off`) |
+| `/backup_schedules` | List backup schedules |
 
-**Backup cron examples:**
-- `0 2 * * *` — Daily at 2:00 AM
-- `0 */6 * * *` — Every 6 hours
-- `0 1 * * 0` — Weekly on Sunday at 1:00 AM
-- `0 0 1 * *` — Monthly on the 1st at midnight
+See [Database Backups](#database-backups) for details.
 
 ---
 

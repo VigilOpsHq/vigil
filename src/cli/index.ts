@@ -4,6 +4,12 @@
  * Or: vigil <command> [options]
  */
 
+import path from 'path';
+import dotenv from 'dotenv';
+
+// The `vigil` wrapper runs from any directory, so load .env relative to the install
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
 import { getCommand } from './commands';
 import { error } from '../logger';
 
@@ -29,6 +35,8 @@ async function main() {
 
   try {
     await command.handler(commandArgs);
+    // Open HTTP keep-alive sockets (Telegram, S3) would otherwise hold the process open
+    process.exit(0);
   } catch (err) {
     error(`Command failed: ${commandName}`, err);
     console.error(`\n❌ Error: ${err instanceof Error ? err.message : String(err)}\n`);

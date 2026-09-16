@@ -3,7 +3,7 @@ import { PendingApproval, SystemSnapshot } from '../types';
 import { execute, isSafeCommand } from '../executor';
 import { log, error, info } from '../logger';
 import { setupMigrationCommands } from './migration-commands';
-import { setupBackupCommands } from '../backup/backup-commands';
+import { setupBackupCommands } from '../backup/telegram';
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? '';
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID ?? '';
