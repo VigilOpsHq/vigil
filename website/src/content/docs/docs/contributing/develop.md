@@ -15,7 +15,7 @@ description: Run VigilOps from source, build your own image, and work on the doc
 git clone https://github.com/VigilOpsHq/vigil
 cd vigil
 npm install
-cp .env.example .env          # fill in the test bot token, chat ID and a webhook secret
+cp .env.example .env          # fill in the test bot token and chat ID
 npm run dev                   # the service
 npm run dev:cli -- status     # a CLI command
 npm run dev:mcp               # the MCP server
