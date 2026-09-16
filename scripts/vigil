@@ -1,0 +1,41 @@
+#!/bin/sh
+# Host-side `vigil` command. Service commands run Docker Compose here;
+# everything else runs the CLI inside the Vigil container, so both are always the same version.
+set -e
+
+VIGIL_DIR="${VIGIL_DIR:-/opt/vigil}"
+
+compose() {
+  if docker compose version >/dev/null 2>&1; then
+    docker compose "$@"
+  else
+    docker-compose "$@"
+  fi
+}
+
+case "$1" in
+  start)
+    cd "$VIGIL_DIR" && compose up -d
+    ;;
+  stop)
+    cd "$VIGIL_DIR" && compose down
+    ;;
+  update)
+    cd "$VIGIL_DIR"
+    compose pull
+    compose up -d
+    sleep 3
+    docker exec vigil node dist/cli/index.js version
+    ;;
+  *)
+    if [ "$(docker inspect -f '{{.State.Running}}' vigil 2>/dev/null)" != "true" ]; then
+      echo "Vigil is not running. Start it with: vigil start" >&2
+      exit 1
+    fi
+    if [ -t 0 ] && [ -t 1 ]; then
+      exec docker exec -it vigil node dist/cli/index.js "$@"
+    else
+      exec docker exec -i vigil node dist/cli/index.js "$@"
+    fi
+    ;;
+esac

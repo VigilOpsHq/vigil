@@ -4,6 +4,7 @@ import { execute, isSafeCommand } from '../executor';
 import { log, error, info } from '../logger';
 import { setupMigrationCommands } from './migration-commands';
 import { setupBackupCommands } from '../backup/telegram';
+import { setupUpdateCommands } from '../update/telegram';
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? '';
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID ?? '';
@@ -255,5 +256,6 @@ setupMigrationCommands();
 
 // Register backup commands
 setupBackupCommands(bot);
+setupUpdateCommands(bot);
 
 info('Telegram bot is listening for commands...');

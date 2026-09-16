@@ -1,6 +1,7 @@
 services:
   vigil:
-    build: .
+    # Pin a version in .env with VIGIL_TAG=1.2 (gets 1.2.x fixes) or VIGIL_TAG=1.2.3 (exact)
+    image: ghcr.io/vigilopshq/vigil:${VIGIL_TAG:-latest}
     container_name: vigil
     restart: unless-stopped
     env_file: .env

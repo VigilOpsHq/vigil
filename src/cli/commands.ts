@@ -10,6 +10,7 @@ import { info, error } from '../logger';
 import readline from 'readline';
 import { BACKUP_DIR, backupAndNotify, detectDatabase, formatSize, listBackups, parseBackupFile, restore } from '../backup/engine';
 import { describeSchedule, loadSchedules, removeSchedule, setSchedule } from '../backup/schedule';
+import { currentVersion, isNewer, latestRelease } from '../update';
 
 export interface CLICommand {
   name: string;
@@ -375,6 +376,26 @@ export const restoreCommand: CLICommand = {
   },
 };
 
+export const versionCommand: CLICommand = {
+  name: 'version',
+  description: 'Show the running version and check for updates',
+  usage: 'vigil version',
+  handler: async () => {
+    const current = currentVersion();
+    console.log(`\nVigil ${current}`);
+    try {
+      const latest = await latestRelease();
+      console.log(
+        isNewer(latest.version, current)
+          ? `⬆️  ${latest.version} is available — run: vigil update\n   ${latest.url}\n`
+          : '✅ Up to date\n'
+      );
+    } catch (err) {
+      console.log(`(couldn't check for updates: ${err instanceof Error ? err.message : String(err)})\n`);
+    }
+  },
+};
+
 /**
  * help - Show help
  */
@@ -399,7 +420,13 @@ COMMANDS:
   health              Run health checks
   apps                List deployable apps
   deploy <app>        Deploy an app
+  version             Show version and check for updates
   help                Show this help
+
+SERVICE:
+  start               Start the Vigil service
+  stop                Stop the Vigil service
+  update              Update Vigil to the newest version
 
 BACKUPS:
   backup <container> [db]                 Back up a database now
@@ -435,6 +462,7 @@ export const commands: CLICommand[] = [
   backupCommand,
   backupsCommand,
   restoreCommand,
+  versionCommand,
   helpCommand,
 ];
 

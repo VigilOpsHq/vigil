@@ -46,123 +46,124 @@ Once deployed, control Vigil via:
 
 ## Requirements
 
-- Linux VPS (Ubuntu 20.04+)
-- Docker + Docker Compose (installation steps provided below)
-- Node.js 20+ (for CLI commands, installation steps provided below)
-- [DeepSeek API key](https://platform.deepseek.com) — free tier available with generous limits
-- Telegram bot token — create one via [@BotFather](https://t.me/botfather)
+- A Linux server (Ubuntu 20.04+ or Debian). Docker is installed for you if it's missing
+- A Telegram bot token from [@BotFather](https://t.me/botfather). Use a separate bot for each server
+- A [DeepSeek API key](https://platform.deepseek.com) for AI escalation
+
+You don't need Node.js or git on the server. Vigil ships as a ready-built Docker image.
 
 ---
 
-## Quick start
+## Install
 
 ```bash
-git clone https://github.com/yourorg/vigilops
-cd vigilops
-npm install
-cp .env.example .env
+curl -fsSL https://raw.githubusercontent.com/VigilOpsHq/vigil/main/install.sh | sudo sh
 ```
 
-Fill in `.env`:
+The installer:
+- installs Docker and the Docker Compose plugin if they're missing
+- creates `/opt/vigil` with `docker-compose.yml` and `.env`
+- creates `/var/backups/vigil`
+- installs the `vigil` command
 
-```env
-# AI Backend (DeepSeek)
-DEEPSEEK_API_KEY=sk-...
-DEEPSEEK_MODEL=deepseek-chat
-
-# Telegram notifications
-TELEGRAM_BOT_TOKEN=7123456789:AAF...
-TELEGRAM_CHAT_ID=123456789
-
-# Health checks (optional)
-HEALTH_CHECK_URLS=https://yourapp.com/health
-# HEALTH_CHECK_CONTAINER_MAP=https://api.example.com/health:my-api,https://app.example.com/health:my-app
-
-# Webhook security (optional)
-VIGIL_WEBHOOK_SECRET=your-random-secret
-```
-
-Run locally:
+Then add your settings and start Vigil:
 
 ```bash
-npm run dev
-```
-
-Vigil sends a Telegram message on startup. Send `/status` to verify everything is working.
-
----
-
-## Deploy to VPS
-
-### Prerequisites (run once)
-
-```bash
-# Install Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-
-# Install Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-
-# Install Node.js (for CLI commands)
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# Verify installations
-docker --version
-docker-compose --version
-node --version
-npm --version
-```
-
-### Deploy Vigil
-
-```bash
-# Clone repository
-git clone https://github.com/VigilOpsHq/vigil /opt/vigil
-cd /opt/vigil
-
-# Install dependencies & build
-npm install
-npm run build
-
-# Configure environment
-cp .env.example .env
-nano .env
-# Add: DEEPSEEK_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, etc.
-
-# Create CLI command (optional but recommended)
-sudo bash -c 'cat > /usr/local/bin/vigil << "EOF"
-#!/bin/bash
-node /opt/vigil/dist/cli/index.js "$@"
-EOF'
-sudo chmod +x /usr/local/bin/vigil
-
-# Start Vigil
-docker-compose up -d --build
-docker-compose logs -f
-
-# Test
+sudo nano /opt/vigil/.env      # TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, VIGIL_WEBHOOK_SECRET, DEEPSEEK_API_KEY
+vigil start
 vigil status
 ```
 
-### Updating Vigil
+Vigil sends a Telegram message when it starts. Send `/status` to check it's working.
 
-Vigil has two parts that both need updating: the `vigil` command (runs on the host from `/opt/vigil/dist`) and the background service (runs in the `vigil` container).
+### What's on the server
+
+| Path | What it is |
+|---|---|
+| `/opt/vigil/docker-compose.yml` | Runs the `ghcr.io/vigilopshq/vigil` image |
+| `/opt/vigil/.env` | Your settings. [`.env.example`](.env.example) lists every option |
+| `/opt/vigil/logs/` | Audit log |
+| `/var/backups/vigil/` | Database backups and backup schedules |
+| `/usr/local/bin/vigil` | The `vigil` command. It runs inside the container, so it always matches the running version |
+
+`vigil start`, `vigil stop` and `vigil update` manage the service. Every other command, like `vigil status` or `vigil backup`, runs inside the Vigil container.
+
+---
+
+## Updating
+
+Vigil checks for new releases once a day. When one is out, you get a Telegram message with the release notes and an **Update** button. Tap it, and Vigil pulls the new image and restarts itself. It says hello with the new version number when it's back.
+
+You can also update any time:
+
+| Where | How |
+|---|---|
+| Server | `vigil update` |
+| Telegram | `/update` |
+| Check the version | `vigil version` or `/version` |
+
+Updates never install on their own. Vigil controls Docker on your server, so a person always approves the update.
+
+### Pinning a version
+
+By default a server follows `latest`. To control what an update installs, set `VIGIL_TAG` in `/opt/vigil/.env`:
+
+| `VIGIL_TAG` | Updates to |
+|---|---|
+| `latest` (default) | Every new release |
+| `1.2` | Only `1.2.x` fixes |
+| `1.2.3` | Nothing. Stays on this exact version |
+
+Run `vigil update` after changing it. To turn off the daily check, set `VIGIL_UPDATE_CHECK=false`.
+
+### Moving an existing git-based install to images
+
+If `/opt/vigil` is a `git clone` from before images existed, run the installer once:
 
 ```bash
-cd /opt/vigil
-git pull
-npm install
-npm run build                 # updates the vigil command
-docker-compose up -d --build  # updates the background service
-docker-compose logs --tail 30 vigil
+curl -fsSL https://raw.githubusercontent.com/VigilOpsHq/vigil/main/install.sh | sudo sh
 ```
 
-If you only rebuild one of them, they can get out of sync. For example, a schedule set with `vigil backup schedule` never runs if the container is still on an older version.
+It keeps your `.env`, logs, backups and schedules. It replaces `docker-compose.yml` (the old one is saved as `docker-compose.yml.bak`) and the `vigil` command, then starts the image. After that, `git pull` is no longer needed on that server.
 
-### Nginx config (optional — for the webhook endpoint)
+---
+
+## Releasing a new version (maintainers)
+
+```bash
+npm version patch        # or minor / major: bumps package.json, commits, tags v1.2.4
+git push --follow-tags
+```
+
+The tag triggers [`release.yml`](.github/workflows/release.yml), which:
+1. checks the tag matches `package.json`
+2. builds the image for amd64 and arm64
+3. pushes `ghcr.io/vigilopshq/vigil` with the tags `1.2.4`, `1.2` and `latest`
+4. creates a GitHub release with auto-generated notes
+
+Every server gets the Telegram update prompt within 24 hours.
+
+**First release only:** GitHub makes new container packages private. Go to GitHub → VigilOpsHq → Packages → vigil → Package settings → Change visibility → **Public**, or servers can't pull the image.
+
+Pushes and pull requests to `main` run [`ci.yml`](.github/workflows/ci.yml), which type-checks, builds, checks the shell scripts and builds the Docker image.
+
+### Developing locally
+
+```bash
+npm install
+cp .env.example .env     # use a separate test bot token
+npm run dev              # run the service
+npm run dev:cli -- status
+
+# or build and run the image from this checkout
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+```
+
+---
+
+## Webhook endpoint (optional)
+
+The webhook server listens on port 3100. To call it from GitHub Actions, put it behind nginx with HTTPS:
 
 ```nginx
 server {
@@ -226,39 +227,6 @@ Local backups older than `BACKUP_KEEP_DAYS` (default 7) are deleted automaticall
 | `vigil backup unschedule <container>` | `/backup_schedule <container> off` | Stop scheduled backups |
 | `vigil backup schedules` | `/backup_schedules` | List schedules |
 
-### First-time setup checklist
-
-After installing or updating Vigil, run through this once per server:
-
-```bash
-# 1. The background service has the backup scheduler
-docker-compose logs vigil | grep "Scheduler started"
-
-# 2. The container can see the backup folder (should print [] or your schedules)
-docker exec vigil cat /var/backups/vigil/schedules.json
-
-# 3. A real backup works; you should also get a Telegram message
-vigil backup <your-db-container>
-vigil backups
-
-# 4. Schedule it
-vigil backup schedule <your-db-container> daily 02:00
-
-# 5. Check the server's clock, since schedules use server time
-date
-```
-
-If step 1 prints nothing or step 2 says "No such file", the container is on an older version. Run `docker-compose up -d --build`.
-
-### Time zone
-
-Schedule times follow the server's clock, and many VPS images default to UTC. To run schedules in your local time:
-
-```bash
-sudo timedatectl set-timezone Africa/Lagos   # list options: timedatectl list-timezones
-docker-compose restart vigil
-```
-
 `<when>` is one of:
 
 - `hourly`: every hour, on the hour
@@ -278,6 +246,39 @@ Restore: /restore songdis-postgres__songdis__20260916-020000.sql.gz
 ```
 
 If a backup fails you get `❌ Backup FAILED` with the error, so a missing message never silently means "no backup".
+
+### First-time setup checklist
+
+After installing or updating Vigil, run through this once per server:
+
+```bash
+# 1. The background service has the backup scheduler
+docker logs vigil 2>&1 | grep "Scheduler started"
+
+# 2. The container can see the backup folder (should print [] or your schedules)
+docker exec vigil cat /var/backups/vigil/schedules.json
+
+# 3. A real backup works; you should also get a Telegram message
+vigil backup <your-db-container>
+vigil backups
+
+# 4. Schedule it
+vigil backup schedule <your-db-container> daily 02:00
+
+# 5. Check the server's clock, since schedules use server time
+date
+```
+
+If step 1 prints nothing or step 2 says "No such file", the server is on an older version. Run `vigil update`, or see [Moving an existing git-based install to images](#moving-an-existing-git-based-install-to-images).
+
+### Time zone
+
+Schedule times follow the server's clock, and many VPS images default to UTC. To run schedules in your local time:
+
+```bash
+sudo timedatectl set-timezone Africa/Lagos   # list options: timedatectl list-timezones
+docker restart vigil
+```
 
 ### Restoring
 
@@ -332,6 +333,8 @@ For AWS S3, leave `BACKUP_S3_ENDPOINT` empty and set `BACKUP_S3_REGION` to your 
 ---
 
 ## Registering apps for deploy
+
+> Apps are currently registered in code, so a server using the published image can't add its own apps. To do it, build your own image from a checkout (see [Developing locally](#developing-locally)).
 
 Edit `src/deploy/deploy.config.ts`:
 
@@ -391,6 +394,13 @@ Vigil pulls the new image, restarts the container, waits for the health check to
 | `/backup_schedules` | List backup schedules |
 
 See [Database Backups](#database-backups) for details.
+
+### Updates
+
+| Command | Description |
+|---|---|
+| `/version` | Show the running version; offers an Update button if a newer release exists |
+| `/update` | Update Vigil to the newest release allowed by `VIGIL_TAG` |
 
 ---
 
