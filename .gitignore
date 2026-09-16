@@ -33,3 +33,5 @@ Thumbs.db
 # Misc
 *.pem
 *.key
+# Private planning notes
+TODO.md
