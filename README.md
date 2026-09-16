@@ -143,7 +143,19 @@ The tag triggers [`release.yml`](.github/workflows/release.yml), which:
 
 Every server gets the Telegram update prompt within 24 hours.
 
-**First release only:** GitHub makes new container packages private. Go to GitHub → VigilOpsHq → Packages → vigil → Package settings → Change visibility → **Public**, or servers can't pull the image.
+### First release only: make the image public
+
+GitHub creates new container packages as **private**, so servers get `denied` / `unauthorized` when pulling until you change this. It's a one-time step; later releases keep the setting.
+
+1. Open the package settings directly: https://github.com/orgs/VigilOpsHq/packages/container/vigil/settings
+   (The org's **Packages** tab can look empty while the package is private. You can also reach it from the repo page → **Packages** in the right sidebar.)
+2. Scroll to **Danger Zone** → **Change visibility** → **Public** → type `vigil` to confirm.
+3. Check it worked from any machine. This should download without logging in:
+   ```bash
+   docker pull ghcr.io/vigilopshq/vigil:latest
+   ```
+
+If the settings page shows 404, check that the **Release** workflow succeeded under the repo's **Actions** tab. Its "Build and push" step is what creates the package.
 
 Pushes and pull requests to `main` run [`ci.yml`](.github/workflows/ci.yml), which type-checks, builds, checks the shell scripts and builds the Docker image.
 
