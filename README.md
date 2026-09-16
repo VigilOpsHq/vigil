@@ -150,6 +150,7 @@ GitHub creates new container packages as **private**, so servers get `denied` / 
 1. Open the package settings directly: https://github.com/orgs/VigilOpsHq/packages/container/vigil/settings
    (The org's **Packages** tab can look empty while the package is private. You can also reach it from the repo page → **Packages** in the right sidebar.)
 2. Scroll to **Danger Zone** → **Change visibility** → **Public** → type `vigil` to confirm.
+   If **Public** is greyed out with "Setting is disabled by organization administrators", an organization owner must first allow public packages in the org settings (https://github.com/organizations/VigilOpsHq/settings, **Packages** section).
 3. Check it worked from any machine. This should download without logging in:
    ```bash
    docker pull ghcr.io/vigilopshq/vigil:latest
