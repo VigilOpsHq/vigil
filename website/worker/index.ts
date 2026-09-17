@@ -14,8 +14,13 @@ const routes: Record<string, (ctx: { request: Request; env: any }) => Promise<Re
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const { pathname } = new URL(request.url);
-    const handler = routes[pathname];
+    const url = new URL(request.url);
+    if (url.hostname.startsWith('www.')) {
+      url.hostname = url.hostname.slice(4);
+      return Response.redirect(url.toString(), 301);
+    }
+
+    const handler = routes[url.pathname];
 
     if (handler) {
       if (request.method !== 'POST') {
