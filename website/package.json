@@ -9,7 +9,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "preview:worker": "npm run build && wrangler dev",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler d1 migrations apply DB --remote && wrangler deploy",
+    "db:migrate": "wrangler d1 migrations apply DB --remote"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.42.1",

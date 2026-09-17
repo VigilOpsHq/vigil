@@ -34,6 +34,7 @@ export default defineConfig({
         {
           label: 'Guides',
           items: [
+            { label: 'VigilOps Cloud', slug: 'docs/guides/cloud' },
             { label: 'Database backups', slug: 'docs/guides/backups' },
             { label: 'Restoring a backup', slug: 'docs/guides/restore' },
             { label: 'Off-server backup storage', slug: 'docs/guides/offsite-storage' },

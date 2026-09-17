@@ -1,0 +1,63 @@
+---
+import '../styles/site.css';
+
+interface Props {
+  title: string;
+}
+const { title } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>{title}</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+    />
+  </head>
+  <body class="app-body">
+    <header class="app-nav">
+      <div class="container app-nav-inner">
+        <a class="logo" href="/app/" aria-label="VigilOps dashboard">
+          <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+            <rect width="32" height="32" rx="7" fill="#0d7a6f" />
+            <path d="M8 10.5 16 23l8-12.5" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+            <circle cx="16" cy="8.5" r="2" fill="#8fe3d2" />
+          </svg>
+          <span>VigilOps</span>
+          <span class="cloud-tag">Cloud</span>
+        </a>
+        <nav class="app-links">
+          <a href="/docs/guides/cloud/">Docs</a>
+          <a href="mailto:support@vigilops.cloud">Support</a>
+          <span class="who" data-who></span>
+          <form method="post" action="/auth/logout" data-signout hidden>
+            <button class="btn btn-secondary btn-sm" type="submit">Sign out</button>
+          </form>
+        </nav>
+      </div>
+    </header>
+    <main class="app-main"><slot /></main>
+  </body>
+</html>
+
+<style>
+  .app-body { background: var(--bg-soft); min-height: 100vh; }
+  .app-nav { background: #fff; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
+  .app-nav-inner { display: flex; align-items: center; gap: 16px; height: 60px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; }
+  .cloud-tag { font: 600 11px/1 var(--mono); color: var(--brand); background: var(--brand-soft); padding: 4px 6px; border-radius: 4px; }
+  .app-links { margin-left: auto; display: flex; align-items: center; gap: 18px; font-size: 14px; }
+  .app-links a { color: var(--ink-2); text-decoration: none; }
+  .app-links a:hover { color: var(--ink); }
+  .who { color: var(--muted); font-size: 13px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .app-main { padding: 32px 0 80px; }
+  @media (max-width: 560px) { .who { display: none; } }
+</style>

@@ -1,18 +1,9 @@
-// POST /api/bachs-webhook (routed from worker/index.ts)
-// Receives Bachs events, verifies the signature, and tells the team on Telegram.
-// Until VigilOps Cloud has a backend, fulfilment is manual: this notification is the trigger.
+// POST /api/bachs-webhook
+// Verifies Bachs events, records subscriptions (which unlock plans) and notifies the team on Telegram.
 
-interface Env {
-  BACHS_WEBHOOK_SECRET?: string;
-  SALES_TELEGRAM_BOT_TOKEN?: string;
-  SALES_TELEGRAM_CHAT_ID?: string;
-  SALES_EVENTS?: { put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void> };
-}
-
-interface Context {
-  request: Request;
-  env: Env;
-}
+import type { Env, RequestContext } from '../lib/env';
+import { hmacHex, safeEqual } from '../lib/crypto';
+import { sendTelegram } from '../lib/telegram';
 
 interface BachsEvent {
   id: string;
@@ -22,20 +13,6 @@ interface BachsEvent {
 }
 
 const TOLERANCE_SECONDS = 300;
-const encoder = new TextEncoder();
-
-async function hmacHex(secret: string, message: string): Promise<string> {
-  const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(message));
-  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-function safeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
 
 async function verify(request: Request, raw: string, secret: string): Promise<boolean> {
   let timestamp: string | null = null;
@@ -65,6 +42,61 @@ async function verify(request: Request, raw: string, secret: string): Promise<bo
   return signatures.some((s) => safeEqual(expected, s));
 }
 
+function planFromProduct(env: Env, productId: string | undefined): { plan: string; interval: string } | null {
+  if (!productId) return null;
+  for (const plan of ['pro', 'team']) {
+    for (const interval of ['monthly', 'yearly']) {
+      if (env[`BACHS_PRODUCT_${plan.toUpperCase()}_${interval.toUpperCase()}`] === productId) return { plan, interval };
+    }
+  }
+  return null;
+}
+
+async function recordSubscription(env: Env, event: BachsEvent): Promise<void> {
+  if (!env.DB || !event.type.startsWith('customer.subscription.')) return;
+  const d = event.data ?? {};
+  const id = String(d.id ?? '');
+  const email = String(d.customer?.email ?? d.customer_details?.email ?? '').toLowerCase();
+  if (!id.startsWith('sub_') || !email) {
+    console.error(`subscription event without id/email: ${event.id}`);
+    return;
+  }
+
+  const fromProduct = planFromProduct(env, d.product?.id ?? d.items?.[0]?.product_id);
+  const plan = String(d.metadata?.plan ?? fromProduct?.plan ?? '');
+  if (!['pro', 'team', 'enterprise'].includes(plan)) {
+    console.error(`subscription ${id}: unknown plan`);
+    return;
+  }
+  const interval = String(d.metadata?.interval ?? fromProduct?.interval ?? '');
+  const status = event.type === 'customer.subscription.deleted' ? 'canceled' : String(d.status ?? 'active');
+  const accountId = typeof d.metadata?.account_id === 'string' ? d.metadata.account_id : null;
+
+  await env.DB.prepare(
+    `INSERT INTO subscriptions (id, account_id, customer_id, email, plan, interval, status, current_period_end, cancel_at_period_end, updated_at)
+     VALUES (?, (SELECT id FROM accounts WHERE id = ?), ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET
+       account_id = COALESCE(subscriptions.account_id, excluded.account_id),
+       customer_id = COALESCE(excluded.customer_id, subscriptions.customer_id),
+       email = excluded.email, plan = excluded.plan, interval = excluded.interval, status = excluded.status,
+       current_period_end = excluded.current_period_end, cancel_at_period_end = excluded.cancel_at_period_end,
+       updated_at = excluded.updated_at`
+  )
+    .bind(
+      id,
+      accountId,
+      d.customer?.customer_id ?? d.customer?.id ?? null,
+      email,
+      plan,
+      interval,
+      status,
+      d.current_period_end ?? null,
+      d.cancel_at_period_end ? 1 : 0,
+      new Date().toISOString()
+    )
+    .run();
+}
+
 function describe(event: BachsEvent): string | null {
   const d = event.data ?? {};
   const who = d.customer?.email ?? d.customer_details?.email ?? 'unknown customer';
@@ -73,7 +105,7 @@ function describe(event: BachsEvent): string | null {
 
   switch (event.type) {
     case 'customer.subscription.created':
-      return `💰 New subscription: ${plan}\n${who}\n${money}\nAction: email them within 1 business day.`;
+      return `💰 New subscription: ${plan}\n${who}\n${money}\nThey can sign in at vigilops.cloud/app with GitHub (same email) to connect servers.`;
     case 'invoice.paid':
       return `🧾 Invoice paid: ${who} ${money}`;
     case 'invoice.payment_failed':
@@ -82,8 +114,6 @@ function describe(event: BachsEvent): string | null {
       return `🔄 Subscription updated: ${who} → ${d.status ?? 'changed'}${d.cancel_at_period_end ? ' (cancels at period end)' : ''}`;
     case 'customer.subscription.deleted':
       return `❌ Subscription cancelled: ${who} ${plan}`;
-    case 'collection.succeeded':
-      return null; // covered by subscription.created / invoice.paid
     case 'refund.paid':
       return `↩️ Refund paid: ${money}`;
     case 'dispute.created':
@@ -93,7 +123,7 @@ function describe(event: BachsEvent): string | null {
   }
 }
 
-export const onRequestPost = async ({ request, env }: Context): Promise<Response> => {
+export async function bachsWebhook({ request, env }: RequestContext): Promise<Response> {
   if (!env.BACHS_WEBHOOK_SECRET) {
     console.error('BACHS_WEBHOOK_SECRET is not set');
     return new Response('not configured', { status: 503 });
@@ -111,19 +141,22 @@ export const onRequestPost = async ({ request, env }: Context): Promise<Response
     return new Response('invalid payload', { status: 400 });
   }
 
-  if (env.SALES_EVENTS) {
-    await env.SALES_EVENTS.put(`event:${event.created_at ?? ''}:${event.id}`, raw);
+  if (env.DB && event.id) {
+    const { meta } = await env.DB.prepare('INSERT OR IGNORE INTO webhook_events (id, type) VALUES (?, ?)').bind(event.id, event.type).run();
+    if (meta.changes === 0) return new Response('duplicate');
+  }
+
+  try {
+    await recordSubscription(env, event);
+  } catch (err) {
+    // Let Bachs retry: forget the event so the retry is processed
+    if (env.DB && event.id) await env.DB.prepare('DELETE FROM webhook_events WHERE id = ?').bind(event.id).run();
+    console.error('failed to record subscription', err);
+    return new Response('error', { status: 500 });
   }
 
   const text = describe(event);
-  if (text && env.SALES_TELEGRAM_BOT_TOKEN && env.SALES_TELEGRAM_CHAT_ID) {
-    const res = await fetch(`https://api.telegram.org/bot${env.SALES_TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: env.SALES_TELEGRAM_CHAT_ID, text }),
-    });
-    if (!res.ok) console.error(`telegram notify failed: ${res.status}`);
-  }
+  if (text) await sendTelegram(env.SALES_TELEGRAM_BOT_TOKEN, env.SALES_TELEGRAM_CHAT_ID, text);
 
   return new Response('ok');
-};
+}

@@ -9,6 +9,19 @@
     "not_found_handling": "404-page",
     "run_worker_first": true
   },
+  // VigilOps Cloud data: accounts, subscriptions, servers, backup records
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "vigilops",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // Customer backup files
+  "r2_buckets": [{ "binding": "BACKUPS", "bucket_name": "vigilops-backups" }],
+  // Offline servers, missed backups, retention
+  "triggers": { "crons": ["*/15 * * * *"] },
   // Keep variables set in the Cloudflare dashboard when deploying from Git.
   "keep_vars": true,
   "observability": { "enabled": true }

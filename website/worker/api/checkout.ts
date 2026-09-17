@@ -1,68 +1,45 @@
-// POST /api/checkout (routed from worker/index.ts)
+// POST /api/checkout
 // Creates a Bachs checkout session for a paid plan and returns its URL.
-// The secret key stays here on the server; the browser only gets checkout_url.
+// The secret key stays on the server; the browser only gets checkout_url.
 
-interface Env {
-  BACHS_API_KEY?: string;
-  BACHS_API_BASE?: string;
-  [productVar: string]: string | undefined;
-}
+import type { RequestContext } from '../lib/env';
+import { HttpError, json, readJson } from '../lib/http';
+import { getAccount } from '../lib/auth';
 
-interface Context {
-  request: Request;
-  env: Env;
-}
+const PLANS = ['pro', 'team'];
+const INTERVALS = ['monthly', 'yearly'];
 
-const PLANS = ['pro', 'team'] as const;
-const INTERVALS = ['monthly', 'yearly'] as const;
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
-  });
-
-export const onRequestPost = async ({ request, env }: Context): Promise<Response> => {
-  let input: { plan?: string; interval?: string; email?: string; name?: string };
-  try {
-    input = await request.json();
-  } catch {
-    return json({ error: 'Invalid request.' }, 400);
-  }
+export async function checkout({ request, env }: RequestContext): Promise<Response> {
+  const input = await readJson<{ plan?: string; interval?: string; email?: string; name?: string }>(request);
 
   const plan = String(input.plan ?? '');
   const interval = String(input.interval ?? '');
   const email = String(input.email ?? '').trim().slice(0, 254);
   const name = String(input.name ?? '').trim().slice(0, 100);
 
-  if (!PLANS.includes(plan as (typeof PLANS)[number]) || !INTERVALS.includes(interval as (typeof INTERVALS)[number])) {
-    return json({ error: 'Unknown plan.' }, 400);
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !name) {
-    return json({ error: 'Enter a valid name and email.' }, 400);
-  }
+  if (!PLANS.includes(plan) || !INTERVALS.includes(interval)) throw new HttpError(400, 'Unknown plan.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !name) throw new HttpError(400, 'Enter a valid name and email.');
 
-  const productId = env[`BACHS_PRODUCT_${plan.toUpperCase()}_${interval.toUpperCase()}`];
+  const productId = env[`BACHS_PRODUCT_${plan.toUpperCase()}_${interval.toUpperCase()}`] as string | undefined;
   if (!env.BACHS_API_KEY || !productId) {
     console.error(`checkout not configured: key=${Boolean(env.BACHS_API_KEY)} product=${Boolean(productId)} plan=${plan} interval=${interval}`);
-    return json({ error: 'Checkout is not available right now.' }, 503);
+    throw new HttpError(503, 'Checkout is not available right now.');
   }
+
+  // Link the subscription to the signed-in account, if any, so the plan unlocks even if the emails differ
+  const account = await getAccount(env, request).catch(() => null);
 
   const origin = new URL(request.url).origin;
   const base = (env.BACHS_API_BASE || 'https://sandbox-api.bachs.io').replace(/\/+$/, '');
-
   const res = await fetch(`${base}/v1/checkout-sessions`, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.BACHS_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { Authorization: `Bearer ${env.BACHS_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       product_cart: [{ product_id: productId, quantity: 1 }],
       customer: { email, name },
       success_url: `${origin}/checkout/success/`,
       cancel_url: `${origin}/pricing/`,
-      metadata: { plan, interval, source: 'vigilops.cloud' },
+      metadata: { plan, interval, source: 'vigilops.cloud', ...(account ? { account_id: account.id } : {}) },
       expires_in_minutes: 60,
     }),
   });
@@ -70,8 +47,8 @@ export const onRequestPost = async ({ request, env }: Context): Promise<Response
   const body = (await res.json().catch(() => null)) as { checkout_url?: string } | null;
   if (!res.ok || !body?.checkout_url) {
     console.error(`bachs checkout failed: ${res.status} ${JSON.stringify(body)}`);
-    return json({ error: 'Checkout is not available right now.' }, 502);
+    throw new HttpError(502, 'Checkout is not available right now.');
   }
 
   return json({ checkout_url: body.checkout_url });
-};
+}

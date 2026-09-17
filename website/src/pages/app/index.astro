@@ -1,0 +1,463 @@
+---
+import App from '../../layouts/App.astro';
+---
+
+<App title="Dashboard · VigilOps Cloud">
+  <div class="container">
+    <div class="loading" data-loading>Loading your dashboard…</div>
+
+    <div data-dashboard hidden>
+      <div class="page-head">
+        <div>
+          <h1 data-greeting>Dashboard</h1>
+          <p class="muted" data-plan-line></p>
+        </div>
+        <button class="btn btn-primary" type="button" data-add-server>Add server</button>
+      </div>
+
+      <section class="upsell card" data-upsell hidden>
+        <div>
+          <h2>Connect your servers to VigilOps Cloud</h2>
+          <p>
+            Pro and Team plans add managed backup storage, a dashboard for every backup, and alerts when a server goes offline
+            or a scheduled backup is missed.
+          </p>
+          <p class="muted small" data-emails></p>
+        </div>
+        <a class="btn btn-primary" href="/pricing/">See plans</a>
+      </section>
+
+      <div class="grid" data-plan-grid hidden>
+        <section class="card">
+          <h2 class="card-title">Plan</h2>
+          <div class="plan-row">
+            <span class="plan-name" data-plan-name></span>
+            <span class="badge" data-plan-status></span>
+          </div>
+          <p class="muted small" data-renewal></p>
+          <div class="meter">
+            <div class="meter-label"><span>Servers</span><span data-servers-usage></span></div>
+            <div class="bar"><i data-servers-bar></i></div>
+          </div>
+          <div class="meter">
+            <div class="meter-label"><span>Backup storage</span><span data-storage-usage></span></div>
+            <div class="bar"><i data-storage-bar></i></div>
+          </div>
+          <p class="muted small" data-retention></p>
+          <button class="btn btn-secondary btn-sm" type="button" data-billing hidden>Manage billing</button>
+        </section>
+
+        <section class="card">
+          <h2 class="card-title">Alerts</h2>
+          <p class="muted small">
+            VigilOps Cloud watches your servers from outside. You get a Telegram message when a server stops checking in, or when
+            a scheduled backup doesn't arrive.
+          </p>
+          <div class="tg" data-tg></div>
+        </section>
+      </div>
+
+      <section class="card servers">
+        <div class="card-head">
+          <h2 class="card-title">Servers</h2>
+        </div>
+        <div data-servers></div>
+      </section>
+
+      <section class="card backups" data-backups-card hidden>
+        <div class="card-head">
+          <h2 class="card-title" data-backups-title>Backups</h2>
+          <button class="btn btn-secondary btn-sm" type="button" data-close-backups>Close</button>
+        </div>
+        <div data-backups></div>
+      </section>
+    </div>
+  </div>
+
+  <dialog data-server-dialog aria-labelledby="server-dialog-title">
+    <form method="dialog" class="x"><button aria-label="Close">×</button></form>
+    <div data-step-name>
+      <h2 id="server-dialog-title">Add a server</h2>
+      <p class="muted">Give it a name you'll recognise in alerts, like <code>prod-01</code> or <code>songdis</code>.</p>
+      <form data-server-form>
+        <label>Server name <input name="name" required maxlength="60" autocomplete="off" /></label>
+        <p class="error" role="alert" hidden></p>
+        <button class="btn btn-primary wide" type="submit">Create</button>
+      </form>
+    </div>
+    <div data-step-token hidden>
+      <h2 data-token-title>Connect your server</h2>
+      <p class="warn">This token is shown <strong>once</strong>. Copy the command now.</p>
+      <p class="label">New server (installs VigilOps and connects it):</p>
+      <div class="cmd" data-cmd-install><code></code><button type="button">Copy</button></div>
+      <p class="label">Server that already runs VigilOps:</p>
+      <div class="cmd" data-cmd-connect><code></code><button type="button">Copy</button></div>
+      <p class="muted small">The server appears here as online within a minute of running the command.</p>
+      <form method="dialog"><button class="btn btn-primary wide">Done</button></form>
+    </div>
+  </dialog>
+</App>
+
+<script>
+  type Server = {
+    id: string; name: string; hostname: string | null; agentVersion: string | null; lastSeenAt: string | null;
+    online: boolean; connected: boolean; backupCount: number; backupBytes: number; lastBackupAt: string | null;
+    schedules: { container: string; every: string; time: string; day?: number }[];
+  };
+  type Overview = {
+    plan: string | null; status: string | null; limits: { servers: number; storageBytes: number; retentionDays: number } | null;
+    currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean; canManageBilling: boolean;
+    usage: { servers: number; storageBytes: number };
+    telegram: { connected: boolean; available: boolean };
+    servers: Server[];
+  };
+
+  const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
+
+  function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, string> = {}, ...children: (Node | string | null)[]) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === 'class') el.className = v;
+      else el.setAttribute(k, v);
+    }
+    for (const c of children) if (c !== null) el.append(c);
+    return el;
+  }
+
+  const bytes = (n: number) =>
+    n < 1024 ? `${n} B` : n < 1024 ** 2 ? `${(n / 1024).toFixed(1)} KB` : n < 1024 ** 3 ? `${(n / 1024 ** 2).toFixed(1)} MB` : `${(n / 1024 ** 3).toFixed(2)} GB`;
+
+  const ago = (iso: string | null) => {
+    if (!iso) return 'never';
+    const s = Math.round((Date.now() - Date.parse(iso)) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return `${Math.round(s / 60)} min ago`;
+    if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+    return `${Math.round(s / 86400)} d ago`;
+  };
+
+  async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const res = await fetch(path, {
+      ...init,
+      headers: { ...(init.body ? { 'Content-Type': 'application/json' } : {}), ...(init.headers ?? {}) },
+    });
+    if (res.status === 401) {
+      location.replace(`/login/?next=${encodeURIComponent(location.pathname)}`);
+      throw new Error('Sign in required');
+    }
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status})`);
+    return body as T;
+  }
+
+  function copyButtons(root: ParentNode) {
+    root.querySelectorAll<HTMLElement>('.cmd').forEach((box) => {
+      const button = box.querySelector('button')!;
+      button.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(box.querySelector('code')!.textContent ?? '');
+          button.textContent = 'Copied';
+        } catch {
+          window.getSelection()?.selectAllChildren(box.querySelector('code')!);
+          button.textContent = 'Ctrl+C';
+        }
+        setTimeout(() => (button.textContent = 'Copy'), 1600);
+      };
+    });
+  }
+
+  let data: Overview;
+  let me: { account: { name: string | null; login: string | null; email: string; emails: string[] } };
+
+  async function load() {
+    [me, data] = await Promise.all([api<typeof me>('/api/me'), api<Overview>('/api/app/overview')]);
+    render();
+  }
+
+  function render() {
+    $('[data-loading]').hidden = true;
+    $('[data-dashboard]').hidden = false;
+    $('[data-who]').textContent = me.account.email;
+    $('[data-signout]').hidden = false;
+    $('[data-greeting]').textContent = `Hi ${me.account.name?.split(' ')[0] || me.account.login || 'there'}`;
+
+    const paid = Boolean(data.plan && data.limits);
+    $('[data-upsell]').hidden = paid;
+    $('[data-plan-grid]').hidden = !paid;
+    $('[data-add-server]').hidden = !paid;
+    $('[data-plan-line]').textContent = paid
+      ? `${data.plan![0].toUpperCase()}${data.plan!.slice(1)} plan · ${data.usage.servers} server${data.usage.servers === 1 ? '' : 's'}`
+      : 'No active plan';
+    $('[data-emails]').textContent = `Already paid? We look for a subscription under your verified GitHub emails: ${me.account.emails.join(', ')}.`;
+
+    if (paid) {
+      const l = data.limits!;
+      $('[data-plan-name]').textContent = data.plan![0].toUpperCase() + data.plan!.slice(1);
+      const status = $('[data-plan-status]');
+      status.textContent = data.cancelAtPeriodEnd ? 'cancels at period end' : data.status ?? '';
+      status.className = `badge ${data.status === 'past_due' || data.cancelAtPeriodEnd ? 'warn' : 'ok'}`;
+      $('[data-renewal]').textContent = data.currentPeriodEnd
+        ? `${data.cancelAtPeriodEnd ? 'Ends' : 'Renews'} ${new Date(data.currentPeriodEnd).toLocaleDateString()}`
+        : '';
+      $('[data-servers-usage]').textContent = `${data.usage.servers} of ${l.servers}`;
+      $('[data-servers-bar]').style.width = `${Math.min(100, (data.usage.servers / l.servers) * 100)}%`;
+      $('[data-storage-usage]').textContent = `${bytes(data.usage.storageBytes)} of ${bytes(l.storageBytes)}`;
+      $('[data-storage-bar]').style.width = `${Math.min(100, (data.usage.storageBytes / l.storageBytes) * 100)}%`;
+      $('[data-retention]').textContent = `Backups are kept for ${l.retentionDays} days. The newest backup of each database is always kept.`;
+      $('[data-billing]').hidden = !data.canManageBilling;
+    }
+
+    renderTelegram();
+    renderServers();
+  }
+
+  function renderTelegram() {
+    const box = $('[data-tg]');
+    box.replaceChildren();
+    if (!data.telegram.available) {
+      box.append(h('p', { class: 'muted small' }, 'Telegram alerts are not available yet.'));
+      return;
+    }
+    if (data.telegram.connected) {
+      const off = h('button', { class: 'btn btn-secondary btn-sm', type: 'button' }, 'Disconnect');
+      off.onclick = async () => {
+        await api('/api/app/telegram/unlink', { method: 'POST' });
+        data.telegram.connected = false;
+        renderTelegram();
+      };
+      box.append(h('p', { class: 'ok-line' }, '● Connected to Telegram'), off);
+    } else {
+      const on = h('button', { class: 'btn btn-primary btn-sm', type: 'button' }, 'Connect Telegram');
+      on.onclick = async () => {
+        const w = window.open('about:blank', '_blank');
+        try {
+          const { url } = await api<{ url: string }>('/api/app/telegram/link', { method: 'POST' });
+          if (w) w.location.href = url;
+          else location.href = url;
+          box.append(h('p', { class: 'muted small' }, 'Press Start in Telegram, then refresh this page.'));
+        } catch (e) {
+          w?.close();
+          alert((e as Error).message);
+        }
+      };
+      box.append(on);
+    }
+  }
+
+  function renderServers() {
+    const box = $('[data-servers]');
+    box.replaceChildren();
+    if (data.servers.length === 0) {
+      box.append(
+        h('div', { class: 'empty' },
+          h('p', {}, data.plan ? 'No servers yet.' : 'Servers you connect will appear here.'),
+          data.plan ? h('p', { class: 'muted small' }, 'Click "Add server" to get a connect command.') : null)
+      );
+      return;
+    }
+
+    const table = h('table', { class: 'table' },
+      h('thead', {}, h('tr', {}, ...['Server', 'Status', 'Backups', 'Last backup', 'Agent', ''].map((t) => h('th', {}, t)))));
+    const tbody = h('tbody');
+    for (const s of data.servers) {
+      const status = !s.connected
+        ? h('span', { class: 'status pending' }, 'waiting to connect')
+        : s.online
+          ? h('span', { class: 'status on' }, 'online')
+          : h('span', { class: 'status off' }, `offline · ${ago(s.lastSeenAt)}`);
+
+      const view = h('button', { class: 'link-btn', type: 'button' }, 'Backups');
+      view.onclick = () => showBackups(s);
+      const token = h('button', { class: 'link-btn', type: 'button' }, 'New token');
+      token.onclick = async () => {
+        if (!confirm(`Create a new token for ${s.name}? The current token stops working immediately.`)) return;
+        const res = await api<{ server: { name: string }; token: string }>(`/api/app/servers/${s.id}/token`, { method: 'POST' });
+        showToken(res.server.name, res.token);
+      };
+      const remove = h('button', { class: 'link-btn danger', type: 'button' }, 'Remove');
+      remove.onclick = async () => {
+        if (!confirm(`Remove ${s.name}? Its ${s.backupCount} backups in VigilOps Cloud will be deleted.`)) return;
+        await api(`/api/app/servers/${s.id}`, { method: 'DELETE' });
+        await load();
+      };
+
+      tbody.append(
+        h('tr', {},
+          h('td', {}, h('strong', {}, s.name), s.hostname ? h('div', { class: 'muted small mono' }, s.hostname) : null),
+          h('td', {}, status),
+          h('td', {}, `${s.backupCount} · ${bytes(s.backupBytes)}`),
+          h('td', {}, ago(s.lastBackupAt)),
+          h('td', { class: 'mono small' }, s.agentVersion ?? '—'),
+          h('td', { class: 'actions' }, view, token, remove))
+      );
+    }
+    table.append(tbody);
+    box.append(h('div', { class: 'table-wrap' }, table));
+  }
+
+  async function showBackups(s: Server) {
+    const card = $('[data-backups-card]');
+    card.hidden = false;
+    $('[data-backups-title]').textContent = `Backups · ${s.name}`;
+    const box = $('[data-backups]');
+    box.replaceChildren(h('p', { class: 'muted' }, 'Loading…'));
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    const { backups } = await api<{ backups: { id: string; container: string; file: string; size_bytes: number; completed_at: string }[] }>(
+      `/api/app/servers/${s.id}/backups`
+    );
+    box.replaceChildren();
+    if (backups.length === 0) {
+      box.append(h('p', { class: 'muted' }, 'No backups stored yet. They appear here after the server\'s next backup.'));
+      return;
+    }
+    const tbody = h('tbody');
+    for (const b of backups) {
+      const del = h('button', { class: 'link-btn danger', type: 'button' }, 'Delete');
+      del.onclick = async () => {
+        if (!confirm(`Delete ${b.file}? This cannot be undone.`)) return;
+        await api(`/api/app/backups/${b.id}`, { method: 'DELETE' });
+        showBackups(s);
+        load();
+      };
+      tbody.append(
+        h('tr', {},
+          h('td', { class: 'mono small file' }, b.file),
+          h('td', {}, b.container),
+          h('td', {}, bytes(b.size_bytes)),
+          h('td', {}, new Date(b.completed_at).toLocaleString()),
+          h('td', { class: 'actions' }, h('a', { class: 'link-btn', href: `/api/app/backups/${b.id}/download` }, 'Download'), del))
+      );
+    }
+    box.append(
+      h('div', { class: 'table-wrap' },
+        h('table', { class: 'table' },
+          h('thead', {}, h('tr', {}, ...['File', 'Container', 'Size', 'Stored', ''].map((t) => h('th', {}, t)))),
+          tbody)),
+      h('p', { class: 'muted small' }, 'To restore on any of your servers: ', h('code', {}, 'vigil restore <file>'))
+    );
+  }
+
+  const dialog = $<HTMLDialogElement>('[data-server-dialog]');
+
+  function showToken(name: string, token: string) {
+    $('[data-step-name]').hidden = true;
+    $('[data-step-token]').hidden = false;
+    $('[data-token-title]').textContent = `Connect ${name}`;
+    $('[data-cmd-install] code').textContent = `curl -fsSL https://vigilops.cloud/install.sh | sudo sh -s -- --token ${token}`;
+    $('[data-cmd-connect] code').textContent = `vigil cloud connect ${token}`;
+    copyButtons(dialog);
+    if (!dialog.open) dialog.showModal();
+  }
+
+  $('[data-add-server]').onclick = () => {
+    $('[data-step-name]').hidden = false;
+    $('[data-step-token]').hidden = true;
+    $<HTMLFormElement>('[data-server-form]').reset();
+    $('[data-server-form] .error').hidden = true;
+    dialog.showModal();
+  };
+
+  $<HTMLFormElement>('[data-server-form]').onsubmit = async (e) => {
+    e.preventDefault();
+    const form = e.target as HTMLFormElement;
+    const err = form.querySelector<HTMLElement>('.error')!;
+    const name = String(new FormData(form).get('name') ?? '').trim();
+    try {
+      const res = await api<{ server: { name: string }; token: string }>('/api/app/servers', {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      });
+      showToken(res.server.name, res.token);
+      load();
+    } catch (ex) {
+      err.textContent = (ex as Error).message;
+      err.hidden = false;
+    }
+  };
+
+  $('[data-close-backups]').onclick = () => ($('[data-backups-card]').hidden = true);
+
+  $('[data-billing]').onclick = async () => {
+    try {
+      const { url } = await api<{ url: string }>('/api/app/billing-portal', { method: 'POST' });
+      location.href = url;
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  };
+
+  load().catch((e) => {
+    $('[data-loading]').textContent = (e as Error).message;
+  });
+  setInterval(() => document.visibilityState === 'visible' && load().catch(() => undefined), 60_000);
+</script>
+
+<style is:global>
+  .loading { padding: 64px 0; text-align: center; color: var(--muted); }
+  .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  h1 { font-size: 30px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  .mono { font-family: var(--mono); }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 22px 24px; margin-bottom: 20px; min-width: 0; }
+  .card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .card-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+  .card-head .card-title { margin-bottom: 0; }
+  .grid { display: grid; gap: 20px; }
+  .grid .card { margin-bottom: 0; }
+  .grid + .card { margin-top: 20px; }
+  @media (min-width: 860px) { .grid { grid-template-columns: 1.3fr 1fr; } }
+
+  .upsell { display: flex; gap: 24px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .upsell h2 { font-size: 20px; }
+  .upsell p { margin-top: 8px; max-width: 620px; color: var(--ink-2); }
+
+  .plan-row { display: flex; align-items: center; gap: 10px; }
+  .plan-name { font-size: 24px; font-weight: 700; }
+  .badge { font: 600 11px/1 var(--mono); padding: 5px 7px; border-radius: 4px; text-transform: uppercase; }
+  .badge.ok { background: var(--brand-soft); color: var(--brand); }
+  .badge.warn { background: #fdf0e8; color: #b4501f; }
+  .meter { margin-top: 16px; }
+  .meter-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
+  .bar { height: 8px; background: var(--bg-soft); border-radius: 99px; overflow: hidden; border: 1px solid var(--line); }
+  .bar i { display: block; height: 100%; background: var(--brand); border-radius: 99px; width: 0; transition: width .4s ease; }
+  [data-retention] { margin-top: 14px; }
+  [data-billing] { margin-top: 16px; }
+
+  .tg { margin-top: 16px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+  .ok-line { color: var(--ok); font-weight: 600; font-size: 14px; }
+
+  .empty { padding: 28px 0 8px; text-align: center; }
+  .table-wrap { overflow-x: auto; }
+  .table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 640px; }
+  .table th { text-align: left; font: 600 12px var(--mono); color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .table td { padding: 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .table tr:last-child td { border-bottom: 0; }
+  .file { max-width: 360px; overflow-wrap: anywhere; }
+  .actions { white-space: nowrap; text-align: right; }
+  .link-btn { background: none; border: 0; padding: 0; margin-left: 14px; color: var(--brand); font: 500 14px var(--font); cursor: pointer; text-decoration: none; }
+  .link-btn:hover { text-decoration: underline; }
+  .link-btn.danger { color: #b42318; }
+  .status { font: 500 12px var(--mono); padding: 4px 8px; border-radius: 999px; white-space: nowrap; }
+  .status.on { background: #e8f6ee; color: #177a45; }
+  .status.off { background: #fef3f2; color: #b42318; }
+  .status.pending { background: var(--bg-soft); color: var(--muted); }
+
+  dialog { width: min(620px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 12px; padding: 28px; }
+  dialog::backdrop { background: rgba(11, 27, 43, .55); }
+  dialog h2 { font-size: 22px; }
+  dialog p { margin-top: 8px; }
+  .x { position: absolute; top: 10px; right: 10px; }
+  .x button { width: 34px; height: 34px; border: 0; background: none; font-size: 24px; color: var(--muted); cursor: pointer; }
+  dialog label { display: grid; gap: 6px; margin-top: 18px; font-size: 14px; font-weight: 600; }
+  dialog input { height: 42px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: 16px var(--font); }
+  .wide { width: 100%; margin-top: 20px; }
+  .error { color: #b42318; background: #fef3f2; border: 1px solid #fecdca; padding: 8px 12px; border-radius: 8px; font-size: 14px; margin-top: 12px; }
+  .warn { background: #fdf0e8; color: #8a3d17; border: 1px solid #f6cfb6; padding: 8px 12px; border-radius: 8px; font-size: 14px; }
+  .label { font-size: 13px; font-weight: 600; margin-top: 18px !important; }
+  .cmd { display: flex; gap: 8px; align-items: center; margin-top: 6px; background: var(--term); border-radius: 8px; padding: 6px 6px 6px 12px; }
+  .cmd code { flex: 1; min-width: 0; color: var(--term-text); font-size: 12.5px; overflow-x: auto; white-space: nowrap; padding: 6px 0; }
+  .cmd button { flex: none; height: 30px; padding: 0 10px; border-radius: 6px; background: #1f2833; color: #e6edf3; border: 1px solid #334050; cursor: pointer; font: 500 12px var(--font); }
+  code { font-size: 13px; }
+</style>

@@ -13,7 +13,14 @@ The website, docs, installer URL and checkout all live in `website/` and deploy 
 | `src/content/docs/docs/` | These docs |
 | `worker/index.ts` | Worker entry: routes `/api/*`, serves everything else from `dist/` |
 | `worker/api/checkout.ts` | `POST /api/checkout`: creates a Bachs checkout session |
-| `worker/api/bachs-webhook.ts` | `POST /api/bachs-webhook`: verifies Bachs events and posts them to Telegram |
+| `worker/api/bachs-webhook.ts` | `POST /api/bachs-webhook`: verifies Bachs events, records subscriptions, notifies sales on Telegram |
+| `worker/api/auth.ts` | GitHub sign-in and sessions |
+| `worker/api/app.ts` | Dashboard API (`/api/app/*`) |
+| `worker/api/agent.ts` | Agent API (`/api/agent/*`): heartbeats, backup uploads and downloads |
+| `worker/api/telegram.ts` | Official VigilOps bot webhook (linking chats) |
+| `worker/cron.ts` | Every 15 minutes: offline servers, missed backups, retention |
+| `migrations/` | D1 database schema |
+| `src/pages/app/`, `src/pages/login.astro` | Dashboard and sign-in pages |
 | `wrangler.jsonc` | Worker configuration |
 | `scripts/copy-install.mjs` | Publishes `install.sh` at `https://vigilops.cloud/install.sh` on every build |
 
@@ -88,13 +95,94 @@ On `https://vigilops.cloud/pricing/`, pick Pro, enter an email and pay with a Ba
 
 Verify your Bachs account, create the same products in **live** mode, then swap `BACHS_API_KEY`, `BACHS_API_BASE`, the product IDs and the webhook secret for live values, and redeploy.
 
+## Set up VigilOps Cloud
+
+VigilOps Cloud needs a database, a storage bucket, GitHub sign-in and the official Telegram bot. Do this once, then redeploy.
+
+### 1. Database (D1)
+
+Cloudflare → **Storage & databases** → **D1 SQL database** → **Create** → name it `vigilops`. Copy its **Database ID** into `website/wrangler.jsonc` (`d1_databases[0].database_id`) and commit.
+
+Create the tables once from your computer:
+
+```bash
+cd website
+npx wrangler login
+npm run db:migrate
+```
+
+Run `npm run db:migrate` again whenever a new file appears in `migrations/`.
+
+### 2. Backup storage (R2)
+
+Cloudflare → **Storage & databases** → **R2** → **Create bucket** → name it `vigilops-backups` (it must match `r2_buckets[0].bucket_name`). Enabling R2 asks for a payment method; the first 10 GB and all downloads are free.
+
+### 3. GitHub sign-in
+
+GitHub → **Settings** → **Developer settings** → **OAuth Apps** → **New OAuth App** (create it under the VigilOpsHq organisation):
+
+| Field | Value |
+|---|---|
+| Application name | VigilOps Cloud |
+| Homepage URL | `https://vigilops.cloud` |
+| Authorization callback URL | `https://vigilops.cloud/auth/github/callback` |
+
+Generate a client secret, then add to the Worker's **Variables and Secrets**:
+
+| Variable | Type | Value |
+|---|---|---|
+| `GITHUB_CLIENT_ID` | Text | the Client ID |
+| `GITHUB_CLIENT_SECRET` | Secret | the client secret |
+
+### 4. The official VigilOps bot
+
+Create a bot with @BotFather (for example `@VigilOpsBot`). This is the bot customers link in the dashboard; don't reuse a server's bot. Add:
+
+| Variable | Type | Value |
+|---|---|---|
+| `CLOUD_TELEGRAM_BOT_TOKEN` | Secret | the bot token |
+| `CLOUD_TELEGRAM_BOT_USERNAME` | Text | the bot's username, without `@` |
+| `CLOUD_TELEGRAM_WEBHOOK_SECRET` | Secret | a random string: `openssl rand -hex 32` |
+
+After deploying, point the bot at the Worker once:
+
+```bash
+curl "https://api.telegram.org/bot<BOT_TOKEN>/setWebhook" \
+  -d "url=https://vigilops.cloud/api/telegram/webhook" \
+  -d "secret_token=<CLOUD_TELEGRAM_WEBHOOK_SECRET>" \
+  -d 'allowed_updates=["message"]'
+```
+
+### 5. Deploy command
+
+In the Worker's **Settings** → **Build**, set the deploy command to:
+
+```bash
+npx wrangler d1 migrations apply DB --remote && npx wrangler deploy
+```
+
+so new database migrations are applied on every deploy. If the build token isn't allowed to edit D1, keep `npx wrangler deploy` and run `npm run db:migrate` yourself when migrations change.
+
+### Check it
+
+1. Open `https://vigilops.cloud/app/` and sign in with GitHub.
+2. Buy a plan in the Bachs sandbox with the same email as your GitHub account. The dashboard shows the plan within a minute.
+3. **Add server**, run `vigil cloud connect <token>` on a server running VigilOps 1.1.0 or newer, then `vigil backup <container>`.
+4. The backup appears in the dashboard; **Download** works.
+5. **Connect Telegram**, then stop VigilOps on a test server (`vigil stop`). Within 30 minutes the bot says it's offline.
+
 ## What happens after someone pays
 
-Until VigilOps Cloud has its own backend, fulfilment is manual:
+1. Bachs sends `customer.subscription.created`; the Worker records the subscription and the sales bot tells you.
+2. The customer signs in at `/app` with GitHub. The plan unlocks when one of their verified GitHub emails matches the email they paid with, or immediately if they were signed in when they checked out.
+3. Cancellations and failed renewals (`customer.subscription.updated` / `deleted`) lock Cloud features automatically. Existing backups stay downloadable for 30 days.
+4. Support is still delivered by you: reply within the times on the pricing page.
 
-1. You get the Telegram message with the customer's email and plan.
-2. Email them within one business day (the promise on the pricing and thank-you pages).
-3. Customers manage or cancel their subscription through Bachs.
+If a customer paid with an email that isn't on their GitHub account, link it by hand:
+
+```bash
+npx wrangler d1 execute DB --remote --command "UPDATE subscriptions SET account_id = (SELECT id FROM accounts WHERE login = '<github-username>') WHERE email = '<email they paid with>'"
+```
 
 ## Before launch
 

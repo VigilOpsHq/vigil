@@ -42,10 +42,11 @@ export const plans: Plan[] = [
     highlight: true,
     features: [
       'Everything in Community',
+      'VigilOps Cloud for up to 5 servers',
+      '50 GB managed backup storage, kept 30 days',
+      'Dashboard to see and download every backup',
+      'Alerts when a server goes offline or a backup is missed',
       'Priority email support, reply within 1 business day',
-      'Supported on up to 5 servers',
-      'Help setting up backups and off-server storage',
-      'Early access to VigilOps Cloud features',
       'Founding price, locked while you stay subscribed',
     ],
   },
@@ -57,10 +58,10 @@ export const plans: Plan[] = [
     cta: { label: 'Start Team', kind: 'checkout' },
     features: [
       'Everything in Pro',
-      'Supported on up to 20 servers',
-      'Reply within 4 business hours',
+      'VigilOps Cloud for up to 20 servers',
+      '250 GB managed backup storage, kept 90 days',
+      'Support reply within 4 business hours',
       'Onboarding call for your team',
-      'Shared support chat',
       'Founding price, locked while you stay subscribed',
     ],
   },
@@ -73,7 +74,7 @@ export const plans: Plan[] = [
     cta: { label: 'Contact us', kind: 'contact' },
     features: [
       'Everything in Team',
-      'Unlimited supported servers',
+      'More servers, storage and retention',
       'Response-time commitment in your contract',
       'Help with custom rules and integrations',
       'Invoicing and custom payment terms',
@@ -101,10 +102,14 @@ export const comparison: { group: string; rows: ComparisonRow[] }[] = [
   {
     group: 'VigilOps Cloud',
     rows: [
-      { label: 'Managed backup storage', soon: true, values: [false, 'Early access', 'Early access', 'Early access'] },
-      { label: 'Web dashboard for backups', soon: true, values: [false, 'Early access', 'Early access', 'Early access'] },
-      { label: 'Official Telegram bot, no setup', soon: true, values: [false, 'Early access', 'Early access', 'Early access'] },
-      { label: 'AI included, no API key needed', soon: true, values: [false, 'Early access', 'Early access', 'Early access'] },
+      { label: 'Connected servers', values: [false, 'Up to 5', 'Up to 20', 'Custom'] },
+      { label: 'Managed backup storage', values: [false, '50 GB', '250 GB', 'Custom'] },
+      { label: 'Backup retention', values: [false, '30 days', '90 days', 'Custom'] },
+      { label: 'Dashboard: every backup, download from anywhere', values: [false, true, true, true] },
+      { label: 'Server offline alerts', values: [false, true, true, true] },
+      { label: 'Missed backup alerts', values: [false, true, true, true] },
+      { label: 'Alerts from the official VigilOps bot', values: [false, true, true, true] },
+      { label: 'AI included, no API key needed', soon: true, values: [false, true, true, true] },
     ],
   },
   {
@@ -112,7 +117,6 @@ export const comparison: { group: string; rows: ComparisonRow[] }[] = [
     rows: [
       { label: 'Channel', values: ['GitHub issues', 'Email', 'Email and shared chat', 'Dedicated contact'] },
       { label: 'Response time', values: ['Best effort', '1 business day', '4 business hours', 'Per contract'] },
-      { label: 'Servers covered', values: ['—', 'Up to 5', 'Up to 20', 'Unlimited'] },
       { label: 'Setup help', values: [false, 'Backups and storage', 'Onboarding call', 'Custom'] },
     ],
   },
@@ -121,19 +125,19 @@ export const comparison: { group: string; rows: ComparisonRow[] }[] = [
 export const faqs = [
   {
     q: 'Is VigilOps really free?',
-    a: 'Yes. The self-hosted version is open source under the MIT license, with no server limits and no features held back. Paid plans add support and early access to VigilOps Cloud.',
+    a: 'Yes. The self-hosted version is open source under the MIT license, with no server limits and no features held back. Paid plans add VigilOps Cloud and priority support.',
   },
   {
     q: 'What is VigilOps Cloud?',
-    a: 'A hosted service we are building on top of VigilOps: backup storage run by us, a web dashboard to see and download every backup, and an official Telegram bot and AI, so there are no tokens or keys to set up. Pro and Team subscribers get each feature as it launches.',
+    a: 'The hosted side of VigilOps for Pro and Team. Connect a server with one command and every backup is also stored by us, visible and downloadable from your dashboard. We watch your servers from outside and alert you on Telegram when one stops checking in or a scheduled backup does not arrive, which a server cannot do for itself when it is down.',
   },
   {
-    q: 'What does "supported on up to 5 servers" mean?',
-    a: 'VigilOps runs on as many servers as you like on every plan. The number is how many servers we help you with under your support plan.',
+    q: 'What does "up to 5 servers" mean?',
+    a: 'VigilOps itself runs on as many servers as you like on every plan. The number is how many servers you can connect to VigilOps Cloud, and cover with support.',
   },
   {
-    q: 'How do I pay?',
-    a: 'By card, through our payment provider Bachs. Plans renew automatically every month or year until you cancel.',
+    q: 'How do I start after paying?',
+    a: 'Sign in at vigilops.cloud/app with GitHub, using an account that has the email you paid with. Your plan unlocks automatically, and you can add your first server straight away. Payments are by card through our payment provider Bachs and renew until you cancel.',
   },
   {
     q: 'Can I cancel?',
@@ -141,6 +145,6 @@ export const faqs = [
   },
   {
     q: 'Do you see my data?',
-    a: 'Not with self-hosted VigilOps: it runs on your server and sends backups only where you configure. We will publish exactly how VigilOps Cloud stores and protects backups before it launches.',
+    a: 'Not with self-hosted VigilOps: it runs on your server and sends backups only where you configure. Backups you store in VigilOps Cloud are kept in Cloudflare R2, private to your account, and deleted when their retention period ends or you remove them.',
   },
 ];
