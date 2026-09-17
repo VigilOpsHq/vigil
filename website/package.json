@@ -8,11 +8,15 @@
     "prebuild": "node scripts/copy-install.mjs",
     "build": "astro build",
     "preview": "astro preview",
-    "pages:dev": "npm run build && npx wrangler pages dev"
+    "preview:worker": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.42.1",
     "astro": "^7.3.2",
     "sharp": "^0.35.4"
+  },
+  "devDependencies": {
+    "wrangler": "^4.133.0"
   }
 }

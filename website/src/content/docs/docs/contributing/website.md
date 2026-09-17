@@ -1,9 +1,9 @@
 ---
 title: Website and payments
-description: How vigilops.cloud is deployed on Cloudflare Pages and how paid plans are sold through Bachs.
+description: How vigilops.cloud is deployed as a Cloudflare Worker and how paid plans are sold through Bachs.
 ---
 
-The website, docs, installer URL and checkout all live in `website/` and deploy to Cloudflare Pages at `vigilops.cloud`.
+The website, docs, installer URL and checkout all live in `website/` and deploy as one Cloudflare Worker, `vigilops`, at `vigilops.cloud`. The Worker serves the built site from `dist/` and handles the `/api/*` routes.
 
 | Path | What it is |
 |---|---|
@@ -11,27 +11,28 @@ The website, docs, installer URL and checkout all live in `website/` and deploy 
 | `src/data/plans.ts` | Plans, prices, comparison table and FAQ — the only place prices are set |
 | `src/data/site.ts` | Install command, links, and business details used on legal pages |
 | `src/content/docs/docs/` | These docs |
-| `functions/api/checkout.ts` | `POST /api/checkout`: creates a Bachs checkout session |
-| `functions/api/bachs-webhook.ts` | `POST /api/bachs-webhook`: verifies Bachs events and posts them to Telegram |
+| `worker/index.ts` | Worker entry: routes `/api/*`, serves everything else from `dist/` |
+| `worker/api/checkout.ts` | `POST /api/checkout`: creates a Bachs checkout session |
+| `worker/api/bachs-webhook.ts` | `POST /api/bachs-webhook`: verifies Bachs events and posts them to Telegram |
+| `wrangler.jsonc` | Worker configuration |
 | `scripts/copy-install.mjs` | Publishes `install.sh` at `https://vigilops.cloud/install.sh` on every build |
 
-## Deploy to Cloudflare Pages
+## Deploy to Cloudflare
 
-1. In the Cloudflare dashboard: **Workers & Pages** → **Create** → **Pages** → **Connect to Git** → `VigilOpsHq/vigil`.
-2. Build settings:
+1. In the Cloudflare dashboard: **Compute (Workers)** → **Workers & Pages** → **Create application** → **Continue with GitHub** → select `VigilOpsHq/vigil`.
+2. Settings:
 
    | Setting | Value |
    |---|---|
-   | Framework preset | Astro |
+   | Project name | `vigilops` (must match `name` in `wrangler.jsonc`) |
    | Build command | `npm run build` |
-   | Build output directory | `dist` |
-   | Root directory | `website` |
-   | Environment variable | `NODE_VERSION` = `22` |
+   | Deploy command | `npx wrangler deploy` |
+   | Path (root directory) | `website` |
+   | Build variable | `NODE_VERSION` = `22` |
 
-3. After the first deploy: **Custom domains** → **Set up a custom domain** → `vigilops.cloud`, and again for `www.vigilops.cloud`. Because the domain is already on Cloudflare, DNS is set up for you.
-4. Every push to `main` redeploys. Pull requests get preview URLs.
-
-The `functions/` folder is deployed automatically as Pages Functions; no extra setup is needed.
+3. **Deploy**. The site is then live at `vigilops.<your-subdomain>.workers.dev`.
+4. Add the domain: the Worker → **Settings** → **Domains & Routes** → **Add** → **Custom domain** → `vigilops.cloud`, then again for `www.vigilops.cloud`. Because the domain is on Cloudflare, DNS and certificates are set up for you. Remove any existing DNS records for those names first if Cloudflare reports a conflict.
+5. Every push to `main` redeploys. Other branches get preview builds.
 
 ## Sell plans with Bachs
 
@@ -61,7 +62,7 @@ Copy the endpoint's **signing secret**.
 
 ### 3. Set the environment variables
 
-In Cloudflare Pages → your project → **Settings** → **Variables and Secrets** (Production). Mark keys and secrets as **Secret**.
+In Cloudflare → the `vigilops` Worker → **Settings** → **Variables and Secrets**. Add each one with type **Secret** (product IDs can be **Text**). `keep_vars` in `wrangler.jsonc` stops Git deploys from removing them.
 
 | Variable | Value |
 |---|---|
@@ -75,9 +76,9 @@ In Cloudflare Pages → your project → **Settings** → **Variables and Secret
 | `SALES_TELEGRAM_BOT_TOKEN` | Bot that posts sales to you (use a separate bot from any server) |
 | `SALES_TELEGRAM_CHAT_ID` | Your chat ID |
 
-Optionally bind a KV namespace as `SALES_EVENTS` to keep a copy of every verified event.
+Optionally add a KV namespace binding named `SALES_EVENTS` to keep a copy of every verified event.
 
-Redeploy after changing variables.
+Changes to variables apply on the next deployment; use **Deployments** → **Retry** or push a commit.
 
 ### 4. Test in the sandbox
 
@@ -106,11 +107,11 @@ Until VigilOps Cloud has its own backend, fulfilment is manual:
 ```bash
 cd website
 npm install
-npm run dev              # site and docs at http://localhost:4321 (no checkout)
+npm run dev              # site and docs at http://localhost:4321 (no API routes)
 ```
 
-To test the checkout and webhook functions locally, copy `.dev.vars.example` to `.dev.vars`, fill in sandbox values, then:
+To test the Worker with its API routes, copy `.dev.vars.example` to `.dev.vars`, fill in sandbox values, then:
 
 ```bash
-npm run pages:dev        # builds, then serves with Functions at http://localhost:8788
+npm run preview:worker   # builds, then serves the Worker at http://localhost:8787
 ```
