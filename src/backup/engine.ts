@@ -174,7 +174,7 @@ export async function backup(container: string, database?: string, tag?: string)
   }
 
   const sizeBytes = fs.statSync(finalPath).size;
-  const offsite = tag === 'pre-restore' ? [] : await deliverOffsite(finalPath, file, sizeBytes);
+  const offsite = tag === 'pre-restore' ? [] : await deliverOffsite(finalPath, file, sizeBytes, { container: target.container, database: target.database });
   pruneOldBackups();
 
   return { file, path: finalPath, sizeBytes, durationMs: Date.now() - started, offsite };

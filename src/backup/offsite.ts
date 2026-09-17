@@ -4,6 +4,7 @@ import { pipeline } from 'stream/promises';
 import { Readable } from 'stream';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { error } from '../logger';
+import { cloudEnabled, downloadBackup, uploadBackup } from '../cloud';
 
 const TELEGRAM_LIMIT_BYTES = 50 * 1024 * 1024;
 
@@ -55,8 +56,22 @@ async function sendToTelegram(filePath: string, fileName: string): Promise<boole
   return true;
 }
 
-export async function deliverOffsite(filePath: string, fileName: string, sizeBytes: number): Promise<string[]> {
+export async function deliverOffsite(
+  filePath: string,
+  fileName: string,
+  sizeBytes: number,
+  meta: { container: string; database: string }
+): Promise<string[]> {
   const delivered: string[] = [];
+
+  if (cloudEnabled()) {
+    try {
+      await uploadBackup(filePath, fileName, meta);
+      delivered.push('VigilOps Cloud');
+    } catch (err) {
+      error('[backup] Upload to VigilOps Cloud failed', err);
+    }
+  }
 
   const s3 = s3Config();
   if (s3) {
@@ -85,6 +100,7 @@ export async function deliverOffsite(filePath: string, fileName: string, sizeByt
 }
 
 export async function fetchFromStorage(fileName: string, destPath: string): Promise<boolean> {
+  if (await downloadBackup(fileName, destPath)) return true;
   const s3 = s3Config();
   if (!s3) return false;
   try {
