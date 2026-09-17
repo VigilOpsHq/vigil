@@ -1,4 +1,4 @@
-# Copy to .dev.vars for local testing with `npx wrangler pages dev` (never commit .dev.vars).
+# Copy to .dev.vars for local testing with `npm run preview:worker` (never commit .dev.vars).
 BACHS_API_KEY=sk_sandbox_...
 BACHS_API_BASE=https://sandbox-api.bachs.io
 BACHS_WEBHOOK_SECRET=

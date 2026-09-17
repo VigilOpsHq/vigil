@@ -1,4 +1,4 @@
-// Cloudflare Pages Function: POST /api/bachs-webhook
+// POST /api/bachs-webhook (routed from worker/index.ts)
 // Receives Bachs events, verifies the signature, and tells the team on Telegram.
 // Until VigilOps Cloud has a backend, fulfilment is manual: this notification is the trigger.
 

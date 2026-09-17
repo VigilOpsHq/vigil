@@ -1,5 +1,0 @@
-# Used for local testing with `npx wrangler pages dev`. Production settings
-# (secrets, product IDs) are set in the Cloudflare Pages dashboard.
-name = "vigilops"
-pages_build_output_dir = "./dist"
-compatibility_date = "2026-09-01"

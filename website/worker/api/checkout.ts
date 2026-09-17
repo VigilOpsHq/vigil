@@ -1,4 +1,4 @@
-// Cloudflare Pages Function: POST /api/checkout
+// POST /api/checkout (routed from worker/index.ts)
 // Creates a Bachs checkout session for a paid plan and returns its URL.
 // The secret key stays here on the server; the browser only gets checkout_url.
 
