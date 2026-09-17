@@ -1,0 +1,319 @@
+---
+import Marketing from '../layouts/Marketing.astro';
+import { plans, comparison, faqs } from '../data/plans';
+import { company } from '../data/site';
+
+const cell = (v: string | boolean) => (v === true ? 'yes' : v === false ? 'no' : v);
+---
+
+<Marketing
+  title="Pricing · VigilOps"
+  description="VigilOps is free and open source. Pro and Team plans add priority support and early access to VigilOps Cloud."
+>
+  <Fragment slot="head">
+    <script is:inline src="https://checkout.bachs.io/bachs.js" defer></script>
+  </Fragment>
+
+  <section class="intro">
+    <div class="container">
+      <p class="eyebrow">Pricing</p>
+      <h1>Free to run. Pay for support.</h1>
+      <p class="lead">
+        Every feature is in the free, self-hosted version, with no server limits. Paid plans add priority support and early
+        access to VigilOps Cloud.
+      </p>
+
+      <div class="interval" role="radiogroup" aria-label="Billing period">
+        <button type="button" role="radio" aria-checked="true" data-interval="monthly">Monthly</button>
+        <button type="button" role="radio" aria-checked="false" data-interval="yearly">Yearly <span>2 months free</span></button>
+      </div>
+    </div>
+  </section>
+
+  <section class="plans-section">
+    <div class="container">
+      <div class="plans">
+        {plans.map((p) => (
+          <article class={`plan ${p.highlight ? 'highlight' : ''}`} data-reveal>
+            {p.highlight && <span class="flag">Most popular</span>}
+            <h2>{p.name}</h2>
+            <p class="tagline">{p.tagline}</p>
+
+            <div class="price">
+              {p.price && p.price.monthly > 0 ? (
+                <>
+                  <span class="amount" data-monthly={`$${p.price.monthly}`} data-yearly={`$${p.price.yearly}`}>${p.price.monthly}</span>
+                  <span class="per" data-monthly="per month" data-yearly="per year">per month</span>
+                </>
+              ) : (
+                <>
+                  <span class="amount">{p.price ? '$0' : p.priceNote}</span>
+                  <span class="per">{p.price ? p.priceNote : 'Talk to us'}</span>
+                </>
+              )}
+            </div>
+
+            {p.cta.kind === 'checkout' && (
+              <button type="button" class="btn btn-primary plan-cta" data-checkout={p.id} data-plan-name={p.name}>
+                {p.cta.label}
+              </button>
+            )}
+            {p.cta.kind === 'install' && (
+              <a class="btn btn-secondary plan-cta" href="/docs/install/">{p.cta.label}</a>
+            )}
+            {p.cta.kind === 'contact' && (
+              <a class="btn btn-secondary plan-cta" href={`mailto:${company.contactEmail}?subject=VigilOps%20Enterprise`}>{p.cta.label}</a>
+            )}
+
+            <ul>
+              {p.features.map((f) => <li>{f}</li>)}
+            </ul>
+          </article>
+        ))}
+      </div>
+      <p class="fine">
+        Prices in USD. Paid plans renew automatically until cancelled. Taxes may apply. See the <a href="/refunds/">refund policy</a>.
+      </p>
+    </div>
+  </section>
+
+  <section class="section compare-section">
+    <div class="container">
+      <div class="section-head">
+        <h2>Compare plans</h2>
+      </div>
+      <div class="compare-wrap" data-reveal>
+        <table class="compare">
+          <thead>
+            <tr>
+              <th scope="col"><span class="sr">Feature</span></th>
+              {plans.map((p) => <th scope="col">{p.name}</th>)}
+            </tr>
+          </thead>
+          {comparison.map((g) => (
+            <tbody>
+              <tr class="group"><th colspan="5" scope="colgroup">{g.group}</th></tr>
+              {g.rows.map((r) => (
+                <tr>
+                  <th scope="row">
+                    {r.label}
+                    {r.soon && <span class="soon">Coming soon</span>}
+                  </th>
+                  {r.values.map((v) => {
+                    const c = cell(v);
+                    return (
+                      <td>
+                        {c === 'yes' ? (
+                          <span class="yes" aria-label="Included">✓</span>
+                        ) : c === 'no' ? (
+                          <span class="no" aria-label="Not included">—</span>
+                        ) : (
+                          c
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          ))}
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-soft">
+    <div class="container faq-grid">
+      <div class="section-head">
+        <h2>Questions</h2>
+        <p>
+          Something else? Email <a href={`mailto:${company.contactEmail}`}>{company.contactEmail}</a>.
+        </p>
+      </div>
+      <div class="faqs">
+        {faqs.map((f) => (
+          <details>
+            <summary>{f.q}</summary>
+            <p>{f.a}</p>
+          </details>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <dialog id="checkout" aria-labelledby="checkout-title">
+    <form method="dialog" class="dialog-close"><button aria-label="Close">×</button></form>
+    <form id="checkout-form" novalidate>
+      <p class="eyebrow">Checkout</p>
+      <h2 id="checkout-title">Start <span data-plan-label>Pro</span></h2>
+      <p class="dialog-sub"><span data-price-label></span>. You'll pay securely with Bachs.</p>
+      <label>
+        Work email
+        <input name="email" type="email" autocomplete="email" required maxlength="254" />
+      </label>
+      <label>
+        Name
+        <input name="name" type="text" autocomplete="name" required maxlength="100" />
+      </label>
+      <p class="error" role="alert" hidden></p>
+      <button class="btn btn-primary submit" type="submit">Continue to payment</button>
+      <p class="terms">By continuing you agree to the <a href="/terms/">terms</a> and <a href="/privacy/">privacy policy</a>.</p>
+    </form>
+  </dialog>
+</Marketing>
+
+<script>
+  type Interval = 'monthly' | 'yearly';
+  let interval: Interval = 'monthly';
+  let plan = '';
+
+  const setInterval_ = (next: Interval) => {
+    interval = next;
+    document.querySelectorAll<HTMLButtonElement>('[data-interval]').forEach((b) =>
+      b.setAttribute('aria-checked', String(b.dataset.interval === next))
+    );
+    document.querySelectorAll<HTMLElement>('[data-monthly][data-yearly]').forEach((el) => {
+      el.textContent = (next === 'yearly' ? el.dataset.yearly : el.dataset.monthly) ?? '';
+    });
+  };
+  document.querySelectorAll<HTMLButtonElement>('[data-interval]').forEach((b) =>
+    b.addEventListener('click', () => setInterval_(b.dataset.interval as Interval))
+  );
+
+  const dialog = document.getElementById('checkout') as HTMLDialogElement;
+  const form = document.getElementById('checkout-form') as HTMLFormElement;
+  const errorEl = form.querySelector<HTMLElement>('.error')!;
+  const submit = form.querySelector<HTMLButtonElement>('.submit')!;
+
+  const showError = (msg: string) => {
+    errorEl.textContent = msg;
+    errorEl.hidden = false;
+  };
+
+  document.querySelectorAll<HTMLButtonElement>('[data-checkout]').forEach((b) =>
+    b.addEventListener('click', () => {
+      plan = b.dataset.checkout ?? '';
+      const card = b.closest('.plan');
+      const amount = card?.querySelector('.amount')?.textContent ?? '';
+      const per = card?.querySelector('.per')?.textContent ?? '';
+      dialog.querySelector('[data-plan-label]')!.textContent = b.dataset.planName ?? '';
+      dialog.querySelector('[data-price-label]')!.textContent = `${amount} ${per}`;
+      errorEl.hidden = true;
+      dialog.showModal();
+      form.querySelector<HTMLInputElement>('input[name="email"]')?.focus();
+    })
+  );
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorEl.hidden = true;
+    const data = new FormData(form);
+    const email = String(data.get('email') ?? '').trim();
+    const name = String(data.get('name') ?? '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showError('Enter a valid email address.');
+    if (!name) return showError('Enter your name.');
+
+    submit.disabled = true;
+    submit.textContent = 'Opening checkout…';
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan, interval, email, name }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body.checkout_url) throw new Error(body.error || 'Checkout is not available right now.');
+
+      dialog.close();
+      const Bachs = (window as any).Bachs;
+      if (Bachs?.Checkout?.open) {
+        Bachs.Initialize?.({
+          onEvent: (ev: { type: string }) => {
+            if (ev.type === 'checkout.completed') window.location.href = '/checkout/success/';
+          },
+        });
+        await Bachs.Checkout.open({ checkoutUrl: body.checkout_url });
+      } else {
+        window.location.href = body.checkout_url;
+      }
+    } catch (err) {
+      showError(`${(err as Error).message} You can also email us and we'll set you up.`);
+    } finally {
+      submit.disabled = false;
+      submit.textContent = 'Continue to payment';
+    }
+  });
+</script>
+
+<style>
+  .intro { padding: 64px 0 32px; text-align: center; }
+  .intro h1 { font-size: clamp(36px, 5.5vw, 56px); margin-top: 16px; letter-spacing: -0.03em; }
+  .lead { color: var(--ink-2); font-size: 19px; max-width: 640px; margin: 18px auto 0; }
+  .interval { display: inline-flex; margin-top: 32px; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-soft); }
+  .interval button {
+    height: 38px; padding: 0 16px; border: 0; border-radius: 7px; background: transparent; cursor: pointer;
+    font: 500 15px var(--font); color: var(--ink-2); display: inline-flex; align-items: center; gap: 8px;
+  }
+  .interval button[aria-checked='true'] { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(11,27,43,.12); }
+  .interval span { font: 600 11px/1 var(--mono); color: var(--brand); background: var(--brand-soft); padding: 4px 6px; border-radius: 4px; }
+
+  .plans-section { padding-bottom: 32px; }
+  .plans { display: grid; gap: 16px; }
+  .plan { position: relative; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; padding: 28px 24px; background: #fff; min-width: 0; }
+  .plan.highlight { border: 2px solid var(--brand); padding: 27px 23px; }
+  .flag { position: absolute; top: -12px; left: 22px; background: var(--brand); color: #fff; font: 600 12px/1 var(--mono); padding: 6px 10px; border-radius: 999px; }
+  .plan h2 { font-size: 20px; }
+  .tagline { color: var(--muted); font-size: 15px; margin-top: 6px; min-height: 48px; }
+  .price { display: flex; align-items: baseline; gap: 8px; margin-top: 20px; }
+  .amount { font-size: 42px; font-weight: 700; letter-spacing: -0.03em; }
+  .per { color: var(--muted); font-size: 14px; }
+  .plan-cta { width: 100%; margin-top: 20px; }
+  .plan ul { list-style: none; padding: 20px 0 0; margin: 24px 0 0; border-top: 1px solid var(--line); display: grid; gap: 10px; font-size: 15px; }
+  .plan li { position: relative; padding-left: 24px; color: var(--ink-2); }
+  .plan li::before { content: ''; position: absolute; left: 2px; top: 8px; width: 11px; height: 6px; border-left: 2px solid var(--brand); border-bottom: 2px solid var(--brand); transform: rotate(-45deg); }
+  .fine { text-align: center; color: var(--muted); font-size: 14px; margin-top: 28px; }
+  .fine a, .faq-grid a { color: var(--brand); }
+  @media (min-width: 720px) { .plans { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1100px) { .plans { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+  .compare-section { padding-top: 56px; }
+  .compare-wrap { margin-top: 32px; overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+  .compare { width: 100%; border-collapse: collapse; min-width: 760px; font-size: 15px; }
+  .compare th, .compare td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--line); }
+  .compare thead th { position: sticky; top: 0; background: #fff; font-size: 16px; }
+  .compare tbody th { font-weight: 500; width: 30%; }
+  .compare td { color: var(--ink-2); }
+  .compare .group th { background: var(--bg-soft); font: 600 12px var(--mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 10px 18px; }
+  .soon { display: inline-block; margin-left: 8px; font: 600 11px/1 var(--mono); color: #b4501f; background: #fdf0e8; padding: 4px 6px; border-radius: 4px; vertical-align: 2px; }
+  .yes { color: var(--brand); font-weight: 700; }
+  .no { color: #a3b1bd; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+  .faq-grid { display: grid; gap: 32px; }
+  @media (min-width: 900px) { .faq-grid { grid-template-columns: 1fr 2fr; gap: 64px; } }
+  .faqs { border-top: 1px solid var(--line-strong); }
+  details { border-bottom: 1px solid var(--line-strong); }
+  summary { list-style: none; cursor: pointer; padding: 20px 32px 20px 0; font-weight: 600; font-size: 17px; position: relative; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '+'; position: absolute; right: 4px; top: 16px; font-size: 24px; font-weight: 400; color: var(--muted); transition: transform .2s; }
+  details[open] summary::after { transform: rotate(45deg); }
+  details p { color: var(--ink-2); padding: 0 32px 22px 0; }
+
+  dialog { width: min(440px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 12px; padding: 32px 28px 24px; box-shadow: 0 30px 80px -20px rgba(11,27,43,.45); }
+  dialog::backdrop { background: rgba(11, 27, 43, .55); }
+  dialog[open] { animation: pop .18s ease-out; }
+  @keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+  .dialog-close { position: absolute; top: 10px; right: 10px; }
+  .dialog-close button { width: 36px; height: 36px; border: 0; background: none; font-size: 26px; line-height: 1; color: var(--muted); cursor: pointer; border-radius: 6px; }
+  .dialog-close button:hover { background: var(--bg-soft); color: var(--ink); }
+  #checkout-form h2 { font-size: 26px; margin-top: 10px; }
+  .dialog-sub { color: var(--muted); margin-top: 6px; }
+  #checkout-form label { display: grid; gap: 6px; margin-top: 18px; font-size: 14px; font-weight: 600; }
+  #checkout-form input { height: 44px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: 16px var(--font); }
+  #checkout-form input:focus { outline: 2px solid var(--brand); outline-offset: 1px; border-color: var(--brand); }
+  .error { margin-top: 14px; color: #b42318; background: #fef3f2; border: 1px solid #fecdca; padding: 10px 12px; border-radius: 8px; font-size: 14px; }
+  .submit { width: 100%; margin-top: 22px; }
+  .submit:disabled { opacity: .7; cursor: progress; }
+  .terms { color: var(--muted); font-size: 13px; margin-top: 14px; text-align: center; }
+  .terms a { color: var(--ink-2); }
+</style>

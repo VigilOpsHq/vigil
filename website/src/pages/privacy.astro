@@ -1,0 +1,46 @@
+---
+import Legal from '../layouts/Legal.astro';
+import { company } from '../data/site';
+---
+
+<Legal title="Privacy Policy" description="What personal data VigilOps collects and how it is used.">
+  <p>
+    This policy explains what personal data {company.legalName} ("we") collects through vigilops.cloud and paid plans, and
+    what we do with it.
+  </p>
+
+  <h2>Self-hosted VigilOps</h2>
+  <p>
+    The VigilOps software runs on your own servers. It does not send your server data, logs or backups to us. It sends data
+    only to the services you configure yourself (for example Telegram, your storage bucket, or an AI provider), under those
+    providers' terms. Once a day it checks GitHub for new releases; that request contains no information about your server.
+  </p>
+
+  <h2>What we collect when you buy a plan</h2>
+  <ul>
+    <li>Your name and email address, to provide support and send account emails.</li>
+    <li>
+      Payment details, which are collected and processed by our payment provider Bachs. We receive confirmation of payment
+      and subscription status, not your full card details.
+    </li>
+    <li>Anything you send us in support conversations.</li>
+  </ul>
+
+  <h2>This website</h2>
+  <p>
+    The site is hosted on Cloudflare, which processes basic request data such as IP addresses to deliver and protect the site.
+    We do not use advertising trackers.
+  </p>
+
+  <h2>How long we keep it</h2>
+  <p>
+    We keep account and billing records for as long as you are a customer and afterwards as long as the law requires for tax
+    and accounting. You can ask us to delete other data at any time.
+  </p>
+
+  <h2>Your rights</h2>
+  <p>
+    You can ask for a copy of your data, ask us to correct or delete it, or object to how we use it, by emailing
+    <a href={`mailto:${company.contactEmail}`}>{company.contactEmail}</a>.
+  </p>
+</Legal>

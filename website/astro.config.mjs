@@ -2,6 +2,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
 export default defineConfig({
+  site: 'https://vigilops.cloud',
   integrations: [
     starlight({
       title: 'VigilOps',
@@ -11,6 +12,16 @@ export default defineConfig({
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/VigilOpsHq/vigil' }],
       editLink: { baseUrl: 'https://github.com/VigilOpsHq/vigil/edit/main/website/' },
       customCss: ['./src/styles/theme.css'],
+      head: [
+        { tag: 'link', attrs: { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: true } },
+        {
+          tag: 'link',
+          attrs: {
+            rel: 'stylesheet',
+            href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap',
+          },
+        },
+      ],
       sidebar: [
         {
           label: 'Getting started',
@@ -46,6 +57,7 @@ export default defineConfig({
           items: [
             { label: 'Developing locally', slug: 'docs/contributing/develop' },
             { label: 'Releasing a version', slug: 'docs/contributing/release' },
+            { label: 'Website and payments', slug: 'docs/contributing/website' },
           ],
         },
       ],

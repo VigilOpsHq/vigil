@@ -1,0 +1,63 @@
+---
+import Legal from '../layouts/Legal.astro';
+import { company, site } from '../data/site';
+---
+
+<Legal title="Terms of Service" description="The terms for using VigilOps paid plans and this website.">
+  <p>
+    These terms apply to paid VigilOps plans and to vigilops.cloud. VigilOps is provided by {company.legalName}
+    ("we", "us"), {company.address}, {company.country}. By buying a plan you agree to these terms.
+  </p>
+
+  <h2>1. The open-source software</h2>
+  <p>
+    The VigilOps software is open source under the <a href={`${site.github}/blob/main/LICENSE`}>MIT license</a>. Your use
+    of the software itself is governed by that license, whether or not you have a paid plan. The software is provided "as
+    is", without warranty of any kind.
+  </p>
+
+  <h2>2. Paid plans</h2>
+  <p>Pro and Team plans give you, for as long as your subscription is active:</p>
+  <ul>
+    <li>support by email (and a shared chat on Team) with the response times listed on the pricing page, on business days;</li>
+    <li>help for the number of servers listed for your plan;</li>
+    <li>access to VigilOps Cloud features as they become available to your plan.</li>
+  </ul>
+  <p>
+    Features marked "coming soon" are not yet available. We aim to release them but do not promise a date. Response times
+    are targets, not guarantees, unless a written agreement says otherwise.
+  </p>
+
+  <h2>3. Billing</h2>
+  <p>
+    Plans are billed in advance, monthly or yearly, through our payment provider Bachs, and renew automatically until you
+    cancel. Prices are shown in US dollars and may exclude taxes. If we change the price of your plan we will email you
+    at least 30 days before it applies; the founding price shown when you subscribed stays in place while your
+    subscription remains active.
+  </p>
+
+  <h2>4. Cancellation and refunds</h2>
+  <p>
+    You can cancel at any time. Your plan stays active until the end of the period already paid for. Refunds are covered
+    by our <a href="/refunds/">refund policy</a>.
+  </p>
+
+  <h2>5. Your responsibilities</h2>
+  <ul>
+    <li>You are responsible for your servers, your data and your backups, including testing that backups can be restored.</li>
+    <li>You must not use VigilOps or our support to break the law or to access systems you are not authorised to access.</li>
+    <li>Keep your Telegram bot tokens, API keys and storage credentials secret.</li>
+  </ul>
+
+  <h2>6. Liability</h2>
+  <p>
+    To the extent the law allows, we are not liable for lost data, lost profits or indirect damages, and our total
+    liability for a paid plan is limited to the amount you paid us for it in the 12 months before the claim.
+  </p>
+
+  <h2>7. Changes and contact</h2>
+  <p>
+    We may update these terms and will email subscribers about material changes. These terms are governed by the laws of
+    {company.country}. Questions: <a href={`mailto:${company.contactEmail}`}>{company.contactEmail}</a>.
+  </p>
+</Legal>

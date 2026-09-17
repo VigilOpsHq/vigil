@@ -1,0 +1,140 @@
+---
+// Plays scripted `vigil` sessions: types each command, then prints its output.
+// Output lines mirror what the real CLI prints.
+const sessions = [
+  {
+    cmd: 'vigil status',
+    out: [
+      ['', ''],
+      ['dim', '🐳 CONTAINERS'],
+      ['ok', '   🟢 api              [running] Up 5 days'],
+      ['ok', '   🟢 worker           [running] Up 12 seconds'],
+      ['ok', '   🟢 api-postgres     [running] Up 5 days (healthy)'],
+      ['', ''],
+      ['dim', '💾 DISK'],
+      ['', '   ✅41% used (71G / 173G)'],
+    ],
+  },
+  {
+    cmd: 'vigil backup api-postgres',
+    out: [
+      ['', ''],
+      ['dim', '⏳ Backing up api-postgres...'],
+      ['ok', '✅ Saved /var/backups/vigil/api-postgres__api__20260917-020000.sql.gz'],
+      ['dim', '   (156.1 MB, 35s)'],
+      ['', '   Copies: server disk, storage (api-backups)'],
+    ],
+  },
+  {
+    cmd: 'vigil backup schedule api-postgres daily 02:00',
+    out: [
+      ['', ''],
+      ['', '🗓  api-postgres will be backed up every day at 02:00 (server time)'],
+    ],
+  },
+];
+
+interface Props {
+  title?: string;
+}
+const { title = 'root@prod-01: ~' } = Astro.props;
+---
+
+<div class="terminal" data-terminal data-sessions={JSON.stringify(sessions)}>
+  <div class="bar">
+    <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+    <span class="title">{title}</span>
+  </div>
+  <pre class="screen" aria-label="Example VigilOps terminal session"><code>{sessions.map((s) => `$ ${s.cmd}\n${s.out.map((l) => l[1]).join('\n')}\n`).join('\n')}</code></pre>
+</div>
+
+<script>
+  type Line = [string, string];
+  type Session = { cmd: string; out: Line[] };
+
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  document.querySelectorAll<HTMLElement>('[data-terminal]').forEach((root) => {
+    const code = root.querySelector('code');
+    const screen = root.querySelector<HTMLElement>('.screen');
+    if (!code || !screen) return;
+    const sessions: Session[] = JSON.parse(root.dataset.sessions ?? '[]');
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    let started = false;
+    const line = (cls: string, text: string) => {
+      const el = document.createElement('span');
+      el.className = `ln ${cls}`;
+      el.textContent = text;
+      code.appendChild(el);
+      code.appendChild(document.createTextNode('\n'));
+      screen.scrollTop = screen.scrollHeight;
+      return el;
+    };
+
+    const play = async () => {
+      for (;;) {
+        code.textContent = '';
+        for (const s of sessions) {
+          const prompt = line('cmd', '');
+          const p = document.createElement('span');
+          p.className = 'prompt';
+          p.textContent = '$ ';
+          prompt.appendChild(p);
+          const typed = document.createElement('span');
+          prompt.appendChild(typed);
+          const caret = document.createElement('span');
+          caret.className = 'caret';
+          prompt.appendChild(caret);
+          await sleep(500);
+          for (const ch of s.cmd) {
+            typed.textContent += ch;
+            await sleep(28 + Math.random() * 40);
+          }
+          await sleep(350);
+          caret.remove();
+          for (const [cls, text] of s.out) {
+            line(cls, text);
+            await sleep(text ? 70 : 20);
+          }
+          line('', '');
+          await sleep(1400);
+        }
+        await sleep(2600);
+      }
+    };
+
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting) && !started) {
+        started = true;
+        io.disconnect();
+        play();
+      }
+    });
+    io.observe(root);
+  });
+</script>
+
+<style>
+  .terminal {
+    background: var(--term); border: 1px solid var(--term-line); border-radius: 10px;
+    overflow: hidden; box-shadow: 0 1px 2px rgba(11,27,43,.06), 0 24px 48px -24px rgba(11,27,43,.35);
+    min-width: 0;
+  }
+  .bar { display: flex; align-items: center; gap: 12px; height: 38px; padding: 0 14px; border-bottom: 1px solid var(--term-line); background: #111821; }
+  .dots { display: flex; gap: 6px; }
+  .dots i { width: 10px; height: 10px; border-radius: 50%; background: #2b3542; }
+  .title { font: 500 12px/1 var(--mono); color: #7d8b99; }
+  .screen {
+    margin: 0; padding: 16px 18px; height: 372px; overflow: hidden;
+    font: 13px/1.62 var(--mono); color: var(--term-text); white-space: pre;
+  }
+  .screen :global(.ln) { display: inline; }
+  .screen :global(.cmd) { color: #fff; }
+  .screen :global(.prompt) { color: #7ee2b8; }
+  .screen :global(.dim) { color: #8b98a5; }
+  .screen :global(.ok) { color: #d6f5e4; }
+  .screen :global(.caret) { display: inline-block; width: 8px; height: 15px; background: #7ee2b8; vertical-align: -2px; animation: blink 1s steps(1) infinite; margin-left: 1px; }
+  @keyframes blink { 50% { opacity: 0; } }
+  @media (max-width: 560px) { .screen { font-size: 11.5px; height: 340px; padding: 14px; } }
+</style>

@@ -3,9 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node scripts/copy-install.mjs",
     "dev": "astro dev",
+    "prebuild": "node scripts/copy-install.mjs",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "pages:dev": "npm run build && npx wrangler pages dev"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.42.1",
