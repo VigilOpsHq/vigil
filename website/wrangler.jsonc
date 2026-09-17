@@ -7,7 +7,7 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "404-page",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": true
   },
   // Keep variables set in the Cloudflare dashboard when deploying from Git.
   "keep_vars": true,
