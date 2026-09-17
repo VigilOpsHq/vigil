@@ -11,11 +11,11 @@ const CHAT_ID = process.env.TELEGRAM_CHAT_ID ?? '';
 const APPROVAL_TIMEOUT_MS =
   parseInt(process.env.APPROVAL_TIMEOUT_MINUTES ?? '10', 10) * 60 * 1000;
 
-if (!TOKEN || !CHAT_ID) {
-  throw new Error('TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must be set in .env');
-}
+// Optional: servers connected to VigilOps Cloud get alerts from the official bot instead
+export const telegramEnabled = Boolean(TOKEN && CHAT_ID);
 
-export const bot = new TelegramBot(TOKEN, { polling: true });
+// Without a token the bot never polls, so registering handlers below is harmless
+export const bot = new TelegramBot(TOKEN || 'disabled', { polling: telegramEnabled });
 
 
 const pendingApprovals = new Map<string, PendingApproval>();
@@ -32,6 +32,7 @@ function mdToHtml(text: string): string {
 }
 
 export async function notify(message: string): Promise<void> {
+  if (!telegramEnabled) return;
   try {
     await bot.sendMessage(CHAT_ID, mdToHtml(message), { parse_mode: 'HTML' });
   } catch (err) {
@@ -144,6 +145,10 @@ export async function requestApproval(
   message: string,
   snapshot: SystemSnapshot
 ): Promise<void> {
+  if (!telegramEnabled) {
+    info(`Approval needed but Telegram is not configured, so nothing will run: ${commands.join(' && ')} (${message})`);
+    return;
+  }
   const text =
     `⚠️ *Approval Required*\n\n` +
     `${message}\n\n` +
@@ -256,6 +261,6 @@ setupMigrationCommands();
 
 // Register backup commands
 setupBackupCommands(bot);
-setupUpdateCommands(bot);
+setupUpdateCommands(bot, telegramEnabled);
 
-info('Telegram bot is listening for commands...');
+info(telegramEnabled ? 'Telegram bot is listening for commands...' : 'Telegram is not configured (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID); running without it');

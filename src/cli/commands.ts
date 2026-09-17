@@ -11,6 +11,10 @@ import readline from 'readline';
 import { BACKUP_DIR, backupAndNotify, detectDatabase, formatSize, listBackups, parseBackupFile, restore } from '../backup/engine';
 import { describeSchedule, loadSchedules, removeSchedule, setSchedule } from '../backup/schedule';
 import { currentVersion, isNewer, latestRelease } from '../update';
+import * as cloud from '../cloud';
+
+// Tell VigilOps Cloud about schedule changes right away, so missed-backup alerts use the new schedule
+const syncSchedules = () => (cloud.cloudEnabled() ? cloud.heartbeat().then(() => undefined).catch(() => undefined) : Promise.resolve());
 
 export interface CLICommand {
   name: string;
@@ -304,6 +308,7 @@ export const backupCommand: CLICommand = {
       await detectDatabase(container);
       const s = setSchedule(container, spec);
       console.log(`\n🗓  ${container} will be backed up ${describeSchedule(s)} (server time)\n`);
+      await syncSchedules();
       return;
     }
 
@@ -313,6 +318,7 @@ export const backupCommand: CLICommand = {
         process.exit(1);
       }
       console.log(removeSchedule(rest[0]) ? `\n🗓  Schedule removed for ${rest[0]}\n` : `\n${rest[0]} had no schedule\n`);
+      await syncSchedules();
       return;
     }
 
@@ -376,6 +382,61 @@ export const restoreCommand: CLICommand = {
   },
 };
 
+export const cloudCommand: CLICommand = {
+  name: 'cloud',
+  description: 'Connect this server to VigilOps Cloud',
+  usage: 'vigil cloud connect <token> | status | backups [container] | disconnect',
+  handler: async (args) => {
+    const [sub, arg] = args;
+    const gb = (n: number) => formatSize(n);
+
+    if (sub === 'connect') {
+      if (!arg) {
+        console.error('❌ Usage: vigil cloud connect <token>');
+        console.error('   Get a token at https://vigilops.cloud/app → Add server');
+        process.exit(1);
+      }
+      const status = await cloud.connect(arg);
+      console.log(`\n☁️  Connected to VigilOps Cloud as "${status.server.name}"`);
+      if (status.limits) {
+        console.log(`   Plan: ${status.plan} · ${gb(status.limits.storageBytes)} storage · backups kept ${status.limits.retentionDays} days`);
+        console.log('   Every backup from now on is also stored in VigilOps Cloud.\n');
+      } else {
+        console.log('   ⚠️  This account has no active Pro or Team plan, so backups will not be stored in the cloud.\n');
+      }
+      return;
+    }
+
+    if (sub === 'status') {
+      if (!cloud.cloudEnabled()) {
+        console.log('\nNot connected. Get a token at https://vigilops.cloud/app, then run: vigil cloud connect <token>\n');
+        return;
+      }
+      const status = await cloud.heartbeat();
+      console.log(`\n☁️  Connected as "${status.server.name}"`);
+      console.log(status.limits ? `   Plan: ${status.plan} · ${gb(status.limits.storageBytes)} storage · ${status.limits.retentionDays}-day retention\n` : '   No active plan\n');
+      return;
+    }
+
+    if (sub === 'backups') {
+      const list = await cloud.listCloudBackups(arg);
+      console.log('\n☁️  BACKUPS IN VIGILOPS CLOUD\n');
+      if (list.length === 0) console.log('   (none)');
+      list.forEach((b) => console.log(`   ${b.file}\n      ${gb(b.size_bytes)} — ${new Date(b.completed_at).toLocaleString()}`));
+      console.log('\n   Restore any of them with: vigil restore <file>\n');
+      return;
+    }
+
+    if (sub === 'disconnect') {
+      console.log(cloud.disconnect() ? '\nDisconnected from VigilOps Cloud. Backups already stored there are kept.\n' : '\nThis server was not connected (or uses VIGIL_CLOUD_TOKEN in .env).\n');
+      return;
+    }
+
+    console.error('❌ Usage: vigil cloud connect <token> | status | backups [container] | disconnect');
+    process.exit(1);
+  },
+};
+
 export const versionCommand: CLICommand = {
   name: 'version',
   description: 'Show the running version and check for updates',
@@ -421,6 +482,12 @@ COMMANDS:
   apps                List deployable apps
   deploy <app>        Deploy an app
   version             Show version and check for updates
+
+CLOUD (Pro and Team):
+  cloud connect <token>                   Connect this server to VigilOps Cloud
+  cloud status                            Show connection and plan
+  cloud backups [container]               List backups stored in the cloud
+  cloud disconnect                        Stop sending backups to the cloud
   help                Show this help
 
 SERVICE:
@@ -462,6 +529,7 @@ export const commands: CLICommand[] = [
   backupCommand,
   backupsCommand,
   restoreCommand,
+  cloudCommand,
   versionCommand,
   helpCommand,
 ];

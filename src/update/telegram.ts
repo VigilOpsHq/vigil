@@ -7,7 +7,7 @@ function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-export function setupUpdateCommands(bot: TelegramBot): void {
+export function setupUpdateCommands(bot: TelegramBot, enabled = true): void {
   const reply = (text: string) => bot.sendMessage(CHAT_ID, text);
 
   const offerUpdate = (release: ReleaseInfo, current: string) =>
@@ -52,5 +52,5 @@ export function setupUpdateCommands(bot: TelegramBot): void {
     await runUpdate();
   });
 
-  startUpdateChecker(offerUpdate);
+  if (enabled) startUpdateChecker(offerUpdate);
 }

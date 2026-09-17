@@ -7,6 +7,7 @@ import { notify, requestApproval } from './telegram/bot';
 import { startWebhookServer } from './webhook/server';
 import { startBackupScheduler } from './backup/schedule';
 import { currentVersion } from './update';
+import { startCloudHeartbeat } from './cloud';
 import { log, info, error } from './logger';
 import { RestartHistory, AIDecision, SystemSnapshot } from './types';
 import crypto from 'crypto';
@@ -136,6 +137,7 @@ async function start(): Promise<void> {
 
   startWebhookServer();
   startBackupScheduler();
+  startCloudHeartbeat();
 
   await notify(`🟢 *VigilOps ${currentVersion()} started* — I am watching your server.`);
 
