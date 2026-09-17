@@ -1,0 +1,64 @@
+---
+import Marketing from '../layouts/Marketing.astro';
+---
+
+<Marketing title="Sign in · VigilOps Cloud" description="Sign in to VigilOps Cloud to connect servers and manage backups.">
+  <Fragment slot="head"><meta name="robots" content="noindex" /></Fragment>
+  <section class="login">
+    <div class="card">
+      <p class="eyebrow">VigilOps Cloud</p>
+      <h1>Sign in</h1>
+      <p class="sub">Connect servers, see every backup, and get alerts when something stops.</p>
+
+      <p class="error" data-error hidden></p>
+
+      <a class="btn github" href="/auth/github?next=/app/" data-github>
+        <svg width="20" height="20" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        Continue with GitHub
+      </a>
+
+      <div class="note">
+        <strong>Bought Pro or Team?</strong> Sign in with the GitHub account that has the email you paid with. It must be a
+        verified email on GitHub (Settings → Emails), and your plan unlocks automatically.
+      </div>
+      <p class="fine">
+        The free, self-hosted version doesn't need an account. <a href="/docs/install/">Install it here.</a>
+      </p>
+    </div>
+  </section>
+</Marketing>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const next = params.get('next');
+  if (next && next.startsWith('/') && !next.startsWith('//')) {
+    document.querySelector<HTMLAnchorElement>('[data-github]')!.href = `/auth/github?next=${encodeURIComponent(next)}`;
+  }
+  const messages: Record<string, string> = {
+    state: 'Sign-in expired or was interrupted. Please try again.',
+    github: 'GitHub did not complete the sign-in. Please try again.',
+    email: 'Your GitHub account has no verified email address. Verify one in GitHub settings, then try again.',
+  };
+  const error = params.get('error');
+  if (error) {
+    const el = document.querySelector<HTMLElement>('[data-error]')!;
+    el.textContent = messages[error] ?? 'Sign-in failed. Please try again.';
+    el.hidden = false;
+  }
+  fetch('/api/me').then((r) => {
+    if (r.ok) location.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : '/app/');
+  });
+</script>
+
+<style>
+  .login { padding: 72px 16px 104px; background: var(--bg-soft); }
+  .card { max-width: 440px; margin: 0 auto; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 36px 32px; }
+  h1 { font-size: 32px; margin-top: 12px; }
+  .sub { color: var(--muted); margin-top: 8px; }
+  .github { width: 100%; margin-top: 28px; background: #1f2328; color: #fff; }
+  .github:hover { background: #32383f; }
+  .note { margin-top: 24px; padding: 14px 16px; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 8px; font-size: 14px; color: var(--ink-2); }
+  .fine { margin-top: 18px; font-size: 14px; color: var(--muted); }
+  .fine a { color: var(--brand); }
+  .error { margin-top: 20px; color: #b42318; background: #fef3f2; border: 1px solid #fecdca; padding: 10px 12px; border-radius: 8px; font-size: 14px; }
+</style>

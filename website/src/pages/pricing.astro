@@ -8,7 +8,7 @@ const cell = (v: string | boolean) => (v === true ? 'yes' : v === false ? 'no' :
 
 <Marketing
   title="Pricing · VigilOps"
-  description="VigilOps is free and open source. Pro and Team plans add priority support and early access to VigilOps Cloud."
+  description="VigilOps is free and open source. Pro and Team plans add VigilOps Cloud: managed backup storage, a dashboard and outside alerts."
 >
   <Fragment slot="head">
     <script is:inline src="https://checkout.bachs.io/bachs.js" defer></script>
@@ -17,10 +17,10 @@ const cell = (v: string | boolean) => (v === true ? 'yes' : v === false ? 'no' :
   <section class="intro">
     <div class="container">
       <p class="eyebrow">Pricing</p>
-      <h1>Free to run. Pay for support.</h1>
+      <h1>Free to run. Cloud when you need it.</h1>
       <p class="lead">
-        Every feature is in the free, self-hosted version, with no server limits. Paid plans add priority support and early
-        access to VigilOps Cloud.
+        Every feature is in the free, self-hosted version, with no server limits. Paid plans add VigilOps Cloud: managed
+        backup storage, a dashboard, and alerts from outside your servers.
       </p>
 
       <div class="interval" role="radiogroup" aria-label="Billing period">
@@ -200,6 +200,16 @@ const cell = (v: string | boolean) => (v === true ? 'yes' : v === false ? 'no' :
       dialog.querySelector('[data-price-label]')!.textContent = `${amount} ${per}`;
       errorEl.hidden = true;
       dialog.showModal();
+      fetch('/api/me')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((me) => {
+          if (!me?.account) return;
+          const email = form.querySelector<HTMLInputElement>('input[name="email"]')!;
+          const name = form.querySelector<HTMLInputElement>('input[name="name"]')!;
+          if (!email.value) email.value = me.account.email;
+          if (!name.value && me.account.name) name.value = me.account.name;
+        })
+        .catch(() => undefined);
       form.querySelector<HTMLInputElement>('input[name="email"]')?.focus();
     })
   );

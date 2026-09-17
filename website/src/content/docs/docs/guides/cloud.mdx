@@ -1,0 +1,98 @@
+---
+title: VigilOps Cloud
+description: Connect servers to VigilOps Cloud for managed backup storage, a backups dashboard, and alerts from outside your servers.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+VigilOps Cloud is the hosted side of VigilOps, included with the [Pro and Team plans](/pricing/). Connect a server and you get:
+
+- **Managed backup storage.** Every backup the server takes is also stored by VigilOps Cloud. You don't need your own bucket.
+- **A dashboard** at [vigilops.cloud/app](/app/) to see every server and backup, and download any backup.
+- **Alerts from outside the server.** A Telegram message from the official VigilOps bot when a server stops checking in or a scheduled backup doesn't arrive. A server that's down can't warn you itself.
+- **Restore from anywhere.** `vigil restore <file>` downloads the backup from the cloud if it isn't on the server, including onto a brand-new server.
+
+| | Pro | Team |
+|---|---|---|
+| Connected servers | 5 | 20 |
+| Backup storage | 50 GB | 250 GB |
+| Backups kept for | 30 days | 90 days |
+
+The newest backup of each database is always kept, however old it is.
+
+## Get started
+
+<Steps>
+
+1. **Sign in** at [vigilops.cloud/app](/app/) with GitHub. If you've paid, use a GitHub account that has the email you paid with as a **verified** email (GitHub → Settings → Emails). Your plan unlocks automatically.
+
+2. **Add a server.** Click **Add server** and give it a name, like `prod-01`. You get a token, shown **once**, and two commands.
+
+3. **Run one command on the server.**
+
+   - New server, VigilOps not installed yet:
+     ```bash
+     curl -fsSL https://vigilops.cloud/install.sh | sudo sh -s -- --token vo_srv_...
+     ```
+   - Server that already runs VigilOps (update it to the latest version first with `vigil update`):
+     ```bash
+     vigil cloud connect vo_srv_...
+     ```
+
+   Within a minute the server shows as **online** in the dashboard.
+
+4. **Schedule backups** if you haven't already:
+   ```bash
+   vigil backup schedule my-postgres daily 02:00
+   ```
+   Each backup now lists `VigilOps Cloud` under its copies.
+
+5. **Connect Telegram.** In the dashboard, click **Connect Telegram**, then **Start** in the chat that opens.
+
+</Steps>
+
+<Aside>
+With VigilOps Cloud, your own Telegram bot is optional. Add one to `/opt/vigil/.env` if you also want to run commands like `/backup` and `/restore` from Telegram.
+</Aside>
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `vigil cloud connect <token>` | Connect this server |
+| `vigil cloud status` | Show the server name and plan it's connected to |
+| `vigil cloud backups [container]` | List backups stored in the cloud |
+| `vigil cloud disconnect` | Stop sending backups to the cloud. Stored backups are kept |
+| `vigil restore <file>` | Restore a backup, downloading it from the cloud if needed |
+
+## Alerts
+
+VigilOps Cloud checks every 15 minutes:
+
+| Alert | When |
+|---|---|
+| 🔴 Server offline | The server hasn't checked in for 15 minutes. You get a 🟢 message when it's back |
+| ⚠️ Missed backup | A scheduled backup hasn't reached the cloud within 3 hours of its time (45 minutes for hourly schedules) |
+
+Schedules are sent to the cloud automatically when you set or change them.
+
+## Restore on a new server
+
+If a server is lost, restore its data onto another one:
+
+```bash
+curl -fsSL https://vigilops.cloud/install.sh | sudo sh -s -- --token vo_srv_...   # token for the new server
+vigil cloud backups                      # lists backups from all your servers
+vigil restore old-db__app__20260917-020000.sql.gz my-new-postgres
+```
+
+## Tokens and security
+
+- A server token only lets that server send heartbeats, upload its backups, and download backups on your account. It can't sign in to the dashboard.
+- Lost a token, or think it leaked? In the dashboard click **New token** on that server. The old token stops working immediately. Then run `vigil cloud connect <new token>` on the server.
+- Removing a server in the dashboard **deletes its backups** from VigilOps Cloud.
+- The token is stored in `/var/backups/vigil/cloud.json` (readable by root only), or in `/opt/vigil/.env` as `VIGIL_CLOUD_TOKEN` if you installed with `--token`.
+
+## If your plan ends
+
+When a subscription is cancelled or its payment fails for good, servers stop uploading new backups. Existing backups stay available to download for 30 days, then they're deleted. Backups on your servers' own disks aren't affected.

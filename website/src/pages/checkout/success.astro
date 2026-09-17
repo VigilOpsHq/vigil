@@ -12,16 +12,16 @@ import { company } from '../../data/site';
       </div>
       <h1>Thanks for subscribing.</h1>
       <p class="lead">
-        Your payment is being confirmed. You'll get a receipt by email from our payment provider, Bachs, and we'll email you
-        within one business day to set up your support and early access.
+        Your payment is being confirmed, and you'll get a receipt by email from our payment provider, Bachs.
       </p>
       <div class="next">
-        <h2>While you wait</h2>
+        <h2>Set up VigilOps Cloud</h2>
         <ol>
-          <li><a href="/docs/install/">Install VigilOps</a> on your server if you haven't yet.</li>
-          <li><a href="/docs/guides/backups/">Schedule your first database backup.</a></li>
-          <li>Reply to our email with how many servers you run and what's on them.</li>
+          <li><a href="/login/?next=/app/">Sign in with GitHub</a> using an account that has the email you just paid with (as a verified email).</li>
+          <li>Click <strong>Add server</strong> and run the command it gives you on your server.</li>
+          <li>Click <strong>Connect Telegram</strong> to get alerts when a server goes offline or a backup is missed.</li>
         </ol>
+        <p class="muted-note">Your plan usually unlocks within a minute of paying. If it doesn't, email us and we'll sort it out.</p>
       </div>
       <p class="help">Questions about billing? Email <a href={`mailto:${company.supportEmail}`}>{company.supportEmail}</a>.</p>
     </div>
@@ -42,4 +42,5 @@ import { company } from '../../data/site';
   .next ol { margin: 12px 0 0; padding-left: 20px; display: grid; gap: 8px; color: var(--ink-2); }
   a { color: var(--brand); }
   .help { margin-top: 28px; color: var(--muted); }
+  .muted-note { margin-top: 14px; font-size: 14px; color: var(--muted); }
 </style>
