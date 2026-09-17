@@ -226,14 +226,16 @@ const cell = (v: string | boolean) => (v === true ? 'yes' : v === false ? 'no' :
 
       dialog.close();
       const Bachs = (window as any).Bachs;
-      if (Bachs?.Checkout?.open) {
+      try {
+        if (!Bachs?.Checkout?.open) throw new Error('overlay unavailable');
         Bachs.Initialize?.({
           onEvent: (ev: { type: string }) => {
             if (ev.type === 'checkout.completed') window.location.href = '/checkout/success/';
           },
         });
         await Bachs.Checkout.open({ checkoutUrl: body.checkout_url });
-      } else {
+      } catch {
+        // Fall back to the hosted checkout page; it returns to /checkout/success/ when paid
         window.location.href = body.checkout_url;
       }
     } catch (err) {
