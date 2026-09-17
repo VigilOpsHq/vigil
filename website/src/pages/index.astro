@@ -1,383 +1,435 @@
 ---
-const install = 'curl -fsSL https://raw.githubusercontent.com/VigilOpsHq/vigil/main/install.sh | sudo sh';
-const github = 'https://github.com/VigilOpsHq/vigil';
+import Marketing from '../layouts/Marketing.astro';
+import Terminal from '../components/Terminal.astro';
+import Architecture from '../components/Architecture.astro';
+import { site } from '../data/site';
+import { plans } from '../data/plans';
 
-const features = [
-  {
-    icon: '↻',
-    title: 'Fixes the usual problems',
-    body: 'Restarts containers that stop, clears old Docker images when the disk fills up, and restarts apps whose health check fails.',
-  },
-  {
-    icon: '⛁',
-    title: 'Database backups in one command',
-    body: 'Postgres, MySQL and MongoDB. Scheduled, compressed, sent off the server, and restored with a safety backup taken first.',
-  },
-  {
-    icon: '✈',
-    title: 'Runs from Telegram',
-    body: 'Check status, back up, restore, deploy and update from your phone. Every fix and every failure is reported.',
-  },
-  {
-    icon: '✓',
-    title: 'Asks before anything risky',
-    body: 'Only allowlisted commands can run. Anything uncertain comes to you with Approve and Deny buttons.',
-  },
-  {
-    icon: '◎',
-    title: 'AI when the rules run out',
-    body: 'Unusual problems go to AI with the full picture of the server, and come back as a fix, a suggestion or a clear explanation.',
-  },
-  {
-    icon: '⇪',
-    title: 'Deploys with rollback',
-    body: 'Pull, restart, wait for the health check, and roll back automatically if it fails. Trigger it from CI or Telegram.',
-  },
+const teaser = plans.filter((p) => p.id !== 'enterprise');
+
+const worksWith = ['Docker', 'Docker Compose', 'PostgreSQL', 'MySQL', 'MariaDB', 'MongoDB', 'Telegram', 'Amazon S3', 'Cloudflare R2', 'Backblaze B2'];
+
+const auditLog = [
+  { time: '03:12:04', kind: 'rule', text: 'worker exited (code 137)', action: 'docker restart worker', result: 'success' },
+  { time: '03:12:09', kind: 'rule', text: 'worker healthy again', action: '', result: 'ok' },
+  { time: '09:40:31', kind: 'rule', text: 'disk at 87% (threshold 85%)', action: 'docker image prune -f', result: 'success' },
+  { time: '11:02:55', kind: 'ai', text: 'api health check timing out', action: 'docker restart api', result: 'awaiting approval' },
 ];
 
-const steps = [
-  { title: 'Watch', body: 'Every minute: containers, disk, memory, web server and your health-check URLs.' },
-  { title: 'Fix', body: 'Known problems with a safe fix are handled immediately, with no AI call needed.' },
-  { title: 'Escalate', body: 'Anything unusual goes to AI, which proposes a fix, a suggestion, or an alert.' },
-  { title: 'Report', body: 'You hear about it on Telegram, and every action is written to an audit log.' },
+const allowlist = [
+  'docker restart <container>',
+  'docker image prune -f',
+  'docker system prune -f --volumes=false',
+  'systemctl restart nginx',
+  'systemctl reload nginx',
 ];
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>VigilOps — the ops engineer that lives on your server</title>
-    <meta
-      name="description"
-      content="VigilOps is a self-hosted ops agent for Docker servers. It watches your containers, fixes common failures, backs up your databases and keeps you in the loop on Telegram."
-    />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <meta name="color-scheme" content="dark light" />
-  </head>
-  <body>
-    <header class="nav">
-      <div class="wrap nav-inner">
-        <a class="brand" href="/">
-          <img src="/favicon.svg" alt="" width="28" height="28" />
-          <span>VigilOps</span>
+<Marketing
+  title="VigilOps: keep your Docker servers running"
+  description="VigilOps is an open-source ops agent for Docker servers. It restarts what breaks, backs up your databases, and asks before doing anything risky, from your terminal or Telegram."
+>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="container hero-grid">
+      <div class="hero-copy">
+        <a class="announce" href="/docs/guides/backups/">
+          <span class="tag">New</span> Database backups with off-server copies
+          <span aria-hidden="true">→</span>
         </a>
-        <nav class="nav-links">
-          <a href="/docs/">Docs</a>
-          <a href="/docs/guides/backups/">Backups</a>
-          <a href={github}>GitHub</a>
-          <a class="btn btn-small" href="/docs/install/">Install</a>
-        </nav>
+        <h1>Keep your Docker servers running.</h1>
+        <p class="lead">
+          VigilOps is an open-source ops agent that lives on your server. It restarts what breaks, backs up your
+          databases, and asks you before it does anything risky.
+        </p>
+        <div class="cta">
+          <a class="btn btn-primary" href="/docs/install/">Get started</a>
+          <a class="btn btn-secondary" href="/docs/">Read the docs</a>
+        </div>
+        <div class="copy-cmd install" data-copy={site.install}>
+          <code><span class="prompt">$ </span>{site.install}</code>
+          <button type="button">Copy</button>
+        </div>
+        <p class="meta">MIT licensed · Ubuntu and Debian · amd64 and arm64</p>
       </div>
-    </header>
-
-    <main>
-      <section class="hero wrap">
-        <div class="hero-copy">
-          <p class="eyebrow">Open source · Self-hosted · Docker</p>
-          <h1>The ops engineer that lives on your server.</h1>
-          <p class="lead">
-            VigilOps watches your Docker containers, fixes common failures, backs up your databases, and checks with you on
-            Telegram before doing anything risky.
-          </p>
-
-          <div class="install" data-copy={install}>
-            <code><span class="prompt">$</span> {install}</code>
-            <button type="button" class="copy" aria-label="Copy install command">Copy</button>
-          </div>
-
-          <div class="cta">
-            <a class="btn" href="/docs/install/">Get started</a>
-            <a class="btn btn-ghost" href="/docs/">How it works</a>
-          </div>
-        </div>
-
-        <div class="hero-visual" aria-hidden="true">
-          <div class="terminal">
-            <div class="terminal-bar"><i></i><i></i><i></i><span>root@server</span></div>
-            <pre><span class="dim">$</span> vigil status
-<span class="ok">🟢</span> api                [running] Up 5 days
-<span class="ok">🟢</span> api-postgres       [running] Up 5 days (healthy)
-<span class="ok">✅</span> Disk 15% used · Memory 5% used
-
-<span class="dim">$</span> vigil backup api-postgres
-<span class="ok">✅</span> Saved api-postgres__api__20260916-020000.sql.gz
-   156.1 MB in 35s · copies: server, storage</pre>
-          </div>
-
-          <div class="chat">
-            <div class="bubble">
-              <strong>🔧 Auto-fix</strong><br />
-              Container down, restarting: <code>worker</code><br />
-              ✅ <code>docker restart worker</code> — done
-            </div>
-            <div class="bubble">
-              <strong>⚠️ Approval required</strong><br />
-              AI suggests restarting <code>api</code> after repeated timeouts.
-              <div class="buttons"><span>✅ Approve</span><span>❌ Deny</span></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section wrap">
-        <h2>Everything a small team forgets to do at 3am</h2>
-        <p class="section-lead">One container on your server. No dashboards to build, no agents to wire together.</p>
-        <div class="grid">
-          {
-            features.map((f) => (
-              <article class="card">
-                <div class="icon">{f.icon}</div>
-                <h3>{f.title}</h3>
-                <p>{f.body}</p>
-              </article>
-            ))
-          }
-        </div>
-      </section>
-
-      <section class="section wrap">
-        <h2>How it works</h2>
-        <ol class="steps">
-          {
-            steps.map((s, i) => (
-              <li>
-                <span class="step-num">{i + 1}</span>
-                <h3>{s.title}</h3>
-                <p>{s.body}</p>
-              </li>
-            ))
-          }
-        </ol>
-      </section>
-
-      <section class="section wrap split">
-        <div>
-          <p class="eyebrow">Backups</p>
-          <h2>A backup you can actually restore</h2>
-          <p>
-            VigilOps reads your database containers to work out the type, user and database, so there's nothing to configure.
-            Every backup is compressed, copied off the server, and announced on Telegram. That includes the ones that fail.
-          </p>
-          <ul class="checks">
-            <li>Postgres, MySQL/MariaDB and MongoDB</li>
-            <li>Hourly, daily or weekly schedules</li>
-            <li>Copies to S3-compatible storage and Telegram</li>
-            <li>Restores take a safety backup first</li>
-          </ul>
-          <a class="link" href="/docs/guides/backups/">Read the backup guide →</a>
-        </div>
-        <div class="terminal">
-          <div class="terminal-bar"><i></i><i></i><i></i><span>root@server</span></div>
-          <pre><span class="dim">$</span> vigil backup schedule api-postgres daily 02:00
-🗓  api-postgres will be backed up every day at 02:00
-
-<span class="dim">$</span> vigil restore api-postgres__api__20260916-020000.sql.gz
-⚠️  This will OVERWRITE database "api". Type "yes": yes
-⏳ Taking a safety backup, then restoring...
-<span class="ok">✅</span> Restore complete.</pre>
-        </div>
-      </section>
-
-      <section class="section wrap">
-        <h2>Where VigilOps fits</h2>
-        <p class="section-lead">Terraform and Ansible build your servers. VigilOps keeps them running.</p>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th></th><th>Terraform / Ansible</th><th>VigilOps</th></tr>
-            </thead>
-            <tbody>
-              <tr><th>Job</th><td>Create and configure servers</td><td>Keep running servers healthy</td></tr>
-              <tr><th>Runs</th><td>When you apply a change</td><td>All the time, every minute</td></tr>
-              <tr><th>You write</th><td>Config files and playbooks</td><td>Nothing, it inspects what's running</td></tr>
-              <tr><th>Example</th><td>"Install Postgres on 10 servers"</td><td>"Postgres stopped at 3am, so restart it and tell me"</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="section wrap final">
-        <h2>Install in a minute</h2>
-        <p class="section-lead">Ubuntu or Debian, amd64 or arm64. Docker is installed for you if it's missing.</p>
-        <div class="install" data-copy={install}>
-          <code><span class="prompt">$</span> {install}</code>
-          <button type="button" class="copy" aria-label="Copy install command">Copy</button>
-        </div>
-        <div class="cta center">
-          <a class="btn" href="/docs/install/">Installation guide</a>
-          <a class="btn btn-ghost" href={github}>Star on GitHub</a>
-        </div>
-      </section>
-    </main>
-
-    <footer class="footer">
-      <div class="wrap footer-inner">
-        <span>VigilOps · MIT licensed</span>
-        <nav>
-          <a href="/docs/">Docs</a>
-          <a href="/docs/reference/cli/">CLI</a>
-          <a href="/docs/reference/configuration/">Configuration</a>
-          <a href={github}>GitHub</a>
-        </nav>
+      <div class="hero-visual">
+        <Terminal />
       </div>
-    </footer>
+    </div>
+  </section>
 
-    <script>
-      document.querySelectorAll<HTMLElement>('.install').forEach((box) => {
-        const button = box.querySelector('button');
-        button?.addEventListener('click', async () => {
-          try {
-            await navigator.clipboard.writeText(box.dataset.copy ?? '');
-            button.textContent = 'Copied';
-          } catch {
-            button.textContent = 'Select & copy';
-          }
-          setTimeout(() => (button.textContent = 'Copy'), 2000);
-        });
-      });
-    </script>
+  <!-- WORKS WITH -->
+  <section class="works" aria-label="Works with">
+    <div class="container works-inner">
+      <span class="works-label">Works with</span>
+      <ul>{worksWith.map((w) => <li>{w}</li>)}</ul>
+    </div>
+  </section>
 
-    <style is:global>
-      :root {
-        --bg: #0b1110;
-        --bg-soft: #111a18;
-        --card: #131e1c;
-        --border: #22322f;
-        --text: #e6efed;
-        --muted: #93a8a3;
-        --accent: #2dd4bf;
-        --accent-strong: #14b8a6;
-        --accent-ink: #042f2b;
-        --ok: #4ade80;
-        --term-bg: #070b0a;
-        --term-text: #d1e0dc;
-        --bubble: #16312d;
-      }
-      @media (prefers-color-scheme: light) {
-        :root {
-          --bg: #f7faf9;
-          --bg-soft: #eef4f2;
-          --card: #ffffff;
-          --border: #d8e4e1;
-          --text: #0e1b19;
-          --muted: #4e625d;
-          --accent: #0f766e;
-          --accent-strong: #0f766e;
-          --accent-ink: #ffffff;
-          --ok: #15803d;
-          --term-bg: #0b1110;
-          --term-text: #d1e0dc;
-          --bubble: #e3f4f1;
-        }
-      }
-      * { box-sizing: border-box; }
-      html, body { overflow-x: clip; }
-      html { -webkit-text-size-adjust: 100%; }
-      body {
-        margin: 0;
-        background: var(--bg);
-        color: var(--text);
-        font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-      }
-      a { color: inherit; }
-      code, pre { font-family: ui-monospace, 'SFMono-Regular', 'Cascadia Code', Menlo, Consolas, monospace; }
-      .wrap { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 16px; }
-      h1, h2, h3 { line-height: 1.15; margin: 0; letter-spacing: -0.02em; }
-      h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); }
-      h2 { font-size: clamp(1.6rem, 3.4vw, 2.3rem); }
-      h3 { font-size: 1.08rem; }
-      p { margin: 0; }
+  <!-- HOW IT WORKS -->
+  <section class="section" id="product">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">How it works</p>
+        <h2>One container next to your apps.</h2>
+        <p>
+          VigilOps runs beside your services and talks to Docker directly. There's no cluster to run, no dashboards to
+          build, and no config file per app. It inspects what's already there.
+        </p>
+      </div>
+      <div class="arch-wrap">
+        <Architecture />
+      </div>
+      <ol class="steps" data-reveal>
+        <li>
+          <span class="step-n">01</span>
+          <h3>Observe</h3>
+          <p>Every minute it checks containers, disk, memory, the web server and your health-check URLs.</p>
+        </li>
+        <li>
+          <span class="step-n">02</span>
+          <h3>Fix</h3>
+          <p>Known problems with a safe fix, like a stopped container or a full disk, are handled on the spot.</p>
+        </li>
+        <li>
+          <span class="step-n">03</span>
+          <h3>Ask</h3>
+          <p>Anything unusual goes to AI for a diagnosis. Risky actions wait for your approval on Telegram.</p>
+        </li>
+        <li>
+          <span class="step-n">04</span>
+          <h3>Report</h3>
+          <p>You get a message for everything that matters, and every action lands in an audit log.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
 
-      .nav { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
-      .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 12px; }
-      .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.1rem; text-decoration: none; }
-      .nav-links { display: flex; align-items: center; gap: 22px; font-size: 0.95rem; }
-      .nav-links a { text-decoration: none; color: var(--muted); }
-      .nav-links a:hover { color: var(--text); }
-      .nav-links a.btn { color: var(--accent-ink); }
+  <!-- FEATURE: SELF HEALING -->
+  <section class="section section-soft">
+    <div class="container feature">
+      <div class="feature-copy" data-reveal>
+        <p class="eyebrow">Self-healing</p>
+        <h2>Fixes the 3 a.m. problems before you wake up.</h2>
+        <p>
+          Containers that exit get restarted. Old images get cleared when the disk fills up. A container that keeps
+          crashing stops being restarted blindly and gets escalated instead.
+        </p>
+        <ul class="points">
+          <li>Crash-loop detection, so a broken app can't restart forever</li>
+          <li>Health-check URLs linked to the containers that serve them</li>
+          <li>Thresholds you set in <code>.env</code></li>
+        </ul>
+        <a class="more" href="/docs/guides/auto-fixes/">How auto-fixes work <span aria-hidden="true">→</span></a>
+      </div>
+      <div class="panel log" data-reveal>
+        <div class="panel-head">
+          <span>logs/audit.jsonl</span>
+          <span class="live"><i></i>live</span>
+        </div>
+        <ul>
+          {auditLog.map((e, i) => (
+            <li style={`--d:${i * 0.35}s`}>
+              <span class="time">{e.time}</span>
+              <span class={`kind kind-${e.kind}`}>{e.kind}</span>
+              <span class="event">
+                {e.text}
+                {e.action && <code>{e.action}</code>}
+              </span>
+              <span class={`result ${e.result === 'awaiting approval' ? 'pending' : ''}`}>{e.result}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  </section>
 
-      .btn { display: inline-flex; align-items: center; justify-content: center; padding: 11px 20px; border-radius: 10px; background: var(--accent-strong); color: var(--accent-ink); font-weight: 600; text-decoration: none; border: 1px solid transparent; }
-      .btn:hover { filter: brightness(1.08); }
-      .btn-ghost { background: transparent; color: var(--text); border-color: var(--border); }
-      .btn-small { padding: 7px 14px; font-size: 0.9rem; }
+  <!-- FEATURE: BACKUPS -->
+  <section class="section">
+    <div class="container feature reverse">
+      <div class="feature-copy" data-reveal>
+        <p class="eyebrow">Backups</p>
+        <h2>Database backups you can actually restore.</h2>
+        <p>
+          Point VigilOps at a Postgres, MySQL or MongoDB container. It works out the database, user and password from the
+          container itself, dumps it, compresses it, and copies it off the server.
+        </p>
+        <ul class="points">
+          <li>Hourly, daily or weekly schedules</li>
+          <li>Copies to S3-compatible storage and Telegram</li>
+          <li>Every restore takes a safety backup first</li>
+          <li>A message for every backup, including the ones that fail</li>
+        </ul>
+        <a class="more" href="/docs/guides/backups/">Backup guide <span aria-hidden="true">→</span></a>
+      </div>
+      <div class="panel backups" data-reveal>
+        <div class="panel-head"><span>Backups · api-postgres</span><span class="badge">daily 02:00</span></div>
+        <table>
+          <thead>
+            <tr><th>File</th><th>Size</th><th>Copies</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>api-postgres__api__20260917-020000.sql.gz</code></td><td>156.1 MB</td><td><span class="chip">disk</span><span class="chip">S3</span></td></tr>
+            <tr><td><code>api-postgres__api__20260916-020000.sql.gz</code></td><td>155.8 MB</td><td><span class="chip">disk</span><span class="chip">S3</span></td></tr>
+            <tr><td><code>api-postgres__api__20260915-020000.sql.gz</code></td><td>155.2 MB</td><td><span class="chip">disk</span><span class="chip">S3</span></td></tr>
+            <tr class="muted"><td><code>api-postgres__api__20260914-101500_pre-restore.sql.gz</code></td><td>154.9 MB</td><td><span class="chip">disk</span></td></tr>
+          </tbody>
+        </table>
+        <div class="panel-foot">
+          <code>vigil restore api-postgres__api__20260917-020000.sql.gz</code>
+        </div>
+      </div>
+    </div>
+  </section>
 
-      .hero > *, .split > *, .grid > *, .steps > * { min-width: 0; }
-      .hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 48px; align-items: center; padding-top: 72px; padding-bottom: 56px; }
-      .eyebrow { color: var(--accent); font-weight: 600; font-size: 0.85rem; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 14px; }
-      .lead { color: var(--muted); font-size: 1.15rem; margin-top: 20px; max-width: 34rem; }
+  <!-- FEATURE: TELEGRAM -->
+  <section class="section section-soft">
+    <div class="container feature">
+      <div class="feature-copy" data-reveal>
+        <p class="eyebrow">ChatOps</p>
+        <h2>Run your server from your phone.</h2>
+        <p>
+          Check status, take a backup, restore, deploy or update from Telegram. When VigilOps wants to do something that
+          could hurt, it asks first and waits for your tap.
+        </p>
+        <ul class="points">
+          <li><code>/status</code>, <code>/backup</code>, <code>/restore</code>, <code>/deploy</code>, <code>/update</code></li>
+          <li>Approve or deny suggested actions with one tap</li>
+          <li>Unanswered requests are denied after 10 minutes</li>
+        </ul>
+        <a class="more" href="/docs/reference/telegram/">Telegram commands <span aria-hidden="true">→</span></a>
+      </div>
+      <div class="chat" data-reveal>
+        <div class="chat-head">
+          <span class="avatar">V</span>
+          <div><strong>VigilOps · prod-01</strong><span>bot</span></div>
+        </div>
+        <div class="chat-body">
+          <div class="msg" style="--d:.1s">
+            <strong>🔧 Auto-fix:</strong> Container(s) down, restarting: <code>worker</code>
+            <span class="t">03:12</span>
+          </div>
+          <div class="msg" style="--d:.5s">✅ <code>docker restart worker</code> — done<span class="t">03:12</span></div>
+          <div class="msg" style="--d:.9s">
+            <strong>✅ Backup done:</strong> api-postgres<br />Size: 156.1 MB in 35s<br />Copies: server disk, storage
+            <span class="t">02:00</span>
+          </div>
+          <div class="msg" style="--d:1.3s">
+            <strong>⚠️ Approval Required</strong><br />AI suggests: api health check timing out after deploy.<br />
+            <code>docker restart api</code>
+            <div class="buttons"><span>✅ Approve</span><span>❌ Deny</span></div>
+            <span class="t">11:02</span>
+          </div>
+          <div class="msg me" style="--d:1.7s">/backups api-postgres<span class="t">11:04</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-      .install { display: flex; align-items: center; gap: 8px; margin-top: 28px; background: var(--term-bg); color: var(--term-text); border: 1px solid var(--border); border-radius: 12px; padding: 10px 10px 10px 16px; max-width: 100%; }
-      .install code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-size: 0.86rem; padding: 4px 0; scrollbar-width: thin; }
-      .install .prompt { color: #5eead4; user-select: none; }
-      .copy { flex: none; background: #1d2b28; color: #e6efed; border: 1px solid #2c3f3b; border-radius: 8px; padding: 6px 12px; font: inherit; font-size: 0.85rem; cursor: pointer; }
-      .copy:hover { background: #26403b; }
-      .cta { display: flex; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
-      .cta.center { justify-content: center; }
+  <!-- FEATURE: SAFETY -->
+  <section class="section">
+    <div class="container feature reverse">
+      <div class="feature-copy" data-reveal>
+        <p class="eyebrow">Safe by default</p>
+        <h2>It can only run what you allow.</h2>
+        <p>
+          Every automatic command, including anything the AI suggests, has to match a short allowlist. Anything else is
+          blocked and logged. Backups, restores and deploys only run when you or your schedule ask for them.
+        </p>
+        <ul class="points">
+          <li>Volumes are never pruned</li>
+          <li>Updates install only after someone approves them</li>
+          <li>Audit log of every action with the reason behind it</li>
+        </ul>
+        <a class="more" href="/docs/guides/auto-fixes/#command-allowlist">See the allowlist <span aria-hidden="true">→</span></a>
+      </div>
+      <div class="panel code" data-reveal>
+        <div class="panel-head"><span>src/executor/index.ts</span><span class="badge">allowlist</span></div>
+        <pre><code>{allowlist.map((c) => <span class="ok-line"><span class="check">✓</span> {c}{'\n'}</span>)}<span class="no-line"><span class="cross">✗</span> rm -rf /var/lib/postgresql   <span class="blocked">blocked</span>{'\n'}</span><span class="no-line"><span class="cross">✗</span> docker volume prune -f      <span class="blocked">blocked</span></span></code></pre>
+      </div>
+    </div>
+  </section>
 
-      .hero-visual { display: grid; gap: 16px; min-width: 0; }
-      .terminal { background: var(--term-bg); color: var(--term-text); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; min-width: 0; box-shadow: 0 20px 50px -20px rgba(0,0,0,.45); }
-      .terminal-bar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: #0f1715; border-bottom: 1px solid #1c2826; font-size: 0.78rem; color: #7f948f; }
-      .terminal-bar i { width: 10px; height: 10px; border-radius: 50%; background: #2a3a37; }
-      .terminal-bar span { margin-left: 8px; }
-      .terminal pre { margin: 0; padding: 16px 18px; font-size: 0.82rem; line-height: 1.7; overflow-x: auto; }
-      .dim { color: #6b807b; }
-      .ok { color: #4ade80; }
+  <!-- OPEN SOURCE BAND -->
+  <section class="band">
+    <div class="container band-inner" data-reveal>
+      <div>
+        <h2>Open source. Self-hosted. Yours.</h2>
+        <p>Install VigilOps on any Ubuntu or Debian server in about a minute. No account, no sign-up.</p>
+      </div>
+      <div class="band-actions">
+        <div class="copy-cmd" data-copy={site.install}>
+          <code><span class="prompt">$ </span>{site.install}</code>
+          <button type="button">Copy</button>
+        </div>
+        <div class="cta">
+          <a class="btn btn-dark" href="/docs/install/">Installation guide</a>
+          <a class="btn btn-outline-light" href={site.github}>View on GitHub</a>
+        </div>
+      </div>
+    </div>
+  </section>
 
-      .chat { display: grid; gap: 10px; justify-items: start; }
-      .bubble { background: var(--bubble); border: 1px solid var(--border); border-radius: 14px 14px 14px 4px; padding: 12px 14px; font-size: 0.9rem; max-width: 26rem; }
-      .bubble code { font-size: 0.82rem; }
-      .buttons { display: flex; gap: 8px; margin-top: 10px; }
-      .buttons span { flex: 1; text-align: center; border: 1px solid var(--border); background: var(--card); border-radius: 8px; padding: 5px 10px; font-size: 0.85rem; }
+  <!-- PLANS TEASER -->
+  <section class="section">
+    <div class="container plans-teaser" data-reveal>
+      <div class="section-head">
+        <p class="eyebrow">Plans</p>
+        <h2>Free to run. Support when you need it.</h2>
+        <p>
+          The self-hosted version has every feature and no server limit. Paid plans add priority support and early access
+          to VigilOps Cloud: managed backup storage and a web dashboard.
+        </p>
+      </div>
+      <div class="teaser-cards">
+        {teaser.map((p) => (
+          <a href="/pricing/" class="teaser">
+            <span class="teaser-name">{p.name}</span>
+            <span class="teaser-price">${p.price?.monthly ?? 0}{p.price && p.price.monthly > 0 && <small>/mo</small>}</span>
+            <span class="teaser-note">{p.tagline}</span>
+          </a>
+        ))}
+      </div>
+      <a class="more" href="/pricing/">Compare plans <span aria-hidden="true">→</span></a>
+    </div>
+  </section>
+</Marketing>
 
-      .section { padding-top: 72px; padding-bottom: 24px; }
-      .section-lead { color: var(--muted); margin-top: 12px; font-size: 1.05rem; }
-      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 32px; }
-      .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px; }
-      .card p { color: var(--muted); margin-top: 8px; font-size: 0.95rem; }
-      .icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); font-size: 1.15rem; margin-bottom: 14px; }
+<style>
+  /* hero */
+  .hero { padding: 48px 0 56px; border-bottom: 1px solid var(--line); background:
+    linear-gradient(to bottom, #fff 0%, #fff 60%, var(--bg-soft) 100%); }
+  .hero-grid { display: grid; gap: 40px; align-items: center; }
+  .hero-grid > * { min-width: 0; }
+  .announce {
+    display: inline-flex; align-items: center; gap: 10px; max-width: 100%;
+    font-size: 14px; color: var(--ink-2); text-decoration: none;
+    border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px 4px 4px; background: #fff;
+  }
+  .announce:hover { border-color: var(--line-strong); color: var(--ink); }
+  .tag { background: var(--brand-soft); color: var(--brand); font: 600 12px/1 var(--mono); padding: 5px 8px; border-radius: 999px; }
+  h1 { font-size: clamp(38px, 6vw, 64px); margin-top: 24px; letter-spacing: -0.03em; }
+  .lead { font-size: clamp(17px, 2vw, 20px); color: var(--ink-2); margin-top: 20px; max-width: 560px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+  .install { margin-top: 20px; max-width: 560px; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 12px; font-family: var(--mono); }
+  @media (min-width: 1000px) {
+    .hero { padding: 80px 0 88px; }
+    .hero-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 56px; }
+  }
 
-      .steps { list-style: none; padding: 0; margin: 32px 0 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; counter-reset: none; }
-      .steps li { border-top: 2px solid var(--accent-strong); padding-top: 16px; }
-      .step-num { color: var(--accent); font-weight: 700; font-size: 0.9rem; }
-      .steps h3 { margin-top: 4px; }
-      .steps p { color: var(--muted); margin-top: 6px; font-size: 0.95rem; }
+  /* works with */
+  .works { border-bottom: 1px solid var(--line); background: var(--bg-soft); }
+  .works-inner { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; padding-top: 22px; padding-bottom: 22px; }
+  .works-label { font: 600 12px/1 var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .works ul { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 26px; margin: 0; padding: 0; }
+  .works li { font-weight: 600; color: #6a7c8d; font-size: 15px; }
 
-      .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: center; }
-      .split > div > p { color: var(--muted); margin-top: 14px; }
-      .checks { list-style: none; padding: 0; margin: 20px 0; display: grid; gap: 8px; }
-      .checks li::before { content: '✓'; color: var(--accent); font-weight: 700; margin-right: 10px; }
-      .link { color: var(--accent); font-weight: 600; text-decoration: none; }
+  /* how it works */
+  .arch-wrap { margin-top: 48px; }
+  .steps { list-style: none; padding: 0; margin: 40px 0 0; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .steps li { background: #fff; padding: 24px; }
+  .step-n { font: 600 13px/1 var(--mono); color: var(--brand); }
+  .steps h3 { font-size: 18px; margin-top: 12px; }
+  .steps p { color: var(--muted); margin-top: 8px; font-size: 15px; }
+  @media (min-width: 700px) { .steps { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1000px) { .steps { grid-template-columns: repeat(4, 1fr); } }
 
-      .table-wrap { margin-top: 28px; overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; }
-      table { width: 100%; border-collapse: collapse; min-width: 560px; background: var(--card); }
-      th, td { text-align: left; padding: 14px 18px; border-bottom: 1px solid var(--border); font-size: 0.95rem; vertical-align: top; }
-      thead th { color: var(--muted); font-weight: 600; background: var(--bg-soft); }
-      tbody th { color: var(--muted); font-weight: 600; width: 16%; }
-      tbody tr:last-child th, tbody tr:last-child td { border-bottom: 0; }
-      td:last-child { color: var(--text); font-weight: 500; }
+  /* feature rows */
+  .feature { display: grid; gap: 40px; align-items: center; }
+  .feature > * { min-width: 0; }
+  .feature-copy h2 { font-size: clamp(28px, 3.6vw, 38px); margin-top: 14px; }
+  .feature-copy > p { color: var(--ink-2); font-size: 17px; margin-top: 16px; }
+  .points { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 10px; }
+  .points li { position: relative; padding-left: 26px; color: var(--ink-2); }
+  .points li::before { content: ''; position: absolute; left: 2px; top: 9px; width: 12px; height: 7px; border-left: 2px solid var(--brand); border-bottom: 2px solid var(--brand); transform: rotate(-45deg); }
+  .points code, .feature-copy code { font-size: 14px; background: var(--bg-soft); border: 1px solid var(--line); padding: 1px 6px; border-radius: 4px; }
+  .more { display: inline-flex; gap: 6px; margin-top: 28px; color: var(--brand); font-weight: 600; text-decoration: none; }
+  .more:hover { text-decoration: underline; }
+  @media (min-width: 1000px) {
+    .feature { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 72px; }
+    .feature.reverse .feature-copy { order: 2; }
+  }
 
-      .final { text-align: center; padding-bottom: 88px; }
-      .final .install { max-width: 720px; margin: 28px auto 0; text-align: left; }
+  /* panels */
+  .panel { background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(11,27,43,.04), 0 16px 40px -24px rgba(11,27,43,.25); }
+  .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); font: 500 13px/1 var(--mono); color: var(--muted); background: var(--bg-soft); }
+  .live { display: inline-flex; align-items: center; gap: 6px; color: var(--ok); }
+  .live i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); animation: livepulse 1.6s ease-in-out infinite; }
+  @keyframes livepulse { 50% { opacity: .3; } }
+  .badge { background: var(--brand-soft); color: var(--brand); padding: 4px 8px; border-radius: 4px; font-size: 12px; }
 
-      .footer { border-top: 1px solid var(--border); padding: 28px 0; color: var(--muted); font-size: 0.9rem; }
-      .footer-inner { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-      .footer nav { display: flex; gap: 18px; flex-wrap: wrap; }
-      .footer a { text-decoration: none; }
-      .footer a:hover { color: var(--text); }
+  .log ul { list-style: none; margin: 0; padding: 6px 0; }
+  .log li {
+    display: grid; grid-template-columns: auto auto 1fr; gap: 6px 12px; align-items: baseline;
+    padding: 12px 16px; border-bottom: 1px solid var(--line); font-size: 14px;
+  }
+  .log li:last-child { border-bottom: 0; }
+  .log .time { font: 13px var(--mono); color: var(--muted); }
+  .kind { font: 600 11px/1 var(--mono); text-transform: uppercase; padding: 4px 6px; border-radius: 4px; }
+  .kind-rule { background: #eef2f6; color: var(--ink-2); }
+  .kind-ai { background: #fdf0e8; color: #b4501f; }
+  .event { color: var(--ink); min-width: 0; }
+  .event code { display: block; margin-top: 4px; font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
+  .result { grid-column: 3; font: 12px var(--mono); color: var(--ok); }
+  .result.pending { color: var(--signal); }
+  @media (min-width: 560px) {
+    .log li { grid-template-columns: auto auto 1fr auto; }
+    .result { grid-column: auto; }
+  }
+  .log.is-visible li { animation: rowin .5s ease both; animation-delay: var(--d); }
+  @keyframes rowin { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
-      @media (max-width: 900px) {
-        .hero, .split { grid-template-columns: 1fr; gap: 36px; }
-        .hero { padding-top: 44px; }
-        .grid { grid-template-columns: repeat(2, 1fr); }
-        .steps { grid-template-columns: repeat(2, 1fr); }
-      }
-      @media (max-width: 600px) {
-        .nav-links a:not(.btn):not([href='/docs/']) { display: none; }
-        .grid, .steps { grid-template-columns: 1fr; }
-        .section { padding-top: 56px; }
-      }
-    </style>
-  </body>
-</html>
+  .backups { overflow-x: auto; }
+  .backups table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 420px; table-layout: fixed; }
+  .backups th:nth-child(2), .backups td:nth-child(2) { width: 92px; }
+  .backups th:nth-child(3), .backups td:nth-child(3) { width: 112px; }
+  .backups th { text-align: left; font: 600 12px var(--mono); color: var(--muted); padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .backups td { padding: 12px 16px; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .backups td code { font-size: 12.5px; }
+  .backups tr.muted td { color: var(--muted); }
+  .chip { display: inline-block; font: 600 11px/1 var(--mono); padding: 4px 6px; border-radius: 4px; background: var(--brand-soft); color: var(--brand); margin-right: 6px; }
+  .panel-foot { padding: 14px 16px; background: var(--term); color: var(--term-text); font-size: 13px; overflow-x: auto; white-space: nowrap; }
+  .panel-foot code::before { content: '$ '; color: #7ee2b8; }
+
+  .code pre { margin: 0; padding: 18px; background: var(--term); color: var(--term-text); font-size: 13.5px; line-height: 1.8; overflow-x: auto; }
+  .check { color: #7ee2b8; }
+  .cross { color: #ff8a65; }
+  .no-line { color: #7d8b99; }
+  .blocked { color: #ff8a65; font-size: 12px; }
+
+  /* chat */
+  .chat { background: #dfe8ee; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; max-width: 460px; width: 100%; justify-self: center; box-shadow: 0 16px 40px -24px rgba(11,27,43,.3); }
+  .chat-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--line); }
+  .chat-head strong { display: block; font-size: 15px; }
+  .chat-head span { font-size: 12px; color: var(--muted); }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--brand); color: #fff; font-weight: 700; }
+  .chat-body { display: grid; gap: 8px; padding: 16px; justify-items: start; }
+  .msg { position: relative; background: #fff; border-radius: 12px 12px 12px 4px; padding: 9px 12px 20px; font-size: 14px; line-height: 1.5; max-width: 92%; box-shadow: 0 1px 1px rgba(0,0,0,.06); }
+  .msg code { font-size: 12.5px; background: #f1f4f7; padding: 1px 5px; border-radius: 4px; }
+  .msg.me { justify-self: end; background: #d9f7e4; border-radius: 12px 12px 4px 12px; font-family: var(--mono); font-size: 13px; }
+  .t { position: absolute; right: 10px; bottom: 4px; font-size: 11px; color: #8a99a8; font-family: var(--font); }
+  .buttons { display: flex; gap: 6px; margin-top: 8px; }
+  .buttons span { flex: 1; text-align: center; font-size: 13px; padding: 6px 10px; background: #f1f4f7; border-radius: 6px; }
+  .chat.is-visible .msg { animation: rowin .45s ease both; animation-delay: var(--d); }
+
+  /* band */
+  .band { background: var(--navy); color: #fff; padding: 72px 0; }
+  .band-inner { display: grid; gap: 32px; align-items: center; }
+  .band-inner > * { min-width: 0; }
+  .band h2 { font-size: clamp(28px, 4vw, 40px); }
+  .band p { color: #a9b8c7; font-size: 18px; margin-top: 14px; }
+  .band .cta { margin-top: 16px; }
+  .band .copy-cmd { border-color: #26384b; }
+  @media (min-width: 1000px) { .band-inner { grid-template-columns: 1fr 1fr; gap: 64px; } }
+
+  /* plans teaser */
+  .teaser-cards { display: grid; gap: 16px; margin-top: 40px; }
+  .teaser { display: grid; gap: 6px; padding: 24px; border: 1px solid var(--line); border-radius: 10px; text-decoration: none; transition: border-color .15s, box-shadow .15s; }
+  .teaser:hover { border-color: var(--brand); box-shadow: 0 8px 24px -16px rgba(13,122,111,.5); }
+  .teaser-name { font-weight: 600; }
+  .teaser-price { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+  .teaser-price small { font-size: 15px; font-weight: 500; color: var(--muted); }
+  .teaser-note { color: var(--muted); font-size: 14px; }
+  @media (min-width: 760px) { .teaser-cards { grid-template-columns: repeat(3, 1fr); } }
+</style>

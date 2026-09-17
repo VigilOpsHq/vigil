@@ -1,0 +1,33 @@
+---
+import Legal from '../layouts/Legal.astro';
+import { company } from '../data/site';
+---
+
+<Legal title="Refund Policy" description="How cancellations and refunds work for VigilOps paid plans.">
+  <h2>Cancelling</h2>
+  <p>
+    You can cancel a Pro or Team plan at any time. Cancelling stops future renewals; your plan stays active until the end of
+    the monthly or yearly period you have already paid for.
+  </p>
+
+  <h2>Refunds</h2>
+  <ul>
+    <li>
+      <strong>First purchase:</strong> if you're not happy, email us within 14 days of your first payment and we'll refund it in
+      full.
+    </li>
+    <li>
+      <strong>Yearly plans:</strong> if you cancel after the first 14 days, we don't refund the remaining months, but your plan
+      stays active until the end of the year.
+    </li>
+    <li><strong>Renewals:</strong> renewal payments are not refunded, except where the law requires it.</li>
+    <li><strong>Duplicate or mistaken charges</strong> are always refunded.</li>
+  </ul>
+
+  <h2>How to ask</h2>
+  <p>
+    Email <a href={`mailto:${company.supportEmail}`}>{company.supportEmail}</a> from the address you subscribed with. Approved
+    refunds go back to the original payment method through our payment provider Bachs; how long they take to appear depends
+    on your bank or card issuer.
+  </p>
+</Legal>

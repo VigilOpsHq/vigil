@@ -58,7 +58,7 @@ vigil update
 Servers installed before VigilOps shipped as an image have `/opt/vigil` as a `git clone` and build the image locally. Switch them over by running the installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/VigilOpsHq/vigil/main/install.sh | sudo sh
+curl -fsSL https://vigilops.cloud/install.sh | sudo sh
 ```
 
 It keeps your `.env`, logs, backups and schedules. It replaces `docker-compose.yml` (the old one is saved as `docker-compose.yml.bak`) and the `vigil` command, then starts the published image. After that you don't need `git pull`, `npm` or Node.js on that server.

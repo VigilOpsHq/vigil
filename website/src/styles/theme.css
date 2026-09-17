@@ -1,11 +1,23 @@
 :root {
-  --sl-color-accent-low: #083d38;
-  --sl-color-accent: #14b8a6;
-  --sl-color-accent-high: #99f6e4;
+  --sl-font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --sl-font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
+  --sl-color-accent-low: #0c3a35;
+  --sl-color-accent: #2bb3a3;
+  --sl-color-accent-high: #b9efe6;
 }
 
 :root[data-theme='light'] {
-  --sl-color-accent-low: #ccfbf1;
-  --sl-color-accent: #0f766e;
-  --sl-color-accent-high: #134e4a;
+  --sl-color-accent-low: #e6f3f1;
+  --sl-color-accent: #0d7a6f;
+  --sl-color-accent-high: #0a4d46;
+  --sl-color-white: #0b1b2b;
+  --sl-color-gray-1: #1d3043;
+  --sl-color-gray-2: #33475b;
+  --sl-color-gray-3: #5b6f82;
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3 {
+  letter-spacing: -0.015em;
 }

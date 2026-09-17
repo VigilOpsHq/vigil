@@ -1,0 +1,128 @@
+---
+// Diagram of one server: containers on the left, the VigilOps agent in the middle,
+// and where it reports and sends backups on the right. Dashed lines animate as data flow.
+---
+
+<figure class="arch" data-reveal>
+  <svg viewBox="0 0 980 440" role="img" aria-labelledby="arch-title arch-desc">
+    <title id="arch-title">How VigilOps fits on a server</title>
+    <desc id="arch-desc">
+      VigilOps runs as a container next to your apps. Through the Docker socket it watches and restarts containers
+      and dumps databases. It sends alerts and approval requests to Telegram, backups to S3-compatible storage, and
+      unusual problems to AI.
+    </desc>
+
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 10 5 0 10z" fill="#5b6f82" />
+      </marker>
+    </defs>
+
+    <!-- server boundary -->
+    <rect x="16" y="16" width="600" height="408" rx="12" class="server" />
+    <text x="40" y="50" class="label-strong">Your server</text>
+    <text x="40" y="72" class="label-muted">Ubuntu · Docker</text>
+
+    <!-- containers -->
+    <g class="containers">
+      <g transform="translate(40 108)">
+        <rect width="200" height="56" rx="8" class="box" />
+        <circle cx="22" cy="28" r="5" class="dot-ok pulse" />
+        <text x="40" y="33" class="mono">api</text>
+        <text x="186" y="33" class="mono-muted" text-anchor="end">running</text>
+      </g>
+      <g transform="translate(40 180)">
+        <rect width="200" height="56" rx="8" class="box" />
+        <circle cx="22" cy="28" r="5" class="dot-warn blink" />
+        <text x="40" y="33" class="mono">worker</text>
+        <text x="186" y="33" class="mono-muted" text-anchor="end">restarting</text>
+      </g>
+      <g transform="translate(40 252)">
+        <rect width="200" height="56" rx="8" class="box" />
+        <circle cx="22" cy="28" r="5" class="dot-ok pulse" />
+        <text x="40" y="33" class="mono">postgres</text>
+        <text x="186" y="33" class="mono-muted" text-anchor="end">healthy</text>
+      </g>
+      <g transform="translate(40 324)">
+        <rect width="200" height="56" rx="8" class="box dashed-box" />
+        <text x="100" y="33" class="mono-muted" text-anchor="middle">/var/backups/vigil</text>
+      </g>
+    </g>
+
+    <!-- agent -->
+    <g transform="translate(364 150)">
+      <rect width="220" height="140" rx="10" class="agent" />
+      <text x="24" y="40" class="agent-title">VigilOps agent</text>
+      <text x="24" y="66" class="agent-sub">every 60s</text>
+      <g class="loop">
+        <text x="24" y="100" class="agent-step">observe</text>
+        <text x="94" y="100" class="agent-arrow">→</text>
+        <text x="114" y="100" class="agent-step">fix</text>
+        <text x="144" y="100" class="agent-arrow">→</text>
+        <text x="164" y="100" class="agent-step">report</text>
+      </g>
+      <text x="24" y="124" class="agent-sub">docker.sock · allowlist</text>
+    </g>
+
+    <!-- server-side flows -->
+    <path d="M240 136 H300 V210 H364" class="flow" marker-end="url(#arrow)" />
+    <path d="M364 222 H300 V208 H240" class="flow" marker-end="url(#arrow)" />
+    <text x="252" y="198" class="flow-label">restart</text>
+    <path d="M240 280 H300 V236 H364" class="flow" marker-end="url(#arrow)" />
+    <path d="M364 262 H320 V352 H240" class="flow" marker-end="url(#arrow)" />
+    <text x="252" y="126" class="flow-label">state</text>
+    <text x="252" y="344" class="flow-label">backups</text>
+
+    <!-- external -->
+    <g transform="translate(700 60)">
+      <rect width="264" height="80" rx="10" class="ext" />
+      <text x="20" y="34" class="label-strong">Telegram</text>
+      <text x="20" y="58" class="label-muted">alerts · approvals · commands</text>
+    </g>
+    <g transform="translate(700 180)">
+      <rect width="264" height="80" rx="10" class="ext" />
+      <text x="20" y="34" class="label-strong">S3-compatible storage</text>
+      <text x="20" y="58" class="label-muted">off-server backup copies</text>
+    </g>
+    <g transform="translate(700 300)">
+      <rect width="264" height="80" rx="10" class="ext" />
+      <text x="20" y="34" class="label-strong">AI (DeepSeek)</text>
+      <text x="20" y="58" class="label-muted">diagnosis for unusual problems</text>
+    </g>
+
+    <path d="M584 190 C640 190 640 100 700 100" class="flow out" marker-end="url(#arrow)" />
+    <path d="M584 220 H700" class="flow out" marker-end="url(#arrow)" />
+    <path d="M584 250 C640 250 640 340 700 340" class="flow out" marker-end="url(#arrow)" />
+  </svg>
+</figure>
+
+<style>
+  .arch { margin: 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+  .arch svg { width: 100%; height: auto; }
+  @media (max-width: 640px) { .arch { padding: 10px; } }
+
+  .server { fill: var(--bg-soft); stroke: var(--line-strong); stroke-width: 1.5; }
+  .box { fill: #fff; stroke: var(--line-strong); stroke-width: 1.25; }
+  .dashed-box { stroke-dasharray: 5 5; fill: transparent; }
+  .agent { fill: var(--navy); }
+  .ext { fill: #fff; stroke: var(--line-strong); stroke-width: 1.25; }
+  text { font-family: var(--font); }
+  .label-strong { font-size: 16px; font-weight: 600; fill: var(--ink); }
+  .label-muted { font-size: 13px; fill: var(--muted); }
+  .mono { font: 500 14px var(--mono); fill: var(--ink); }
+  .mono-muted { font: 12px var(--mono); fill: var(--muted); }
+  .agent-title { font-size: 17px; font-weight: 600; fill: #fff; }
+  .agent-sub { font: 12px var(--mono); fill: #8fa3b6; }
+  .agent-step { font: 500 13px var(--mono); fill: #8fe3d2; }
+  .agent-arrow { font: 13px var(--mono); fill: #5d7185; }
+  .flow-label { font: 11px var(--mono); fill: var(--muted); }
+  .dot-ok { fill: var(--ok); }
+  .dot-warn { fill: var(--signal); }
+  .flow { fill: none; stroke: #7d8fa0; stroke-width: 1.5; stroke-dasharray: 4 6; animation: flow 1.4s linear infinite; }
+  .flow.out { stroke: var(--brand); }
+  .pulse { animation: pulse 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .blink { animation: blinkdot 1s steps(2) infinite; }
+  @keyframes flow { to { stroke-dashoffset: -20; } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+  @keyframes blinkdot { 50% { opacity: .2; } }
+</style>

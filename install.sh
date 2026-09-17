@@ -1,6 +1,6 @@
 #!/bin/sh
 # Install or upgrade Vigil:
-#   curl -fsSL https://raw.githubusercontent.com/VigilOpsHq/vigil/main/install.sh | sudo sh
+#   curl -fsSL https://vigilops.cloud/install.sh | sudo sh
 set -e
 
 REPO="VigilOpsHq/vigil"
@@ -10,7 +10,7 @@ VIGIL_DIR="${VIGIL_DIR:-/opt/vigil}"
 say() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
 if [ "$(id -u)" -ne 0 ]; then
-  echo "Please run as root: curl -fsSL $RAW/install.sh | sudo sh" >&2
+  echo "Please run as root: curl -fsSL https://vigilops.cloud/install.sh | sudo sh" >&2
   exit 1
 fi
 

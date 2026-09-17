@@ -1,0 +1,103 @@
+---
+import { site } from '../data/site';
+
+const path = Astro.url.pathname;
+const links = [
+  { href: '/#product', label: 'Product' },
+  { href: '/docs/', label: 'Docs' },
+  { href: '/pricing/', label: 'Pricing' },
+  { href: site.releases, label: 'Changelog' },
+];
+---
+
+<header class="nav">
+  <div class="container nav-inner">
+    <a class="logo" href="/" aria-label="VigilOps home">
+      <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="7" fill="#0d7a6f" />
+        <path d="M8 10.5 16 23l8-12.5" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+        <circle cx="16" cy="8.5" r="2" fill="#8fe3d2" />
+      </svg>
+      <span>VigilOps</span>
+    </a>
+
+    <nav class="links" aria-label="Main">
+      {links.map((l) => (
+        <a href={l.href} aria-current={path.startsWith(l.href) && l.href !== '/#product' ? 'page' : undefined}>{l.label}</a>
+      ))}
+    </nav>
+
+    <div class="actions">
+      <a class="github" href={site.github} aria-label="VigilOps on GitHub">
+        <svg width="20" height="20" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      </a>
+      <a class="btn btn-primary btn-sm" href="/docs/install/">Get started</a>
+      <button class="menu" type="button" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open menu">
+        <span></span><span></span>
+      </button>
+    </div>
+  </div>
+
+  <div id="mobile-menu" class="mobile" hidden>
+    <div class="container">
+      {links.map((l) => <a href={l.href}>{l.label}</a>)}
+      <a href={site.github}>GitHub</a>
+    </div>
+  </div>
+</header>
+
+<script>
+  const button = document.querySelector<HTMLButtonElement>('.nav .menu');
+  const menu = document.getElementById('mobile-menu');
+  button?.addEventListener('click', () => {
+    const open = button.getAttribute('aria-expanded') === 'true';
+    button.setAttribute('aria-expanded', String(!open));
+    button.setAttribute('aria-label', open ? 'Open menu' : 'Close menu');
+    if (menu) menu.hidden = open;
+  });
+  menu?.querySelectorAll('a').forEach((a) =>
+    a.addEventListener('click', () => {
+      menu.hidden = true;
+      button?.setAttribute('aria-expanded', 'false');
+    })
+  );
+</script>
+
+<style>
+  .nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: saturate(180%) blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-inner { display: flex; align-items: center; height: 64px; gap: 32px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; text-decoration: none; letter-spacing: -0.01em; }
+  .links { display: none; gap: 4px; }
+  .links a {
+    color: var(--ink-2); text-decoration: none; font-size: 15px; font-weight: 500;
+    padding: 8px 12px; border-radius: 6px;
+  }
+  .links a:hover, .links a[aria-current='page'] { color: var(--ink); background: var(--bg-soft); }
+  .actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .github { color: var(--ink-2); padding: 6px; border-radius: 6px; display: none; }
+  .github:hover { color: var(--ink); background: var(--bg-soft); }
+  .menu {
+    width: 40px; height: 40px; display: grid; place-content: center; gap: 5px;
+    background: none; border: 1px solid var(--line); border-radius: 8px; cursor: pointer;
+  }
+  .menu span { display: block; width: 18px; height: 2px; background: var(--ink); transition: transform .2s; }
+  .menu[aria-expanded='true'] span:first-child { transform: translateY(3.5px) rotate(45deg); }
+  .menu[aria-expanded='true'] span:last-child { transform: translateY(-3.5px) rotate(-45deg); }
+  .mobile { border-top: 1px solid var(--line); background: #fff; }
+  .mobile .container { display: grid; padding-top: 8px; padding-bottom: 16px; }
+  .mobile a { padding: 12px 0; text-decoration: none; font-weight: 500; border-bottom: 1px solid var(--line); }
+  .mobile a:last-child { border-bottom: 0; }
+
+  @media (min-width: 880px) {
+    .links, .github { display: flex; }
+    .menu, .mobile { display: none !important; }
+  }
+  @media (max-width: 420px) {
+    .actions .btn { display: none; }
+  }
+</style>
