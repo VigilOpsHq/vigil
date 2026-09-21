@@ -41,3 +41,43 @@ jobs:
           cache-dependency-path: website/package-lock.json
       - run: npm ci
       - run: npm run build
+
+  # Runs the whole VigilOps Cloud flow against a local copy of the Worker
+  # (local database and storage; nothing touches production).
+  cloud-e2e:
+    runs-on: ubuntu-latest
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            website/package-lock.json
+
+      - name: Build the agent
+        run: npm ci && npm run build
+
+      - name: Build the website
+        working-directory: website
+        run: npm ci && npm run build
+
+      - name: Start the Worker locally
+        working-directory: website
+        run: |
+          printf 'BACHS_WEBHOOK_SECRET=testsecret\nDEV_LOGIN=true\nCLOUD_TELEGRAM_BOT_TOKEN=123456:test\nCLOUD_TELEGRAM_BOT_USERNAME=VigilOpsTestBot\nCLOUD_TELEGRAM_WEBHOOK_SECRET=tgsecret\n' > .dev.vars
+          npx wrangler d1 migrations apply DB --local --persist-to /tmp/vigil-state
+          nohup npx wrangler dev --port 8787 --persist-to /tmp/vigil-state --test-scheduled > /tmp/wrangler.log 2>&1 &
+          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8787/api/me && exit 0; sleep 2; done
+          cat /tmp/wrangler.log; exit 1
+
+      - name: Run Cloud tests
+        working-directory: website
+        run: BASE=http://127.0.0.1:8787 node test/cloud-e2e.mjs
+
+      - name: Worker log (on failure)
+        if: failure()
+        run: cat /tmp/wrangler.log
