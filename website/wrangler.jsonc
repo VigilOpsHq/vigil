@@ -14,7 +14,7 @@
     {
       "binding": "DB",
       "database_name": "vigilops",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "c078eebf-32ff-4346-aa51-49c70a7db27c",
       "migrations_dir": "migrations"
     }
   ],
