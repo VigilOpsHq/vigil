@@ -7,12 +7,21 @@ VigilOps reads its settings from `/opt/vigil/.env`. After changing it, restart w
 
 [`.env.example`](https://github.com/VigilOpsHq/vigil/blob/main/.env.example) has every setting with comments. The installer puts a copy at `/opt/vigil/.env.example`.
 
-## Required
+## Telegram
+
+Needed for alerts and commands from your own bot. Optional on servers connected to [VigilOps Cloud](/docs/guides/cloud/), which sends alerts through the official VigilOps bot instead. Without them, suggested actions that need approval are logged but never run.
 
 | Variable | Description |
 |---|---|
 | `TELEGRAM_BOT_TOKEN` | Bot token from [@BotFather](https://t.me/botfather). Use a different bot on each server |
 | `TELEGRAM_CHAT_ID` | The chat VigilOps reports to and accepts commands from. See [Install](/docs/install/) for how to find it |
+
+## VigilOps Cloud
+
+| Variable | Default | Description |
+|---|---|---|
+| `VIGIL_CLOUD_TOKEN` | — | Server token from the [dashboard](/app/). Set by `install.sh --token`. `vigil cloud connect` stores the token in `/var/backups/vigil/cloud.json` instead; this variable wins if both are set |
+| `VIGIL_CLOUD_URL` | `https://vigilops.cloud` | Cloud address. Only change it for development |
 
 ## AI
 

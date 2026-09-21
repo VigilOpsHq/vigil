@@ -107,11 +107,12 @@ A failed backup sends `❌ Backup FAILED` with the error. **If you get no messag
 
 ## Where backups are stored
 
-Each backup is saved in up to three places:
+Each backup is saved in up to four places:
 
 | Copy | Location | When |
 |---|---|---|
 | Server disk | `/var/backups/vigil/` | Always |
+| VigilOps Cloud | Managed storage, visible in the [dashboard](/app/) | When the server is [connected to VigilOps Cloud](/docs/guides/cloud/) (Pro and Team) |
 | Object storage | Your S3-compatible bucket | When [off-server storage](/docs/guides/offsite-storage/) is set up |
 | Telegram | Sent as a file to your chat | Files up to 50 MB (Telegram's limit for bots) |
 

@@ -13,6 +13,7 @@ description: Where VigilOps keeps its settings, logs, backups and schedules.
 | `/opt/vigil/logs/audit.jsonl` | Every action VigilOps took | Yes, but you lose history |
 | `/var/backups/vigil/*.sql.gz`, `*.archive.gz` | Database backups | ⚠️ These are your backups |
 | `/var/backups/vigil/schedules.json` | Backup schedules. Change them with `vigil backup schedule`, don't edit by hand | No |
+| `/var/backups/vigil/cloud.json` | VigilOps Cloud server token, written by `vigil cloud connect` (root only) | Deleting it disconnects the server |
 | `/usr/local/bin/vigil` | The `vigil` command | Reinstalled by the installer |
 
 ## What to back up for disaster recovery

@@ -41,6 +41,17 @@ Run `vigil help` on the server for a short version of this page.
 
 See [Database backups](/docs/guides/backups/) and [Restoring a backup](/docs/guides/restore/).
 
+## VigilOps Cloud (Pro and Team)
+
+| Command | What it does |
+|---|---|
+| `vigil cloud connect <token>` | Connect this server using a token from the [dashboard](/app/) |
+| `vigil cloud status` | Show which server name and plan it's connected to |
+| `vigil cloud backups [container]` | List backups stored in the cloud, from all your servers |
+| `vigil cloud disconnect` | Stop sending backups to the cloud. Stored backups are kept |
+
+See [VigilOps Cloud](/docs/guides/cloud/).
+
 ## Deploys
 
 | Command | What it does |

@@ -9,10 +9,20 @@ import { Aside, Steps } from '@astrojs/starlight/components';
 
 - A Linux server: Ubuntu 20.04+ or Debian, amd64 or arm64. Docker is installed for you if it's missing
 - Root access (`sudo`)
-- A Telegram account
+- A Telegram account, for alerts and commands from your phone
 - A [DeepSeek API key](https://platform.deepseek.com). Optional, but without it unusual problems are reported without an AI diagnosis
 
 You don't need Node.js or git. VigilOps runs from a ready-built Docker image.
+
+## On a Pro or Team plan?
+
+Skip the Telegram setup below. In the [dashboard](/app/), click **Add server** and run the command it gives you:
+
+```bash
+curl -fsSL https://vigilops.cloud/install.sh | sudo sh -s -- --token vo_srv_...
+```
+
+This installs VigilOps, connects it to VigilOps Cloud and starts it. Alerts come from the official VigilOps bot. See [VigilOps Cloud](/docs/guides/cloud/). You can still add your own bot later (steps 2–4 below) for Telegram commands.
 
 ## Install
 

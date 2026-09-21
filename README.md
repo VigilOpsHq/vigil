@@ -25,7 +25,7 @@ On an Ubuntu or Debian server:
 
 ```bash
 curl -fsSL https://vigilops.cloud/install.sh | sudo sh
-sudo nano /opt/vigil/.env      # Telegram bot token, chat ID, DeepSeek key
+sudo nano /opt/vigil/.env      # your Telegram bot token and chat ID; DeepSeek key optional
 vigil start
 ```
 
@@ -44,23 +44,54 @@ vigil update                                       # update VigilOps
 
 The same things work from Telegram: `/status`, `/backup myapp-postgres`, `/backups`, `/restore <file>`, `/update`.
 
+## VigilOps Cloud (Pro and Team)
+
+The self-hosted version is free and complete. [Pro and Team plans](https://vigilops.cloud/pricing/) add VigilOps Cloud:
+
+- **Managed backup storage:** every backup is also stored by us (Pro 50 GB / 30 days, Team 250 GB / 90 days)
+- **Dashboard** at [vigilops.cloud/app](https://vigilops.cloud/app/): every server and backup, with download
+- **Alerts from outside your servers:** the official VigilOps bot tells you when a server goes offline or a scheduled backup doesn't arrive
+- **Restore anywhere:** `vigil restore` downloads from the cloud, even onto a brand-new server
+- **No Telegram setup needed:** your own bot becomes optional
+
+Connect a server with one command, using a token from the dashboard:
+
+```bash
+curl -fsSL https://vigilops.cloud/install.sh | sudo sh -s -- --token vo_srv_...   # new server
+vigil cloud connect vo_srv_...                                                    # existing server
+```
+
+Guide: [VigilOps Cloud](https://vigilops.cloud/docs/guides/cloud/).
+
 ## Documentation
 
 | Getting started | Guides | Reference |
 |---|---|---|
-| [What is VigilOps?](https://vigilops.cloud/docs/) | [Database backups](https://vigilops.cloud/docs/guides/backups/) | [CLI commands](https://vigilops.cloud/docs/reference/cli/) |
-| [Install](https://vigilops.cloud/docs/install/) | [Restoring a backup](https://vigilops.cloud/docs/guides/restore/) | [Telegram commands](https://vigilops.cloud/docs/reference/telegram/) |
-| [First steps](https://vigilops.cloud/docs/first-steps/) | [Off-server backup storage](https://vigilops.cloud/docs/guides/offsite-storage/) | [Configuration (.env)](https://vigilops.cloud/docs/reference/configuration/) |
-| | [Auto-fixes, AI and approvals](https://vigilops.cloud/docs/guides/auto-fixes/) | [Files and paths](https://vigilops.cloud/docs/reference/files/) |
+| [What is VigilOps?](https://vigilops.cloud/docs/) | [VigilOps Cloud](https://vigilops.cloud/docs/guides/cloud/) | [CLI commands](https://vigilops.cloud/docs/reference/cli/) |
+| [Install](https://vigilops.cloud/docs/install/) | [Database backups](https://vigilops.cloud/docs/guides/backups/) | [Telegram commands](https://vigilops.cloud/docs/reference/telegram/) |
+| [First steps](https://vigilops.cloud/docs/first-steps/) | [Restoring a backup](https://vigilops.cloud/docs/guides/restore/) | [Configuration (.env)](https://vigilops.cloud/docs/reference/configuration/) |
+| | [Off-server backup storage](https://vigilops.cloud/docs/guides/offsite-storage/) | [Files and paths](https://vigilops.cloud/docs/reference/files/) |
+| | [Auto-fixes, AI and approvals](https://vigilops.cloud/docs/guides/auto-fixes/) | |
 | | [Deploying apps](https://vigilops.cloud/docs/guides/deploys/) | |
 | | [Updating VigilOps](https://vigilops.cloud/docs/guides/updating/) | |
 | | [AI agents (MCP)](https://vigilops.cloud/docs/guides/mcp/) | |
+
+## Repository layout
+
+| Path | What's there |
+|---|---|
+| `src/` | The agent: monitoring, rules, backups, Telegram bot, CLI, Cloud client |
+| `install.sh`, `scripts/vigil` | The installer and the host `vigil` command |
+| `website/` | vigilops.cloud: landing page, docs, dashboard, and the Cloudflare Worker behind VigilOps Cloud |
 
 ## Contributing
 
 - [Developing locally](https://vigilops.cloud/docs/contributing/develop/)
 - [Releasing a version](https://vigilops.cloud/docs/contributing/release/)
+- [Website and payments](https://vigilops.cloud/docs/contributing/website/)
 - [CONTRIBUTING.md](CONTRIBUTING.md)
+
+Every push runs CI: type checks, builds, the Docker image, and an end-to-end test of VigilOps Cloud (`website/test/cloud-e2e.mjs`).
 
 ## License
 
