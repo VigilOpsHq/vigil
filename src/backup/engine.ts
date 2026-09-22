@@ -13,7 +13,7 @@ const KEEP_DAYS = parseInt(process.env.BACKUP_KEEP_DAYS ?? '7', 10);
 
 export type DbEngine = 'postgres' | 'mysql' | 'mongodb';
 
-interface DbTarget {
+export interface DbTarget {
   container: string;
   engine: DbEngine;
   database: string;
@@ -214,11 +214,21 @@ export function parseBackupFile(file: string): { container: string; database: st
   return { container: m[1], database: m[2] };
 }
 
-export async function restore(file: string, targetContainer?: string): Promise<{ safetyBackup: string }> {
-  const name = path.basename(file);
-  const parsed = parseBackupFile(name);
+/**
+ * Which database a backup is restored into: the one named in the file when restoring onto the
+ * same container, otherwise the target container's own database (staging has its own name).
+ */
+export async function restoreTarget(file: string, targetContainer?: string, targetDatabase?: string): Promise<DbTarget> {
+  const parsed = parseBackupFile(path.basename(file));
   const container = targetContainer ?? parsed.container;
-  const target = await detectDatabase(container, parsed.database);
+  const sameContainer = container === parsed.container;
+  return detectDatabase(container, targetDatabase ?? (sameContainer ? parsed.database : undefined));
+}
+
+export async function restore(file: string, targetContainer?: string, targetDatabase?: string): Promise<{ safetyBackup: string }> {
+  const name = path.basename(file);
+  const target = await restoreTarget(name, targetContainer, targetDatabase);
+  const container = target.container;
 
   const filePath = path.join(BACKUP_DIR, name);
   if (!fs.existsSync(filePath)) {
@@ -226,7 +236,7 @@ export async function restore(file: string, targetContainer?: string): Promise<{
     if (!fetched) throw new Error(`Backup "${name}" not found on this server or in storage`);
   }
 
-  const safety = await backup(container, parsed.database, 'pre-restore');
+  const safety = await backup(container, target.database, 'pre-restore');
 
   const input = fs.createReadStream(filePath);
   if (target.engine === 'mongodb') {

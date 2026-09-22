@@ -1,6 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
 import crypto from 'crypto';
-import { backupAndNotify, detectDatabase, formatSize, listBackups, parseBackupFile, restore } from './engine';
+import { backupAndNotify, detectDatabase, formatSize, listBackups, restore, restoreTarget } from './engine';
 import { describeSchedule, loadSchedules, removeSchedule, setSchedule } from './schedule';
 
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID ?? '';
@@ -43,12 +43,12 @@ export function setupBackupCommands(bot: TelegramBot): void {
 
   command('restore', async ([file, container]) => {
     if (!file) return reply('Usage: /restore <file> [container]\nSee files with /backups');
-    const parsed = parseBackupFile(file);
+    const target = await restoreTarget(file, container);
     const id = crypto.randomBytes(4).toString('hex');
     pendingRestores.set(id, { file, container, expires: Date.now() + CONFIRM_TTL_MS });
     await bot.sendMessage(
       CHAT_ID,
-      `⚠️ Restore will OVERWRITE database "${parsed.database}" in ${container ?? parsed.container}.\n` +
+      `⚠️ Restore will OVERWRITE database "${target.database}" in ${target.container}.\n` +
         `A safety backup of the current data is taken first.\n\nFile: ${file}`,
       {
         reply_markup: {

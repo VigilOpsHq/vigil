@@ -59,7 +59,15 @@ Add the target container. For example, copy production data into staging:
 vigil restore myapp-postgres__myapp__20260916-020000.sql.gz myapp-staging-postgres
 ```
 
-The database **name** comes from the backup file, so the target container must use the same database name.
+Restoring into a **different** container uses that container's own database, so production data lands in staging's database (`myapp_staging`), not one named after production. VigilOps prints the database it will overwrite before asking you to confirm.
+
+To choose the database yourself, name it after the container:
+
+```bash
+vigil restore myapp-postgres__myapp__20260916-020000.sql.gz myapp-staging-postgres myapp_test
+```
+
+Restoring onto the **same** container always uses the database named in the file.
 
 ## Restore on a new server
 
@@ -90,7 +98,7 @@ If the original server is gone:
 For scripts, add `--yes`:
 
 ```bash
-vigil restore <file> [container] --yes
+vigil restore <file> [container] [database] --yes
 ```
 
 ## Test your backups

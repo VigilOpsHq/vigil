@@ -8,7 +8,7 @@ import { execute, isSafeCommand } from '../executor';
 import { deploy, listApps } from '../deploy/deployer';
 import { info, error } from '../logger';
 import readline from 'readline';
-import { BACKUP_DIR, backupAndNotify, detectDatabase, formatSize, listBackups, parseBackupFile, restore } from '../backup/engine';
+import { BACKUP_DIR, backupAndNotify, detectDatabase, formatSize, listBackups, restore, restoreTarget } from '../backup/engine';
 import { describeSchedule, loadSchedules, removeSchedule, setSchedule } from '../backup/schedule';
 import { currentVersion, isNewer, latestRelease } from '../update';
 import * as cloud from '../cloud';
@@ -351,23 +351,22 @@ export const backupsCommand: CLICommand = {
 export const restoreCommand: CLICommand = {
   name: 'restore',
   description: 'Restore a database from a backup file',
-  usage: 'vigil restore <file> [container] [--yes]',
+  usage: 'vigil restore <file> [container] [database] [--yes]',
   handler: async (args) => {
     const yes = args.includes('--yes');
-    const [file, container] = args.filter((a) => a !== '--yes');
+    const [file, container, database] = args.filter((a) => a !== '--yes');
     if (!file) {
-      console.error('❌ Usage: vigil restore <file> [container] [--yes]');
+      console.error('❌ Usage: vigil restore <file> [container] [database] [--yes]');
       console.error('   See files: vigil backups');
       process.exit(1);
     }
 
-    const parsed = parseBackupFile(file);
-    const target = container ?? parsed.container;
+    const target = await restoreTarget(file, container, database);
 
     if (!yes) {
       const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
       const answer = await new Promise<string>((resolve) =>
-        rl.question(`⚠️  This will OVERWRITE database "${parsed.database}" in ${target}. Type "yes" to continue: `, resolve)
+        rl.question(`⚠️  This will OVERWRITE database "${target.database}" in ${target.container}. Type "yes" to continue: `, resolve)
       );
       rl.close();
       if (answer.trim().toLowerCase() !== 'yes') {
@@ -376,8 +375,8 @@ export const restoreCommand: CLICommand = {
       }
     }
 
-    console.log(`\n⏳ Taking a safety backup, then restoring ${file} into ${target}...`);
-    const { safetyBackup } = await restore(file, container);
+    console.log(`\n⏳ Taking a safety backup of ${target.database}, then restoring ${file} into ${target.container}...`);
+    const { safetyBackup } = await restore(file, container, database);
     console.log(`✅ Restore complete. Previous data saved as ${safetyBackup}\n`);
   },
 };
@@ -498,7 +497,7 @@ SERVICE:
 BACKUPS:
   backup <container> [db]                 Back up a database now
   backups [container]                     List backups on this server
-  restore <file> [container] [--yes]      Restore a backup (safety backup taken first)
+  restore <file> [container] [db] [--yes] Restore a backup (safety backup taken first)
   backup schedule <container> daily 02:00 Schedule backups (hourly | daily | weekly sun 03:00)
   backup unschedule <container>           Remove a schedule
   backup schedules                        List schedules
