@@ -362,7 +362,11 @@ import App from '../../layouts/App.astro';
     e.preventDefault();
     const form = e.target as HTMLFormElement;
     const err = form.querySelector<HTMLElement>('.error')!;
+    const button = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     const name = String(new FormData(form).get('name') ?? '').trim();
+    err.hidden = true;
+    button.disabled = true;
+    button.textContent = 'Creating…';
     try {
       const res = await api<{ server: { name: string }; token: string }>('/api/app/servers', {
         method: 'POST',
@@ -371,8 +375,12 @@ import App from '../../layouts/App.astro';
       showToken(res.server.name, res.token);
       load();
     } catch (ex) {
-      err.textContent = (ex as Error).message;
+      const message = (ex as Error).message;
+      err.textContent = message === 'Failed to fetch' ? 'Could not reach VigilOps Cloud. Check your connection and try again.' : message;
       err.hidden = false;
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Create';
     }
   };
 
