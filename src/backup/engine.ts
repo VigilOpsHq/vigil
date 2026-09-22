@@ -97,7 +97,9 @@ const MONGO_AUTH =
 function dumpArgs(t: DbTarget): string[] {
   switch (t.engine) {
     case 'postgres':
-      return ['exec', t.container, 'pg_dump', '-U', t.user, '--clean', '--if-exists', '--no-owner', t.database];
+      // --no-owner/--no-acl keep the dump portable: it restores into another container
+      // without needing the same roles to exist there
+      return ['exec', t.container, 'pg_dump', '-U', t.user, '--clean', '--if-exists', '--no-owner', '--no-acl', t.database];
     case 'mysql':
       return ['exec', t.container, 'sh', '-c',
         `${MYSQL_PWD} exec "$(command -v mysqldump || command -v mariadb-dump)" -uroot --single-transaction --routines --triggers "$1"`,
@@ -243,9 +245,12 @@ export async function restore(file: string, targetContainer?: string, targetData
     await runDocker(restoreArgs(target), input, null);
   } else {
     const gunzip = zlib.createGunzip();
-    const reading = pipeline(input, gunzip);
+    // If the database rejects the dump it closes stdin, which breaks this pipe (EPIPE).
+    // Swallow that so the database's own error is what surfaces.
+    const reading = pipeline(input, gunzip).catch(() => undefined);
     try {
-      await Promise.all([runDocker(restoreArgs(target), gunzip, null), reading]);
+      await runDocker(restoreArgs(target), gunzip, null);
+      await reading;
     } catch (err) {
       input.destroy();
       throw err;
