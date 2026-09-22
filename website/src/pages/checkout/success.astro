@@ -15,17 +15,53 @@ import { company } from '../../data/site';
         Your payment is being confirmed, and you'll get a receipt by email from our payment provider, Bachs.
       </p>
       <div class="next">
-        <h2>Set up VigilOps Cloud</h2>
-        <ol>
-          <li><a href="/login/?next=/app/">Sign in with GitHub</a> using an account that has the email you just paid with (as a verified email).</li>
-          <li>Click <strong>Add server</strong> and run the command it gives you on your server.</li>
-          <li>Click <strong>Connect Telegram</strong> to get alerts when a server goes offline or a backup is missed.</li>
-        </ol>
-        <p class="muted-note">Your plan usually unlocks within a minute of paying. If it doesn't, email us and we'll sort it out.</p>
+        <div data-waiting>
+          <h2>Setting up your plan<span class="dots" aria-hidden="true"></span></h2>
+          <p class="muted-note">This takes a few seconds. You'll go to your dashboard automatically.</p>
+        </div>
+
+        <div data-signin hidden>
+          <h2>Sign in to finish setup</h2>
+          <p class="muted-note">Use a GitHub account that has the email you just paid with, as a verified email.</p>
+          <a class="btn btn-primary go" href="/login/?next=/app/">Sign in with GitHub</a>
+        </div>
+
+        <div data-slow hidden>
+          <h2>Your plan is taking a moment</h2>
+          <p class="muted-note">
+            Payments usually appear within a minute. Open your dashboard and refresh; if it still shows no plan in a few
+            minutes, email us and we'll sort it out.
+          </p>
+          <a class="btn btn-primary go" href="/app/">Go to dashboard</a>
+        </div>
       </div>
       <p class="help">Questions about billing? Email <a href={`mailto:${company.supportEmail}`}>{company.supportEmail}</a>.</p>
     </div>
   </section>
+
+  <script>
+    // Wait for the payment to register, then go straight to the dashboard
+    const show = (name: string) =>
+      document.querySelectorAll<HTMLElement>('[data-waiting],[data-signin],[data-slow]').forEach((el) => {
+        el.hidden = el.dataset[name] === undefined;
+      });
+
+    let tries = 0;
+    async function poll() {
+      tries++;
+      try {
+        const res = await fetch('/api/me');
+        if (res.status === 401) return show('signin');
+        const me = await res.json();
+        if (me.plan) return location.replace('/app/');
+      } catch {
+        /* keep trying */
+      }
+      if (tries >= 20) return show('slow');
+      setTimeout(poll, 3000);
+    }
+    poll();
+  </script>
 </Marketing>
 
 <style>
@@ -43,4 +79,7 @@ import { company } from '../../data/site';
   a { color: var(--brand); }
   .help { margin-top: 28px; color: var(--muted); }
   .muted-note { margin-top: 14px; font-size: 14px; color: var(--muted); }
+  .go { margin-top: 18px; color: #fff; }
+  .dots::after { content: '…'; animation: dots 1.4s steps(4) infinite; }
+  @keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '…'; } }
 </style>

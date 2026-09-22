@@ -54,6 +54,16 @@ check('duplicate webhook ignored', (await r.text()) === 'duplicate');
 r = await fetch(`${B}/api/bachs-webhook`, { method: 'POST', headers: { 'X-Bachs-Signature-V2': 't=1,v1=bad' }, body: '{}' });
 check('unsigned webhook rejected', r.status === 401);
 
+// Bachs doesn't always put the plan in metadata: fall back to the product ID
+r = await webhook({
+  id: 'evt_team_1',
+  type: 'customer.subscription.created',
+  data: { id: 'sub_team_1', status: 'active', customer: { email: 'team@example.com' }, items: [{ product_id: 'prod_team_monthly_test' }] },
+});
+const team = await signIn('team@example.com');
+const teamMe = await (await fetch(`${B}/api/me`, { headers: team.headers })).json();
+check('plan recognised from the product ID alone', r.status === 200 && teamMe.plan === 'team', teamMe.plan);
+
 const pro = await signIn('pro@example.com');
 check('sign-in sets a session', pro.status === 302 && Boolean(pro.headers.Cookie));
 let me = await (await fetch(`${B}/api/me`, { headers: pro.headers })).json();

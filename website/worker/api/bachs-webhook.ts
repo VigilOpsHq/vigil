@@ -52,20 +52,56 @@ function planFromProduct(env: Env, productId: string | undefined): { plan: strin
   return null;
 }
 
+const emailOf = (d: Record<string, any>) =>
+  String(d.customer?.email ?? d.customer_details?.email ?? d.customer_email ?? '').toLowerCase();
+
+const productOf = (d: Record<string, any>) =>
+  d.product?.id ?? d.product_id ?? d.items?.[0]?.product_id ?? d.items?.[0]?.product?.id ?? d.price?.product_id;
+
+/** Bachs doesn't always inline the customer or product on the event, so ask the API for the subscription. */
+async function fetchSubscription(env: Env, id: string): Promise<Record<string, any> | null> {
+  if (!env.BACHS_API_KEY) return null;
+  const base = (env.BACHS_API_BASE || 'https://sandbox-api.bachs.io').replace(/\/+$/, '');
+  try {
+    const res = await fetch(`${base}/v1/subscriptions/${encodeURIComponent(id)}`, {
+      headers: { Authorization: `Bearer ${env.BACHS_API_KEY}` },
+    });
+    if (!res.ok) {
+      console.error(`fetch subscription ${id} failed: ${res.status}`);
+      return null;
+    }
+    return (await res.json()) as Record<string, any>;
+  } catch (err) {
+    console.error(`fetch subscription ${id} error`, err);
+    return null;
+  }
+}
+
 async function recordSubscription(env: Env, event: BachsEvent): Promise<void> {
   if (!env.DB || !event.type.startsWith('customer.subscription.')) return;
-  const d = event.data ?? {};
-  const id = String(d.id ?? '');
-  const email = String(d.customer?.email ?? d.customer_details?.email ?? '').toLowerCase();
-  if (!id.startsWith('sub_') || !email) {
-    console.error(`subscription event without id/email: ${event.id}`);
+  let d = event.data ?? {};
+  const id = String(d.id ?? d.subscription_id ?? '');
+  if (!id.startsWith('sub_')) {
+    console.error(`subscription event without an id: ${event.id} ${JSON.stringify(d).slice(0, 400)}`);
     return;
   }
 
-  const fromProduct = planFromProduct(env, d.product?.id ?? d.items?.[0]?.product_id);
+  // Fill in anything the event left out
+  if (!emailOf(d) || !(d.metadata?.plan || planFromProduct(env, productOf(d)))) {
+    const full = await fetchSubscription(env, id);
+    if (full) d = { ...full, metadata: { ...(full.metadata ?? {}), ...(d.metadata ?? {}) } };
+  }
+
+  const email = emailOf(d);
+  if (!email) {
+    console.error(`subscription ${id}: no customer email ${JSON.stringify(d).slice(0, 400)}`);
+    return;
+  }
+
+  const fromProduct = planFromProduct(env, productOf(d));
   const plan = String(d.metadata?.plan ?? fromProduct?.plan ?? '');
   if (!['pro', 'team', 'enterprise'].includes(plan)) {
-    console.error(`subscription ${id}: unknown plan`);
+    console.error(`subscription ${id}: unknown plan ${JSON.stringify({ metadata: d.metadata, product: productOf(d) }).slice(0, 400)}`);
     return;
   }
   const interval = String(d.metadata?.interval ?? fromProduct?.interval ?? '');
@@ -85,7 +121,7 @@ async function recordSubscription(env: Env, event: BachsEvent): Promise<void> {
     .bind(
       id,
       accountId,
-      d.customer?.customer_id ?? d.customer?.id ?? null,
+      d.customer?.customer_id ?? d.customer?.id ?? d.customer_id ?? null,
       email,
       plan,
       interval,

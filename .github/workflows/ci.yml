@@ -68,7 +68,7 @@ jobs:
       - name: Start the Worker locally
         working-directory: website
         run: |
-          printf 'BACHS_WEBHOOK_SECRET=testsecret\nDEV_LOGIN=true\nCLOUD_TELEGRAM_BOT_TOKEN=123456:test\nCLOUD_TELEGRAM_BOT_USERNAME=VigilOpsTestBot\nCLOUD_TELEGRAM_WEBHOOK_SECRET=tgsecret\n' > .dev.vars
+          printf 'BACHS_WEBHOOK_SECRET=testsecret\nDEV_LOGIN=true\nCLOUD_TELEGRAM_BOT_TOKEN=123456:test\nCLOUD_TELEGRAM_BOT_USERNAME=VigilOpsTestBot\nCLOUD_TELEGRAM_WEBHOOK_SECRET=tgsecret\nBACHS_PRODUCT_TEAM_MONTHLY=prod_team_monthly_test\n' > .dev.vars
           npx wrangler d1 migrations apply DB --local --persist-to /tmp/vigil-state
           nohup npx wrangler dev --port 8787 --persist-to /tmp/vigil-state --test-scheduled > /tmp/wrangler.log 2>&1 &
           for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8787/api/me && exit 0; sleep 2; done
