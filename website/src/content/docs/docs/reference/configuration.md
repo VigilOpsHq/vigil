@@ -83,7 +83,7 @@ Anthropic's and Google's own APIs use a different request format, so point them 
 | Variable | Default | Description |
 |---|---|---|
 | `VIGIL_TAG` | `latest` | Image version to run: `latest`, `1.2` (1.2.x only) or `1.2.3` (exact) |
-| `VIGIL_UPDATE_CHECK` | `true` | Check for new releases daily and announce them on Telegram |
+| `VIGIL_UPDATE_CHECK` | `true` | Check for new releases daily, announce them on Telegram, and remind you after `vigil` commands. Set to `false` to switch both off |
 
 ## Webhook and MCP
 

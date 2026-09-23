@@ -10,6 +10,9 @@ const REPO = process.env.VIGIL_REPO ?? 'VigilOpsHq/vigil';
 const CONTAINER = process.env.VIGIL_CONTAINER ?? 'vigil';
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const NOTIFIED_FILE = path.resolve(process.cwd(), 'logs', '.update-notified');
+// What the last check found, so CLI commands can mention an update without
+// calling GitHub themselves
+const LATEST_FILE = path.resolve(process.cwd(), 'logs', '.update-latest');
 
 export interface ReleaseInfo {
   version: string;
@@ -80,6 +83,36 @@ export async function startSelfUpdate(): Promise<void> {
   });
 }
 
+export function rememberLatest(release: ReleaseInfo): void {
+  try {
+    fs.mkdirSync(path.dirname(LATEST_FILE), { recursive: true });
+    fs.writeFileSync(LATEST_FILE, JSON.stringify({ ...release, checkedAt: new Date().toISOString() }));
+  } catch {
+    // A read-only or missing logs directory only costs us the reminder
+  }
+}
+
+/** The newest release the last check saw, or null if we've never managed one. */
+export function cachedLatest(): ReleaseInfo | null {
+  try {
+    const cached = JSON.parse(fs.readFileSync(LATEST_FILE, 'utf8')) as ReleaseInfo;
+    return cached?.version ? cached : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One line to print after a command when a newer release is out. Reads the cache
+ * written by the daily check, so it costs nothing and works offline.
+ */
+export function updateNotice(): string | null {
+  if (process.env.VIGIL_UPDATE_CHECK === 'false') return null;
+  const latest = cachedLatest();
+  if (!latest || !isNewer(latest.version, currentVersion())) return null;
+  return `\n⬆️  VigilOps ${latest.version} is available (you have ${currentVersion()}) — run: vigil update`;
+}
+
 function alreadyNotified(version: string): boolean {
   try {
     return fs.readFileSync(NOTIFIED_FILE, 'utf8').trim() === version;
@@ -107,6 +140,7 @@ export function startUpdateChecker(onUpdateAvailable: (release: ReleaseInfo, cur
   const check = async () => {
     try {
       const release = await latestRelease();
+      rememberLatest(release);
       if (isNewer(release.version, current) && !alreadyNotified(release.version)) {
         await onUpdateAvailable(release, current);
         markNotified(release.version);

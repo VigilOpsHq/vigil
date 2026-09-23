@@ -11,7 +11,16 @@ import dotenv from 'dotenv';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import { getCommand } from './commands';
+import { updateNotice } from '../update';
 import { error } from '../logger';
+
+// A quiet reminder after the command's own output. `version` says it itself, and
+// help is usually the first thing a new install runs.
+function showUpdateNotice(commandName: string): void {
+  if (commandName === 'version' || commandName === 'help') return;
+  const notice = updateNotice();
+  if (notice) console.error(notice);
+}
 
 async function main() {
   const args = process.argv.slice(2);
@@ -35,6 +44,7 @@ async function main() {
 
   try {
     await command.handler(commandArgs);
+    showUpdateNotice(commandName);
     // Open HTTP keep-alive sockets (Telegram, S3) would otherwise hold the process open
     process.exit(0);
   } catch (err) {

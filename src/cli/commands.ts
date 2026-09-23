@@ -11,7 +11,7 @@ import { info, error } from '../logger';
 import readline from 'readline';
 import { BACKUP_DIR, backupAndNotify, detectDatabase, formatSize, listBackups, restore, restoreTarget } from '../backup/engine';
 import { describeSchedule, loadSchedules, removeSchedule, setSchedule } from '../backup/schedule';
-import { currentVersion, isNewer, latestRelease } from '../update';
+import { currentVersion, isNewer, latestRelease, rememberLatest } from '../update';
 import * as cloud from '../cloud';
 
 // Tell VigilOps Cloud about schedule changes right away, so missed-backup alerts use the new schedule
@@ -508,6 +508,7 @@ export const versionCommand: CLICommand = {
     console.log(`\nVigilOps ${current}`);
     try {
       const latest = await latestRelease();
+      rememberLatest(latest); // so other commands can mention it without a network call
       console.log(
         isNewer(latest.version, current)
           ? `⬆️  ${latest.version} is available — run: vigil update\n   ${latest.url}\n`
@@ -574,7 +575,7 @@ EXAMPLES:
   vigil disk
   vigil health
 
-More info: https://github.com/yourorg/vigil
+Docs: https://vigilops.cloud/docs/
 `);
   },
 };
