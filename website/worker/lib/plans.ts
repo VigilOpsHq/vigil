@@ -1,3 +1,7 @@
+// Plan limits and how a subscription becomes an entitlement.
+//
+// Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
+// but not as a competing product or service. Converts to MIT after two years.
 import type { D1Database } from './env';
 
 export type PaidPlan = 'pro' | 'team' | 'enterprise';

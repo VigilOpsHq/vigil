@@ -1,0 +1,71 @@
+name: DCO
+
+# Every commit in a pull request must carry a Signed-off-by line matching its
+# author. See CONTRIBUTING.md ("Sign your work") and the DCO file.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    name: Commits are signed off
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check sign-offs
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 - <<'PY'
+          import os, re, subprocess, sys
+
+          base, head = os.environ['BASE_SHA'], os.environ['HEAD_SHA']
+          sep = '\x1e'
+          out = subprocess.run(
+              ['git', 'log', '--no-merges', f'--format=%H%x1f%an%x1f%ae%x1f%s%x1f%b{sep}', f'{base}..{head}'],
+              capture_output=True, text=True, check=True,
+          ).stdout
+
+          commits = [c.strip('\n') for c in out.split(sep) if c.strip()]
+          if not commits:
+              print('No commits to check.')
+              sys.exit(0)
+
+          pattern = re.compile(r'^\s*Signed-off-by:\s*(.+?)\s*<([^<>]+)>\s*$', re.M | re.I)
+          bad = []
+
+          for entry in commits:
+              sha, name, email, subject, body = entry.split('\x1f', 4)
+              signers = [(n, e.lower()) for n, e in pattern.findall(body)]
+              if not signers:
+                  bad.append((sha, subject, 'no Signed-off-by line'))
+              elif email.lower() not in [e for _, e in signers]:
+                  found = ', '.join(e for _, e in signers) or 'none'
+                  bad.append((sha, subject, f'signed off by {found}, but authored by {email}'))
+              else:
+                  print(f'  ok   {sha[:8]}  {subject}')
+
+          if bad:
+              print('\nThese commits are not signed off:\n')
+              for sha, subject, why in bad:
+                  print(f'  {sha[:8]}  {subject}\n            {why}')
+              print(
+                  '\nVigilOps uses the Developer Certificate of Origin: you certify you have\n'
+                  'the right to contribute the patch by signing off each commit.\n\n'
+                  'Fix the most recent commit:\n'
+                  '  git commit --amend -s --no-edit && git push --force-with-lease\n\n'
+                  'Fix all commits in this branch:\n'
+                  '  git rebase --signoff main && git push --force-with-lease\n\n'
+                  'The sign-off email must match the commit author. See CONTRIBUTING.md.'
+              )
+              sys.exit(1)
+
+          print(f'\nAll {len(commits)} commit(s) signed off.')
+          PY

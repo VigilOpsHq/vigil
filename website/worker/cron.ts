@@ -1,5 +1,8 @@
 // Runs every 15 minutes: offline servers, missed scheduled backups, retention, quota and
 // billing warnings, stale uploads.
+//
+// Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
+// but not as a competing product or service. Converts to MIT after two years.
 import type { Env } from './lib/env';
 import { LIMITS, type PaidPlan } from './lib/plans';
 import { sendTelegram } from './lib/telegram';

@@ -1,6 +1,9 @@
 // POST /api/checkout
 // Creates a Bachs checkout session for a paid plan and returns its URL.
 // The secret key stays on the server; the browser only gets checkout_url.
+//
+// Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
+// but not as a competing product or service. Converts to MIT after two years.
 
 import type { RequestContext } from '../lib/env';
 import { HttpError, json, readJson } from '../lib/http';

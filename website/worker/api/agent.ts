@@ -1,3 +1,7 @@
+// Agent API: heartbeats, multipart backup uploads, and restore downloads.
+//
+// Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
+// but not as a competing product or service. Converts to MIT after two years.
 import type { Env, RequestContext } from '../lib/env';
 import { HttpError, json, nowIso, readJson } from '../lib/http';
 import { newId, sha256Hex } from '../lib/crypto';

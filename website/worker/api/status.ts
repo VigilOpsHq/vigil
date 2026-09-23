@@ -1,5 +1,8 @@
 // Public status of VigilOps Cloud. No authentication: it must stay readable when
 // sign-in itself is broken, so it reports only component health and incidents.
+//
+// Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
+// but not as a competing product or service. Converts to MIT after two years.
 import type { RequestContext } from '../lib/env';
 import { json } from '../lib/http';
 

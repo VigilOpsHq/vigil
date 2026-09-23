@@ -1,3 +1,7 @@
+// Telegram webhook for the official VigilOps bot.
+//
+// Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
+// but not as a competing product or service. Converts to MIT after two years.
 import type { RequestContext } from '../lib/env';
 import { HttpError } from '../lib/http';
 

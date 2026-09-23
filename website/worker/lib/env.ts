@@ -1,3 +1,7 @@
+// Worker bindings and request context types.
+//
+// Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
+// but not as a competing product or service. Converts to MIT after two years.
 export interface D1Result<T = Record<string, unknown>> {
   results: T[];
 }
