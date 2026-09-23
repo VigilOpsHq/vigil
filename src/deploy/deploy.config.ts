@@ -7,17 +7,9 @@ export interface AppDeployConfig {
   rollbackOnFailure: boolean;
 }
 
-const deployConfig: Record<string, AppDeployConfig> = {
-  'token-radar': {
-    composePath: '/opt/token-radar/docker-compose.yml',
-    service: 'app',
-    image: 'ghcr.io/rytiva/token-radar',
-    healthCheckUrl: 'https://app.tokenradarhq.xyz/health',
-    healthCheckTimeout: 60,
-    rollbackOnFailure: true,
-  },
-
-  // add more apps here
-};
+// Apps are normally registered on the server with `vigil app add`, which stores them
+// in apps.json. Anything added here is built into the image and can't be changed
+// without rebuilding, so it's only useful when you run VigilOps from source.
+const deployConfig: Record<string, AppDeployConfig> = {};
 
 export default deployConfig;

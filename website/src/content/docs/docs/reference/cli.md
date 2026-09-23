@@ -57,6 +57,9 @@ See [VigilOps Cloud](/docs/guides/cloud/).
 | Command | What it does |
 |---|---|
 | `vigil apps` | List apps registered for deploys |
+| `vigil app add <name> --compose <file> --service <name> --image <image> [--health <url>] [--timeout 60] [--no-rollback]` | Register an app |
+| `vigil app list` | Same list, with each app's settings |
+| `vigil app remove <name>` | Unregister an app |
 | `vigil deploy <app>` | Deploy an app with health check and rollback |
 
 See [Deploying apps](/docs/guides/deploys/).

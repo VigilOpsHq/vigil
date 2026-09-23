@@ -9,35 +9,37 @@ VigilOps can deploy an app that runs with Docker Compose. It pulls the new image
 
 You can trigger a deploy from Telegram (`/deploy myapp`), from the server (`vigil deploy myapp`), or from CI through a webhook.
 
-<Aside type="caution">Apps are currently registered in VigilOps's source code, so servers running the published image can't add their own apps yet. Until that changes, you need to [build your own image](/docs/contributing/develop/). Registering apps with a command is planned.</Aside>
-
 ## Register an app
 
-Add it to [`src/deploy/deploy.config.ts`](https://github.com/VigilOpsHq/vigil/blob/main/src/deploy/deploy.config.ts):
+Run this on the server:
 
-```ts
-const deployConfig: Record<string, AppDeployConfig> = {
-  'myapp': {
-    composePath: '/opt/myapp/docker-compose.yml',
-    service: 'app',
-    image: 'ghcr.io/me/myapp',
-    healthCheckUrl: 'https://myapp.com/health',
-    healthCheckTimeout: 60,
-    rollbackOnFailure: true,
-  },
-};
+```bash
+vigil app add myapp \
+  --compose /opt/myapp/docker-compose.yml \
+  --service app \
+  --image ghcr.io/me/myapp \
+  --health https://myapp.com/health
 ```
 
-| Field | Meaning |
+| Flag | Meaning |
 |---|---|
-| `composePath` | The app's `docker-compose.yml`. It must be under `/opt`, which is mounted into the VigilOps container |
-| `service` | The service name in that compose file |
-| `image` | The image to pull |
-| `healthCheckUrl` | URL that must answer successfully after the deploy |
-| `healthCheckTimeout` | Seconds to wait for the health check |
-| `rollbackOnFailure` | Go back to the previous image if the health check fails |
+| `--compose` | The app's `docker-compose.yml`, as an absolute path. It must be under `/opt`, which is mounted into the VigilOps container |
+| `--service` | The service name in that compose file |
+| `--image` | The image to pull |
+| `--health` | URL that must answer successfully after the deploy. Leave it out and a clean restart counts as success |
+| `--timeout` | Seconds to wait for the health check. Default `60` |
+| `--no-rollback` | Keep the new image even if the health check fails. Rollback is on by default |
 
-List registered apps with `vigil apps` or `/apps`.
+Apps are stored in `/var/backups/vigil/apps.json`, so they survive restarts and image updates.
+
+```bash
+vigil app list           # show registered apps
+vigil app remove myapp   # unregister
+```
+
+`vigil apps` and `/apps` in Telegram list the same apps.
+
+<Aside>If you [run VigilOps from source](/docs/contributing/develop/), you can also define apps in `src/deploy/deploy.config.ts`. Apps added with `vigil app add` take precedence over an entry of the same name there.</Aside>
 
 ## Deploy from GitHub Actions
 

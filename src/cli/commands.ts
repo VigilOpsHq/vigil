@@ -6,6 +6,7 @@
 import { collect, getContainers, getContainerLogs, getDisk, getMemory, getNginx, getHealthChecks } from '../collector';
 import { execute, isSafeCommand } from '../executor';
 import { deploy, listApps } from '../deploy/deployer';
+import { addApp, allApps, removeApp } from '../deploy/apps';
 import { info, error } from '../logger';
 import readline from 'readline';
 import { BACKUP_DIR, backupAndNotify, detectDatabase, formatSize, listBackups, restore, restoreTarget } from '../backup/engine';
@@ -381,6 +382,68 @@ export const restoreCommand: CLICommand = {
   },
 };
 
+const flag = (args: string[], name: string) => {
+  const i = args.indexOf(`--${name}`);
+  return i >= 0 ? args[i + 1] : undefined;
+};
+
+export const appCommand: CLICommand = {
+  name: 'app',
+  description: 'Register apps that VigilOps can deploy',
+  usage: 'vigil app add <name> --compose <file> --service <name> --image <image> [--health <url>] [--timeout 60] [--no-rollback]',
+  handler: async (args) => {
+    const [sub, name] = args;
+
+    if (sub === 'list' || !sub) {
+      const apps = allApps();
+      console.log('\n📦 REGISTERED APPS\n');
+      if (Object.keys(apps).length === 0) {
+        console.log('   (none) — add one: vigil app add myapp --compose /opt/myapp/docker-compose.yml --service app --image ghcr.io/me/myapp');
+      }
+      for (const [appName, c] of Object.entries(apps)) {
+        console.log(`   • ${appName}`);
+        console.log(`      compose: ${c.composePath} (service ${c.service})`);
+        console.log(`      image:   ${c.image}`);
+        console.log(`      health:  ${c.healthCheckUrl || '(none)'}${c.healthCheckUrl ? ` — ${c.healthCheckTimeout}s, rollback ${c.rollbackOnFailure ? 'on' : 'off'}` : ''}`);
+      }
+      console.log('');
+      return;
+    }
+
+    if (sub === 'add') {
+      if (!name) {
+        console.error('❌ Usage: vigil app add <name> --compose <file> --service <name> --image <image> [--health <url>]');
+        process.exit(1);
+      }
+      const app = addApp({
+        name,
+        composePath: flag(args, 'compose') ?? '',
+        service: flag(args, 'service') ?? '',
+        image: flag(args, 'image') ?? '',
+        healthCheckUrl: flag(args, 'health'),
+        healthCheckTimeout: flag(args, 'timeout') ? parseInt(flag(args, 'timeout')!, 10) : undefined,
+        rollbackOnFailure: !args.includes('--no-rollback'),
+      });
+      console.log(`\n✅ Registered "${name}"`);
+      console.log(`   Deploy it with: vigil deploy ${name}`);
+      console.log(app.healthCheckUrl ? `   After deploying, ${app.healthCheckUrl} must answer within ${app.healthCheckTimeout}s or it rolls back.\n` : '   No health check set, so a successful restart counts as done.\n');
+      return;
+    }
+
+    if (sub === 'remove') {
+      if (!name) {
+        console.error('❌ Usage: vigil app remove <name>');
+        process.exit(1);
+      }
+      console.log(removeApp(name) ? `\n🗑  Removed "${name}"\n` : `\n"${name}" was not registered (apps defined in code can't be removed here)\n`);
+      return;
+    }
+
+    console.error('❌ Usage: vigil app add <name> --compose <file> --service <name> --image <image> [--health <url>] | list | remove <name>');
+    process.exit(1);
+  },
+};
+
 export const cloudCommand: CLICommand = {
   name: 'cloud',
   description: 'Connect this server to VigilOps Cloud',
@@ -479,6 +542,7 @@ COMMANDS:
   memory              Show memory usage
   health              Run health checks
   apps                List deployable apps
+  app add <name> …    Register an app for deploys
   deploy <app>        Deploy an app
   version             Show version and check for updates
 
@@ -528,6 +592,7 @@ export const commands: CLICommand[] = [
   backupCommand,
   backupsCommand,
   restoreCommand,
+  appCommand,
   cloudCommand,
   versionCommand,
   helpCommand,

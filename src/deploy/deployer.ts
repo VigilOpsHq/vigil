@@ -1,7 +1,8 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import axios from 'axios';
-import deployConfig, { AppDeployConfig } from './deploy.config';
+import { AppDeployConfig } from './deploy.config';
+import { allApps, getApp } from './apps';
 import { log, info, error } from '../logger';
 
 const execAsync = promisify(exec);
@@ -83,12 +84,12 @@ async function rollback(
 
 
 export async function deploy(appName: string): Promise<DeployResult> {
-  const config = deployConfig[appName];
+  const config = getApp(appName);
 
   if (!config) {
     return {
       success: false,
-      message: `Unknown app "${appName}". Check deploy.config.ts.`,
+      message: `Unknown app "${appName}". Register it with: vigil app add ${appName} --compose <file> --service <name> --image <image>`,
     };
   }
 
@@ -105,10 +106,10 @@ export async function deploy(appName: string): Promise<DeployResult> {
     info(`[deploy] Starting new container for ${appName}...`);
     await run(`docker compose -f ${config.composePath} up -d ${config.service}`);
 
-    const healthy = await waitForHealthy(
-      config.healthCheckUrl,
-      config.healthCheckTimeout
-    );
+    // No health check URL: treat a successful restart as done
+    const healthy = config.healthCheckUrl
+      ? await waitForHealthy(config.healthCheckUrl, config.healthCheckTimeout)
+      : true;
 
     const duration = Math.round((Date.now() - startedAt) / 1000);
 
@@ -184,5 +185,5 @@ export async function deploy(appName: string): Promise<DeployResult> {
 }
 
 export function listApps(): string[] {
-  return Object.keys(deployConfig);
+  return Object.keys(allApps());
 }

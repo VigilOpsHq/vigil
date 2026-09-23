@@ -251,7 +251,7 @@ export function registerTools(server: McpServer): void {
   server.registerTool(
     'get_deployable_apps',
     {
-      description: 'List all applications registered for deployment in deploy.config.ts.',
+      description: 'List all applications registered for deployment with `vigil app add`.',
       inputSchema: {},
     },
     async () => {
@@ -262,7 +262,7 @@ export function registerTools(server: McpServer): void {
           type: 'text',
           text: apps.length > 0
             ? `Deployable apps:\n${apps.map((a) => `  - ${a}`).join('\n')}`
-            : 'No apps registered in deploy.config.ts.',
+            : 'No apps registered yet. Register one on the server with `vigil app add`.',
         }],
       };
     }

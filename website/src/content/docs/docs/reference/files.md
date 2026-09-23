@@ -13,6 +13,7 @@ description: Where VigilOps keeps its settings, logs, backups and schedules.
 | `/opt/vigil/logs/audit.jsonl` | Every action VigilOps took | Yes, but you lose history |
 | `/var/backups/vigil/*.sql.gz`, `*.archive.gz` | Database backups | ⚠️ These are your backups |
 | `/var/backups/vigil/schedules.json` | Backup schedules. Change them with `vigil backup schedule`, don't edit by hand | No |
+| `/var/backups/vigil/apps.json` | Apps registered for deploys. Change them with `vigil app add` / `remove` | No |
 | `/var/backups/vigil/cloud.json` | VigilOps Cloud server token, written by `vigil cloud connect` (root only) | Deleting it disconnects the server |
 | `/usr/local/bin/vigil` | The `vigil` command | Reinstalled by the installer |
 
@@ -22,7 +23,7 @@ To rebuild a server's VigilOps setup elsewhere, you only need:
 
 - `/opt/vigil/.env`
 - your database backups, ideally already in [off-server storage](/docs/guides/offsite-storage/)
-- `/var/backups/vigil/schedules.json`, or just set the schedules again
+- `/var/backups/vigil/schedules.json` and `apps.json`, or just set the schedules and apps again
 
 Everything else is recreated by the installer.
 

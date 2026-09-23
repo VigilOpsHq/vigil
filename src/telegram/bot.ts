@@ -74,7 +74,7 @@ async function handleApps(): Promise<void> {
   const text =
     apps.length > 0
       ? `📦 *Deployable apps:*\n${apps.map((a) => `  • \`${a}\``).join('\n')}`
-      : '📦 No apps registered in deploy.config.ts yet.';
+      : '📦 No apps registered yet.\nAdd one on the server:\n`vigil app add myapp --compose /opt/myapp/docker-compose.yml --service app --image ghcr.io/me/myapp`';
   await notify(text);
 }
 
