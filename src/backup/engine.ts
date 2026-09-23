@@ -111,6 +111,17 @@ function dumpArgs(t: DbTarget): string[] {
   }
 }
 
+// Dumps drop objects one by one, which Postgres refuses for partitions and inherited
+// constraints. Emptying the database first also leaves nothing behind from before the restore.
+const PG_WIPE_SQL = `DO $$
+DECLARE s record;
+BEGIN
+  FOR s IN SELECT nspname FROM pg_namespace
+           WHERE nspname NOT LIKE 'pg\\_%' AND nspname <> 'information_schema'
+  LOOP EXECUTE format('DROP SCHEMA %I CASCADE', s.nspname); END LOOP;
+END $$;
+CREATE SCHEMA IF NOT EXISTS public;`;
+
 function restoreArgs(t: DbTarget): string[] {
   switch (t.engine) {
     case 'postgres':
@@ -240,6 +251,14 @@ export async function restore(file: string, targetContainer?: string, targetData
   }
 
   const safety = await backup(container, target.database, 'pre-restore');
+
+  if (target.engine === 'postgres') {
+    await runDocker(
+      ['exec', target.container, 'psql', '-q', '-v', 'ON_ERROR_STOP=1', '-U', target.user, '-d', target.database, '-c', PG_WIPE_SQL],
+      null,
+      null
+    );
+  }
 
   const input = fs.createReadStream(filePath);
   if (target.engine === 'mongodb') {
