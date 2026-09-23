@@ -15,6 +15,14 @@ import App from '../../layouts/App.astro';
         <button class="btn btn-primary" type="button" data-add-server>Add server</button>
       </div>
 
+      <section class="notice" data-notice hidden>
+        <div>
+          <strong data-notice-title></strong>
+          <p data-notice-body></p>
+        </div>
+        <a class="btn btn-secondary btn-sm" data-notice-action hidden></a>
+      </section>
+
       <section class="upsell card" data-upsell hidden>
         <div>
           <h2>Connect your servers to VigilOps Cloud</h2>
@@ -166,6 +174,67 @@ import App from '../../layouts/App.astro';
     });
   }
 
+  const barClass = (pct: number) => (pct >= 100 ? 'full' : pct >= 80 ? 'high' : '');
+
+  /** One banner at a time, most urgent first: payment problem, then quota. */
+  function renderNotice(storagePct: number, serverPct: number) {
+    const nextPlan = data.plan === 'pro' ? 'Team' : null;
+    const more = nextPlan ? ` Upgrading to ${nextPlan} gives you more room.` : ' Contact support if you need more room.';
+
+    let notice: { title: string; body: string; action?: [string, string] } | null = null;
+
+    if (data.status === 'past_due') {
+      notice = {
+        title: 'We could not take your last payment',
+        body: 'Your servers and backups keep working while we retry the card. Update your payment details to avoid losing access.',
+        action: data.canManageBilling ? ['Update payment', '#billing'] : undefined,
+      };
+    } else if (data.cancelAtPeriodEnd && data.currentPeriodEnd) {
+      notice = {
+        title: `Your plan ends ${new Date(data.currentPeriodEnd).toLocaleDateString()}`,
+        body: 'After that, servers stop uploading to VigilOps Cloud. Backups already stored are kept for the Pro retention period.',
+        action: data.canManageBilling ? ['Manage billing', '#billing'] : undefined,
+      };
+    } else if (storagePct >= 100) {
+      notice = {
+        title: 'Backup storage is full',
+        body: `New backups are being rejected until old ones expire or you free up space.${more}`,
+        action: nextPlan ? ['See plans', '/pricing/'] : undefined,
+      };
+    } else if (storagePct >= 80) {
+      notice = {
+        title: `Backup storage is ${Math.round(storagePct)}% full`,
+        body: `When it fills up, new backups will be rejected.${more}`,
+        action: nextPlan ? ['See plans', '/pricing/'] : undefined,
+      };
+    } else if (serverPct >= 100) {
+      notice = {
+        title: 'You have used every server slot on your plan',
+        body: `Remove a server to add another one.${more}`,
+        action: nextPlan ? ['See plans', '/pricing/'] : undefined,
+      };
+    }
+
+    const el = $('[data-notice]');
+    el.hidden = !notice;
+    if (!notice) return;
+    el.className = `notice ${data.status === 'past_due' || storagePct >= 100 ? 'bad' : 'warn'}`;
+    $('[data-notice-title]').textContent = notice.title;
+    $('[data-notice-body]').textContent = notice.body;
+    const action = $('[data-notice-action]') as HTMLAnchorElement;
+    action.hidden = !notice.action;
+    if (notice.action) {
+      action.textContent = notice.action[0];
+      if (notice.action[1] === '#billing') {
+        action.removeAttribute('href');
+        action.onclick = () => ($('[data-billing]') as HTMLButtonElement).click();
+      } else {
+        action.href = notice.action[1];
+        action.onclick = null;
+      }
+    }
+  }
+
   let data: Overview;
   let me: { account: { name: string | null; login: string | null; email: string; emails: string[] } };
 
@@ -199,12 +268,19 @@ import App from '../../layouts/App.astro';
       $('[data-renewal]').textContent = data.currentPeriodEnd
         ? `${data.cancelAtPeriodEnd ? 'Ends' : 'Renews'} ${new Date(data.currentPeriodEnd).toLocaleDateString()}`
         : '';
+      const serverPct = (data.usage.servers / l.servers) * 100;
+      const storagePct = (data.usage.storageBytes / l.storageBytes) * 100;
       $('[data-servers-usage]').textContent = `${data.usage.servers} of ${l.servers}`;
-      $('[data-servers-bar]').style.width = `${Math.min(100, (data.usage.servers / l.servers) * 100)}%`;
+      $('[data-servers-bar]').style.width = `${Math.min(100, serverPct)}%`;
+      $('[data-servers-bar]').className = barClass(serverPct);
       $('[data-storage-usage]').textContent = `${bytes(data.usage.storageBytes)} of ${bytes(l.storageBytes)}`;
-      $('[data-storage-bar]').style.width = `${Math.min(100, (data.usage.storageBytes / l.storageBytes) * 100)}%`;
+      $('[data-storage-bar]').style.width = `${Math.min(100, storagePct)}%`;
+      $('[data-storage-bar]').className = barClass(storagePct);
       $('[data-retention]').textContent = `Backups are kept for ${l.retentionDays} days. The newest backup of each database is always kept.`;
       $('[data-billing]').hidden = !data.canManageBilling;
+      renderNotice(storagePct, serverPct);
+    } else {
+      $('[data-notice]').hidden = true;
     }
 
     renderTelegram();
@@ -430,6 +506,18 @@ import App from '../../layouts/App.astro';
   .meter-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
   .bar { height: 8px; background: var(--bg-soft); border-radius: 99px; overflow: hidden; border: 1px solid var(--line); }
   .bar i { display: block; height: 100%; background: var(--brand); border-radius: 99px; width: 0; transition: width .4s ease; }
+  .bar i.high { background: #b54708; }
+  .bar i.full { background: #b42318; }
+
+  .notice {
+    display: flex; gap: 20px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    padding: 16px 20px; margin-bottom: 20px; border-radius: 10px; border: 1px solid;
+  }
+  .notice.warn { background: #fffaeb; border-color: #fedf89; color: #93370d; }
+  .notice.bad { background: #fef3f2; border-color: #fecdca; color: #912018; }
+  .notice strong { display: block; font-size: 15px; }
+  .notice p { margin-top: 4px; font-size: 14px; max-width: 70ch; }
+  .notice .btn { background: #fff; border-color: currentColor; color: inherit; cursor: pointer; }
   [data-retention] { margin-top: 14px; }
   [data-billing] { margin-top: 16px; }
 

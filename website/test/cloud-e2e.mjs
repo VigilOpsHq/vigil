@@ -147,13 +147,20 @@ await telegram(111, `/start ${code}`);
 await telegram(999, `/start ${code}`); // reusing the code must not steal the link
 overview = await (await fetch(`${B}/api/app/overview`, { headers: pro.headers })).json();
 check('/start links the chat', overview.telegram.connected === true);
+
+// ── Scheduled checks run without errors ───────────────────────────────
+// Runs with the chat still linked, so the offline, missed-backup and quota checks all do their work
+r = await fetch(`${B}/__scheduled?cron=*/15+*+*+*+*`);
+check('15-minute checks run', r.status === 200);
+
+// ── Public status page ──────────────────────────────────────
+const st = await (await fetch(`${B}/api/status`)).json();
+check('status needs no sign-in and is operational', st.state === 'operational', st.state);
+check('status reports monitoring as alive', st.components.some((c) => c.name === 'Monitoring and alerts' && c.state === 'operational'));
+
 await telegram(111, '/stop');
 overview = await (await fetch(`${B}/api/app/overview`, { headers: pro.headers })).json();
 check('/stop unlinks the chat', overview.telegram.connected === false);
-
-// ── Scheduled checks run without errors ───────────────────────────────
-r = await fetch(`${B}/__scheduled?cron=*/15+*+*+*+*`);
-check('15-minute checks run', r.status === 200);
 
 // ── Cancelling locks Cloud features ───────────────────────────────────
 await webhook({

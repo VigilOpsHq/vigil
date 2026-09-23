@@ -10,6 +10,7 @@ import { devLogin, githubCallback, githubStart, logout, me } from './api/auth';
 import * as app from './api/app';
 import * as agent from './api/agent';
 import { telegramWebhook } from './api/telegram';
+import { status } from './api/status';
 import { runScheduled } from './cron';
 
 type Handler = (ctx: RequestContext) => Promise<Response>;
@@ -41,6 +42,7 @@ const routes: Route[] = [
   route('GET', '/auth/dev', devLogin),
   route('POST', '/auth/logout', logout, true),
   route('GET', '/api/me', me),
+  route('GET', '/api/status', status),
 
   route('GET', '/api/app/overview', app.overview),
   route('POST', '/api/app/servers', app.createServer, true),

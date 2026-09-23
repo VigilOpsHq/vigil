@@ -1,0 +1,137 @@
+---
+import Marketing from '../layouts/Marketing.astro';
+import { company } from '../data/site';
+---
+
+<Marketing
+  title="VigilOps Cloud status"
+  description="Live status of VigilOps Cloud: API, dashboard, backup storage and monitoring, plus recent incidents."
+>
+  <section class="wrap">
+    <header class="head">
+      <h1>VigilOps Cloud status</h1>
+      <p class="muted">Checked live when you open this page. Self-hosted VigilOps keeps working even when the Cloud doesn't.</p>
+    </header>
+
+    <div class="summary" data-summary>
+      <span class="dot" data-dot></span>
+      <strong data-headline>Checking…</strong>
+      <span class="muted small" data-checked></span>
+    </div>
+
+    <ul class="components" data-components></ul>
+
+    <h2>Incidents</h2>
+    <div data-incidents><p class="muted">Loading…</p></div>
+
+    <p class="muted small foot">
+      Something wrong that isn't listed here? Email <a href={`mailto:${company.supportEmail}`}>{company.supportEmail}</a>.
+    </p>
+  </section>
+</Marketing>
+
+<script>
+  interface Component { name: string; state: string; detail: string }
+  interface Incident { id: string; title: string; body: string; severity: string; started_at: string; resolved_at: string | null }
+
+  const $ = <T extends HTMLElement>(s: string) => document.querySelector(s) as T;
+
+  const HEADLINE: Record<string, string> = {
+    operational: 'All systems operational',
+    degraded: 'Some systems are degraded',
+    down: 'We have an outage',
+    unknown: 'Status partly unknown',
+  };
+
+  const when = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+
+  async function load() {
+    let data: { state: string; checkedAt: string; components: Component[]; incidents: Incident[] };
+    try {
+      data = await (await fetch('/api/status')).json();
+    } catch {
+      $('[data-dot]').className = 'dot down';
+      $('[data-headline]').textContent = 'We could not reach VigilOps Cloud';
+      $('[data-incidents]').innerHTML = '';
+      return;
+    }
+
+    $('[data-dot]').className = `dot ${data.state}`;
+    $('[data-headline]').textContent = HEADLINE[data.state] ?? data.state;
+    $('[data-checked]').textContent = `Checked ${when(data.checkedAt)}`;
+
+    $('[data-components]').innerHTML = data.components
+      .map(
+        (c) => `<li>
+          <span class="dot ${c.state}"></span>
+          <span class="name">${c.name}</span>
+          <span class="muted small detail">${c.detail}</span>
+        </li>`
+      )
+      .join('');
+
+    const list = $('[data-incidents]');
+    if (!data.incidents.length) {
+      list.innerHTML = '<p class="muted">No incidents in the last 90 days.</p>';
+      return;
+    }
+    list.innerHTML = data.incidents
+      .map(
+        (i) => `<article class="incident ${i.resolved_at ? 'resolved' : i.severity}">
+          <div class="incident-head">
+            <strong>${i.title}</strong>
+            <span class="badge ${i.resolved_at ? 'ok' : 'warn'}">${i.resolved_at ? 'resolved' : 'ongoing'}</span>
+          </div>
+          <p class="muted small">${when(i.started_at)}${i.resolved_at ? ` — ${when(i.resolved_at)}` : ''}</p>
+          ${i.body ? `<p>${i.body}</p>` : ''}
+        </article>`
+      )
+      .join('');
+  }
+
+  load();
+  setInterval(load, 60_000);
+</script>
+
+<style>
+  .wrap { max-width: 760px; margin: 0 auto; padding: 72px 24px 96px; }
+  .head h1 { font-size: 34px; letter-spacing: -0.02em; }
+  .head p { margin-top: 10px; }
+  h2 { font-size: 18px; margin: 40px 0 14px; }
+
+  .summary {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin-top: 28px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-soft);
+  }
+  .summary strong { font-size: 17px; }
+  .summary .small { margin-left: auto; }
+
+  .components { list-style: none; margin-top: 20px; border: 1px solid var(--line); border-radius: 10px; }
+  .components li { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-top: 1px solid var(--line); }
+  .components li:first-child { border-top: 0; }
+  .components .name { font-weight: 500; }
+  .components .detail { margin-left: auto; text-align: right; }
+
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.operational { background: #12b76a; }
+  .dot.degraded { background: #f79009; }
+  .dot.down { background: #f04438; }
+
+  .incident { border: 1px solid var(--line); border-left: 3px solid var(--muted); border-radius: 8px; padding: 16px 20px; margin-bottom: 12px; }
+  .incident.major { border-left-color: #f04438; }
+  .incident.minor { border-left-color: #f79009; }
+  .incident.resolved { border-left-color: #12b76a; }
+  .incident-head { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+  .incident p { margin-top: 6px; }
+
+  .badge { font: 500 12px var(--mono); padding: 3px 8px; border-radius: 999px; }
+  .badge.ok { background: #e8f6ee; color: #177a45; }
+  .badge.warn { background: #fffaeb; color: #b54708; }
+
+  .foot { margin-top: 40px; }
+
+  @media (max-width: 560px) {
+    .components li { flex-wrap: wrap; }
+    .components .detail, .summary .small { margin-left: 0; text-align: left; width: 100%; }
+  }
+</style>

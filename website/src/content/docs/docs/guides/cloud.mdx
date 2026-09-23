@@ -73,8 +73,14 @@ VigilOps Cloud checks every 15 minutes:
 |---|---|
 | 🔴 Server offline | The server hasn't checked in for 15 minutes. You get a 🟢 message when it's back |
 | ⚠️ Missed backup | A scheduled backup hasn't reached the cloud within 3 hours of its time (45 minutes for hourly schedules) |
+| ⚠️ Storage filling up | Your stored backups pass 80% of the plan's storage, and again when it's full |
+| 💳 Payment failed | A renewal payment didn't go through. Your servers keep backing up while the card is retried |
 
-Schedules are sent to the cloud automatically when you set or change them.
+Schedules are sent to the cloud automatically when you set or change them. Storage and payment warnings also appear at the top of the [dashboard](/app/).
+
+## Is the Cloud up?
+
+[vigilops.cloud/status](/status/) shows whether the API, backup storage and the 15-minute checks are working, along with any recent incidents. A server that can't reach the cloud keeps backing up to its own disk and uploads later.
 
 ## Restore on a new server
 

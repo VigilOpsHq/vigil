@@ -1,10 +1,12 @@
-// Runs every 15 minutes: offline servers, missed scheduled backups, retention, stale uploads.
+// Runs every 15 minutes: offline servers, missed scheduled backups, retention, quota and
+// billing warnings, stale uploads.
 import type { Env } from './lib/env';
 import { LIMITS, type PaidPlan } from './lib/plans';
 import { sendTelegram } from './lib/telegram';
 
 const OFFLINE_AFTER_MS = 15 * 60 * 1000;
 const GRACE_MS = { hourly: 45 * 60 * 1000, daily: 3 * 3600 * 1000, weekly: 3 * 3600 * 1000 };
+const gb = (n: number) => `${(n / 1024 ** 3).toFixed(1)} GB`;
 const DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
 interface Schedule {
@@ -136,7 +138,63 @@ export async function runScheduled(env: Env, now = new Date()): Promise<void> {
     await db.batch(expired.map((e) => db.prepare('DELETE FROM backups WHERE id = ?').bind(e.id)));
   }
 
-  // 4. Uploads that never finished
+  // 4. Storage running out, and payments that failed
+  const { results: quota } = await db
+    .prepare(
+      `SELECT a.id, a.telegram_chat_id, (
+         SELECT sub.plan || ':' || sub.status FROM subscriptions sub
+         WHERE (sub.account_id = a.id OR instr(a.emails, '"' || sub.email || '"') > 0)
+           AND sub.status IN ('active', 'trialing', 'past_due')
+         ORDER BY CASE sub.plan WHEN 'enterprise' THEN 3 WHEN 'team' THEN 2 ELSE 1 END DESC LIMIT 1
+       ) AS plan_status, (
+         SELECT COALESCE(SUM(b.size_bytes), 0) FROM backups b WHERE b.account_id = a.id AND b.status = 'complete'
+       ) AS bytes
+       FROM accounts a WHERE a.telegram_chat_id IS NOT NULL`
+    )
+    .all<{ id: string; telegram_chat_id: string | null; plan_status: string | null; bytes: number }>();
+
+  for (const account of quota) {
+    if (!account.plan_status) continue;
+    const [plan, status] = account.plan_status.split(':');
+    const limits = LIMITS[plan as PaidPlan];
+    if (!limits) continue;
+
+    if (status === 'past_due') {
+      await alertOnce(
+        env,
+        `billing:${account.id}:past_due`,
+        account.telegram_chat_id,
+        `💳 We could not take your last VigilOps payment.\nYour servers keep backing up while we retry, but please update your card: https://vigilops.cloud/app/`
+      );
+    } else {
+      await db.prepare('DELETE FROM alerts WHERE key = ?').bind(`billing:${account.id}:past_due`).run();
+    }
+
+    const pct = (account.bytes / limits.storageBytes) * 100;
+    if (pct >= 100) {
+      await alertOnce(
+        env,
+        `quota:${account.id}:full`,
+        account.telegram_chat_id,
+        `🛑 Your VigilOps Cloud storage is full (${gb(account.bytes)} of ${gb(limits.storageBytes)}).\nNew backups will be rejected until old ones expire${plan === 'pro' ? ', or you move up to Team' : ''}: https://vigilops.cloud/app/`
+      );
+    } else if (pct >= 80) {
+      await alertOnce(
+        env,
+        `quota:${account.id}:high`,
+        account.telegram_chat_id,
+        `⚠️ Your VigilOps Cloud storage is ${Math.round(pct)}% full (${gb(account.bytes)} of ${gb(limits.storageBytes)}).\nWhen it fills up, new backups are rejected: https://vigilops.cloud/app/`
+      );
+    }
+    // Below 75%, forget the warnings so the next one can fire (hysteresis around 80%)
+    if (pct < 75) {
+      await db.prepare("DELETE FROM alerts WHERE key IN (?, ?)").bind(`quota:${account.id}:high`, `quota:${account.id}:full`).run();
+    } else if (pct < 100) {
+      await db.prepare('DELETE FROM alerts WHERE key = ?').bind(`quota:${account.id}:full`).run();
+    }
+  }
+
+  // 5. Uploads that never finished
   const staleBefore = new Date(now.getTime() - 24 * 3600 * 1000).toISOString();
   const { results: stale } = await db
     .prepare("SELECT id, r2_key, upload_id FROM backups WHERE status IN ('uploading', 'failed') AND created_at < ? LIMIT 200")
@@ -147,7 +205,13 @@ export async function runScheduled(env: Env, now = new Date()): Promise<void> {
     await db.prepare('DELETE FROM backups WHERE id = ?').bind(b.id).run();
   }
 
-  // 5. Housekeeping
+  // 6. Record the run so /status can show that monitoring is alive
+  await db
+    .prepare("INSERT INTO meta (key, value, updated_at) VALUES ('last_cron_run', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at")
+    .bind(now.toISOString(), now.toISOString())
+    .run();
+
+  // 7. Housekeeping
   const monthAgo = new Date(now.getTime() - 30 * 86400_000).toISOString();
   await db.batch([
     db.prepare('DELETE FROM sessions WHERE expires_at < ?').bind(now.toISOString()),
