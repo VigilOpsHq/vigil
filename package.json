@@ -1,6 +1,6 @@
 {
   "name": "vigilops",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "description": "AI-powered DevOps agent — monitors, heals, and escalates",
   "main": "dist/index.js",
   "scripts": {
