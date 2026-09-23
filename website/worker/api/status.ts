@@ -4,6 +4,13 @@ import type { RequestContext } from '../lib/env';
 import { json } from '../lib/http';
 
 const SCHEDULE_EVERY_MS = 15 * 60 * 1000;
+
+function minutesAgo(ms: number): string {
+  if (ms < 60_000) return 'less than a minute';
+  const minutes = Math.round(ms / 60_000);
+  return minutes === 1 ? '1 minute' : `${minutes} minutes`;
+}
+
 const PROBE_KEY = '__status_probe';
 
 type State = 'operational' | 'degraded' | 'down' | 'unknown';
@@ -72,7 +79,7 @@ export async function status(ctx: RequestContext): Promise<Response> {
     detail:
       age === null
         ? 'No check has run yet'
-        : `Servers and schedules last checked ${age < 60_000 ? 'less than a minute' : `${Math.round(age / 60_000)} minutes`} ago`,
+        : `Servers and schedules last checked ${minutesAgo(age)} ago`,
   });
 
   const open = incidents.filter((i) => !i.resolved_at);
