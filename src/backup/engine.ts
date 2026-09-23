@@ -132,19 +132,20 @@ function runDocker(args: string[], stdin: NodeJS.ReadableStream | null, stdout: 
     let stderr = '';
     child.stderr?.on('data', (d) => { stderr += d.toString(); });
 
-    const streams: Promise<void>[] = [];
-    if (stdin && child.stdin) streams.push(pipeline(stdin, child.stdin));
-    if (stdout && child.stdout) streams.push(pipeline(child.stdout, stdout));
+    // Catch immediately: a failing command closes the pipe (EPIPE), and an unhandled
+    // rejection would crash the process before the exit code and stderr are known.
+    const streams: Promise<unknown>[] = [];
+    if (stdin && child.stdin) streams.push(pipeline(stdin, child.stdin).catch((err) => err));
+    if (stdout && child.stdout) streams.push(pipeline(child.stdout, stdout).catch((err) => err));
 
     child.on('error', reject);
     child.on('close', async (code) => {
-      try {
-        await Promise.all(streams);
-      } catch (err) {
-        if (code === 0) return reject(err);
+      const streamError = (await Promise.all(streams)).find((e) => e instanceof Error) as Error | undefined;
+      if (code !== 0) {
+        return reject(new Error(stderr.trim().split('\n').slice(-3).join(' | ') || `exited with code ${code}`));
       }
-      if (code === 0) resolve();
-      else reject(new Error(stderr.trim().split('\n').slice(-3).join(' | ') || `exited with code ${code}`));
+      if (streamError) return reject(streamError);
+      resolve();
     });
   });
 }
