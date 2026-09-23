@@ -218,7 +218,9 @@ bot.onText(/\/deploy(?:\s+(.+))?/, async (_, match) => {
   if (!available.includes(appName)) {
     await notify(
       `❌ Unknown app: \`${appName}\`\n` +
-      `Available: ${available.map((a) => `\`${a}\``).join(', ')}`
+      (available.length
+        ? `Available: ${available.map((a) => `\`${a}\``).join(', ')}`
+        : 'No apps are registered yet. On the server:\n`vigil app add <name> --compose <file> --service <name> --image <image>`')
     );
     return;
   }

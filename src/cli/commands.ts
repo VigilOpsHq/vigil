@@ -268,7 +268,12 @@ export const deployCommand: CLICommand = {
 
     if (!apps.includes(appName)) {
       console.error(`❌ Unknown app: ${appName}`);
-      console.error(`   Available: ${apps.join(', ')}`);
+      console.error(
+        apps.length
+          ? `   Available: ${apps.join(', ')}`
+          : `   No apps are registered yet. Register this one with:
+   vigil app add ${appName} --compose /opt/${appName}/docker-compose.yml --service app --image ghcr.io/you/${appName}`
+      );
       process.exit(1);
     }
 
