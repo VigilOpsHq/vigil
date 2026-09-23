@@ -38,7 +38,7 @@ HEALTH_CHECK_CONTAINER_MAP=https://api.myapp.com/health:myapp-api,https://myapp.
 
 ## AI escalation
 
-When a rule raises an alert, or VigilOps sees something unusual that no rule covers, it sends the snapshot to DeepSeek. The AI replies with one of three decisions:
+When a rule raises an alert, or VigilOps sees something unusual that no rule covers, it sends the snapshot to your AI provider. The AI replies with one of three decisions:
 
 | Decision | What happens |
 |---|---|
@@ -46,7 +46,11 @@ When a rule raises an alert, or VigilOps sees something unusual that no rule cov
 | **Suggest** | You get the command on Telegram with **Approve** / **Deny** buttons |
 | **Alert** | You get the AI's explanation. Nothing is run |
 
-Without a working `DEEPSEEK_API_KEY` (missing, invalid, or out of credit), escalations fail and you get "AI escalation failed — manual review required" instead.
+You choose the provider. Anything with an OpenAI-compatible `/chat/completions` endpoint works — OpenAI, DeepSeek, Groq, OpenRouter, Together, Mistral, or a local Ollama or vLLM — by setting `AI_API_KEY`, `AI_BASE_URL` and `AI_MODEL`. See [Configuration](/docs/reference/configuration/#ai) for the URL and model for each one.
+
+With no `AI_API_KEY` set, escalation is skipped entirely: rules still run and still alert you, and VigilOps makes no outbound AI calls. If a key is set but the call fails (invalid key, no credit, provider down), you get "AI escalation failed — manual review required" instead.
+
+Whatever the model suggests still has to pass the [command allowlist](#command-allowlist) below, so the provider you pick changes the quality of the diagnosis, never how much VigilOps is allowed to do.
 
 ## Approvals
 

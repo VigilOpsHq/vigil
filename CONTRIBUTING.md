@@ -18,7 +18,7 @@ npm run dev
 src/
   collector/      — gathers system snapshot (Docker, disk, memory, nginx, HTTP)
   rules/          — rule engine + rules config (if-this-then-that)
-  ai/             — DeepSeek escalation, called only when rules don't match
+  ai/             — AI escalation (any OpenAI-compatible API), called only when rules don't match
   executor/       — runs shell commands, enforces safety allowlist
   deploy/         — deploy config + pull/up/health-check/rollback logic
   webhook/        — Express server for CI/CD webhook triggers

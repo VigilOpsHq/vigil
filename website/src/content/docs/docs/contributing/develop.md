@@ -41,7 +41,7 @@ This builds `vigil:local` from your checkout instead of pulling the published im
 | `src/collector/` | Snapshots: containers, disk, memory, health checks |
 | `src/rules/` | Built-in rules and thresholds |
 | `src/executor/` | Command allowlist |
-| `src/ai/` | DeepSeek escalation |
+| `src/ai/` | AI escalation, through any OpenAI-compatible API |
 | `src/backup/` | Backups, restores, schedules, off-server copies |
 | `src/update/` | Version checks and self-update |
 | `src/telegram/` | Telegram bot |

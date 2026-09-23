@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { collect } from './collector';
 import { evaluate, hasAnomalies } from './rules/engine';
-import { escalate } from './ai/brain';
+import { aiEnabled, escalate } from './ai/brain';
 import { execute } from './executor';
 import { notify, requestApproval } from './telegram/bot';
 import { startWebhookServer } from './webhook/server';
@@ -113,6 +113,13 @@ async function loop(): Promise<void> {
     }
 
     if (needsEscalation) {
+      // No AI configured: rule-tier alerts have already gone out, so stay quiet
+      // rather than complaining every 60 seconds
+      if (!aiEnabled) {
+        info('No AI provider configured — skipping escalation');
+        return;
+      }
+
       info('Escalating to AI...');
       const decision = await escalate(snapshot);
 

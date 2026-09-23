@@ -1,9 +1,37 @@
+// AI escalation through any OpenAI-compatible /chat/completions API.
+//
+// Set AI_BASE_URL, AI_API_KEY and AI_MODEL to use OpenAI, Groq, Together,
+// OpenRouter, Mistral, a local Ollama or vLLM, or anything else that speaks the
+// same endpoint. With nothing set, it talks to DeepSeek, and the older
+// DEEPSEEK_API_KEY / DEEPSEEK_MODEL settings still work.
 import axios from 'axios';
 import { SystemSnapshot, AIDecision } from '../types';
 import { error, info } from '../logger';
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY ?? '';
-const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL ?? 'deepseek-chat';
+const DEFAULT_BASE_URL = 'https://api.deepseek.com';
+
+/** A setting left blank in .env means "not set", not an empty provider. */
+const setting = (name: string): string | undefined => process.env[name]?.trim() || undefined;
+
+const API_KEY = setting('AI_API_KEY') ?? setting('DEEPSEEK_API_KEY') ?? '';
+const MODEL = setting('AI_MODEL') ?? setting('DEEPSEEK_MODEL') ?? 'deepseek-chat';
+const BASE_URL = (setting('AI_BASE_URL') ?? DEFAULT_BASE_URL).replace(/\/+$/, '');
+
+/** Providers differ on whether the base URL already ends at the endpoint. */
+const ENDPOINT = BASE_URL.endsWith('/chat/completions') ? BASE_URL : `${BASE_URL}/chat/completions`;
+
+/** Local models (Ollama, vLLM) need no key, so a custom URL is enough to count as configured. */
+export const aiEnabled = Boolean(API_KEY) || BASE_URL !== DEFAULT_BASE_URL;
+
+export function aiProvider(): string {
+  try {
+    return `${new URL(BASE_URL).hostname} (${MODEL})`;
+  } catch {
+    return `${BASE_URL} (${MODEL})`;
+  }
+}
+
+const headers = API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {};
 
 const SYSTEM_PROMPT_MONITOR = `You are Vigil, an autonomous DevOps agent monitoring a Linux VPS.
 You are called only when the rule engine cannot resolve an issue automatically.
@@ -67,21 +95,40 @@ function validateDecision(raw: unknown): AIDecision | null {
   return null;
 }
 
+/** Some models wrap JSON in a code fence however firmly you ask them not to. */
+function parseJson(text: string): unknown {
+  const clean = text.replace(/```json|```/g, '').trim();
+  try {
+    return JSON.parse(clean);
+  } catch {
+    // A model that added a sentence before or after the object
+    const start = clean.indexOf('{');
+    const end = clean.lastIndexOf('}');
+    if (start < 0 || end <= start) throw new Error(`no JSON in response: ${clean.slice(0, 200)}`);
+    return JSON.parse(clean.slice(start, end + 1));
+  }
+}
+
 /**
- * Call DeepSeek for AI decision-making on system issues
- * Used for continuous monitoring and healing
+ * Ask the configured model what to do about a system issue.
+ * Used for continuous monitoring and healing.
  */
 export async function escalateForMonitoring(snapshot: SystemSnapshot): Promise<AIDecision | null> {
+  if (!aiEnabled) {
+    info('[ai] No provider configured — skipping escalation');
+    return null;
+  }
+
   const snapshotSummary = buildMonitoringPrompt(snapshot);
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      info(`[deepseek] Escalating for monitoring (attempt ${attempt + 1})`);
+      info(`[ai] Escalating to ${aiProvider()} (attempt ${attempt + 1})`);
 
       const response = await axios.post(
-        'https://api.deepseek.com/chat/completions',
+        ENDPOINT,
         {
-          model: DEEPSEEK_MODEL,
+          model: MODEL,
           messages: [
             { role: 'system', content: SYSTEM_PROMPT_MONITOR },
             { role: 'user', content: `System snapshot:\n\n${snapshotSummary}\n\nWhat should I do?` }
@@ -89,25 +136,20 @@ export async function escalateForMonitoring(snapshot: SystemSnapshot): Promise<A
           temperature: 0.3,
           max_tokens: 1000,
         },
-        {
-          headers: { 'Authorization': `Bearer ${DEEPSEEK_API_KEY}` },
-          timeout: 15_000
-        }
+        { headers, timeout: 15_000 }
       );
 
       const text = response.data?.choices?.[0]?.message?.content ?? '';
-      const clean = text.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(clean);
-      const decision = validateDecision(parsed);
+      const decision = validateDecision(parseJson(text));
 
       if (decision) {
-        info(`[deepseek] Decision: ${decision.type}`);
+        info(`[ai] Decision: ${decision.type}`);
         return decision;
       }
 
-      error(`[deepseek] Invalid response format (attempt ${attempt + 1}): ${clean}`);
+      error(`[ai] Response didn't match the expected format (attempt ${attempt + 1}): ${String(text).slice(0, 300)}`);
     } catch (err) {
-      error(`[deepseek] API call failed (attempt ${attempt + 1})`, err);
+      error(`[ai] Call to ${ENDPOINT} failed (attempt ${attempt + 1})`, err);
     }
   }
 
@@ -115,16 +157,21 @@ export async function escalateForMonitoring(snapshot: SystemSnapshot): Promise<A
 }
 
 /**
- * Call DeepSeek for migration planning (uses reasoning effort)
- * For complex multi-step workflows that need deep analysis
+ * Ask the configured model to plan a migration.
+ * For complex multi-step workflows that need deep analysis.
  */
 export async function escalateForMigration(prompt: string, useReasoning: boolean = true): Promise<string | null> {
+  if (!aiEnabled) {
+    error('[ai] No provider configured — cannot plan a migration');
+    return null;
+  }
+
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      info(`[deepseek] Escalating for migration planning (attempt ${attempt + 1})`);
+      info(`[ai] Planning a migration with ${aiProvider()} (attempt ${attempt + 1})`);
 
       const config: Record<string, unknown> = {
-        model: DEEPSEEK_MODEL,
+        model: MODEL,
         messages: [
           {
             role: 'system',
@@ -138,30 +185,20 @@ Respond with ONLY valid JSON.`
         max_tokens: 3000,
       };
 
-      // Use reasoning model for complex migration logic if available
-      if (useReasoning && DEEPSEEK_MODEL.includes('reasoner')) {
+      // Only DeepSeek's reasoner takes this parameter; other providers reject unknown fields
+      if (useReasoning && MODEL.includes('reasoner')) {
         config['reasoning_effort'] = 'high';
       }
 
-      const response = await axios.post(
-        'https://api.deepseek.com/chat/completions',
-        config,
-        {
-          headers: { 'Authorization': `Bearer ${DEEPSEEK_API_KEY}` },
-          timeout: 30_000
-        }
-      );
+      const response = await axios.post(ENDPOINT, config, { headers, timeout: 30_000 });
 
       const text = response.data?.choices?.[0]?.message?.content ?? '';
-      const clean = text.replace(/```json|```/g, '').trim();
+      const plan = JSON.stringify(parseJson(text));
 
-      // Verify it's valid JSON
-      JSON.parse(clean);
-
-      info(`[deepseek] Migration plan generated successfully`);
-      return clean;
+      info('[ai] Migration plan generated successfully');
+      return plan;
     } catch (err) {
-      error(`[deepseek] Migration planning failed (attempt ${attempt + 1})`, err);
+      error(`[ai] Migration planning failed (attempt ${attempt + 1})`, err);
     }
   }
 

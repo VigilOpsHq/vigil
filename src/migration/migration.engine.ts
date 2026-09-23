@@ -3,7 +3,7 @@
  * Handles multi-phase AWS → Contabo migrations with safety, rollback, and monitoring
  */
 
-import { escalateForMigration } from '../ai/deepseek';
+import { escalateForMigration } from '../ai/provider';
 import { info, error } from '../logger';
 import {
   MigrationPlan,
@@ -27,7 +27,7 @@ if (!fs.existsSync(MIGRATION_DIR)) {
 }
 
 /**
- * Create a new migration plan using DeepSeek for strategy
+ * Create a new migration plan, using the configured AI provider for strategy
  */
 export async function createMigrationPlan(config: MigrationConfig): Promise<MigrationPlan | null> {
   const planPrompt = `
@@ -57,7 +57,7 @@ Return a JSON plan with:
 
   const response = await escalateForMigration(planPrompt, true);
   if (!response) {
-    error('[migration] Failed to create plan via DeepSeek');
+    error('[migration] Failed to create plan');
     return null;
   }
 

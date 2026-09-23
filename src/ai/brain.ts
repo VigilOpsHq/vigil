@@ -1,3 +1,2 @@
-// AI escalation now powered by DeepSeek
-// Import the DeepSeek module for all AI decision-making
-export { escalateForMonitoring as escalate, escalateForMigration } from './deepseek';
+// AI escalation, through whichever OpenAI-compatible provider is configured
+export { escalateForMonitoring as escalate, escalateForMigration, aiEnabled, aiProvider } from './provider';

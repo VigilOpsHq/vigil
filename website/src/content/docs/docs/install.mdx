@@ -10,7 +10,7 @@ import { Aside, Steps } from '@astrojs/starlight/components';
 - A Linux server: Ubuntu 20.04+ or Debian, amd64 or arm64. Docker is installed for you if it's missing
 - Root access (`sudo`)
 - A Telegram account, for alerts and commands from your phone
-- A [DeepSeek API key](https://platform.deepseek.com). Optional, but without it unusual problems are reported without an AI diagnosis
+- An API key for any OpenAI-compatible AI provider — OpenAI, DeepSeek, Groq, OpenRouter, or a local Ollama. Optional: without one, unusual problems are reported without an AI diagnosis
 
 You don't need Node.js or git. VigilOps runs from a ready-built Docker image.
 
@@ -59,7 +59,11 @@ This installs VigilOps, connects it to VigilOps Cloud and starts it. Alerts come
    ```ini
    TELEGRAM_BOT_TOKEN=7123456789:AAF...
    TELEGRAM_CHAT_ID=123456789
-   DEEPSEEK_API_KEY=sk-...
+
+   # Optional. Any OpenAI-compatible provider; see Configuration for a list
+   AI_API_KEY=sk-...
+   AI_BASE_URL=https://api.openai.com/v1
+   AI_MODEL=gpt-4o-mini
    ```
 
    Every other setting is optional. See [Configuration](/docs/reference/configuration/).

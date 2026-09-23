@@ -27,8 +27,28 @@ Needed for alerts and commands from your own bot. Optional on servers connected 
 
 | Variable | Default | Description |
 |---|---|---|
-| `DEEPSEEK_API_KEY` | — | API key from [platform.deepseek.com](https://platform.deepseek.com). Without it, escalations report "AI escalation failed" |
-| `DEEPSEEK_MODEL` | `deepseek-chat` | DeepSeek model to use |
+| `AI_API_KEY` | — | API key for your provider. Leave it empty to run on rules alone, with no AI calls |
+| `AI_BASE_URL` | `https://api.deepseek.com` | Any OpenAI-compatible API. `/chat/completions` is added for you if the URL doesn't already end with it |
+| `AI_MODEL` | `deepseek-chat` | Model name, as your provider spells it |
+
+`DEEPSEEK_API_KEY` and `DEEPSEEK_MODEL` still work if you already set them; `AI_API_KEY` and `AI_MODEL` win when both are present.
+
+Providers that work as-is:
+
+| Provider | `AI_BASE_URL` | Example `AI_MODEL` |
+|---|---|---|
+| OpenAI | `https://api.openai.com/v1` | `gpt-4o-mini` |
+| DeepSeek | `https://api.deepseek.com` | `deepseek-chat` |
+| Groq | `https://api.groq.com/openai/v1` | `llama-3.3-70b-versatile` |
+| OpenRouter | `https://openrouter.ai/api/v1` | `anthropic/claude-sonnet-4` |
+| Together | `https://api.together.xyz/v1` | `meta-llama/Llama-3.3-70B-Instruct-Turbo` |
+| Mistral | `https://api.mistral.ai/v1` | `mistral-small-latest` |
+| Ollama (local) | `http://localhost:11434/v1` | `llama3.2` |
+| vLLM (local) | `http://localhost:8000/v1` | whatever you're serving |
+
+Local models need no key. VigilOps runs with `network_mode: host`, so `localhost` from inside the container is your server.
+
+Anthropic's and Google's own APIs use a different request format, so point them through OpenRouter rather than at their native endpoints.
 
 ## Monitoring
 

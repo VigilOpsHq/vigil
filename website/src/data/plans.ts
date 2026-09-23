@@ -30,6 +30,7 @@ export const plans: Plan[] = [
       'Backups to your own S3-compatible storage',
       'Telegram bot and CLI',
       'Deploys with rollback',
+      'AI escalation with your own API key, any provider',
       'Community support on GitHub',
     ],
   },
@@ -97,6 +98,7 @@ export const comparison: { group: string; rows: ComparisonRow[] }[] = [
       { label: 'Telegram bot and CLI', values: [true, true, true, true] },
       { label: 'Deploys with rollback', values: [true, true, true, true] },
       { label: 'Servers', values: ['Unlimited', 'Unlimited', 'Unlimited', 'Unlimited'] },
+      { label: 'AI with your own key (OpenAI, DeepSeek, Groq, OpenRouter, local…)', values: [true, true, true, true] },
     ],
   },
   {
@@ -109,7 +111,7 @@ export const comparison: { group: string; rows: ComparisonRow[] }[] = [
       { label: 'Server offline alerts', values: [false, true, true, true] },
       { label: 'Missed backup alerts', values: [false, true, true, true] },
       { label: 'Alerts from the official VigilOps bot', values: [false, true, true, true] },
-      { label: 'AI included, no API key needed', soon: true, values: [false, true, true, true] },
+      { label: 'AI included, no key of your own needed', soon: true, values: [false, true, true, true] },
     ],
   },
   {

@@ -14,7 +14,7 @@ VigilOps is a self-hosted ops agent for Docker servers. It watches your containe
 - **Backs up databases:** Postgres, MySQL/MariaDB and MongoDB, on a schedule, with copies off the server and restores that take a safety backup first
 - **Runs from Telegram:** status, backups, restores, deploys and updates from your phone
 - **Asks before anything risky:** only allowlisted commands run; anything uncertain comes to you with Approve / Deny buttons
-- **Uses AI when the rules run out:** unusual problems go to DeepSeek for a diagnosis and proposed fix
+- **Uses AI when the rules run out:** unusual problems go to the AI provider of your choice — OpenAI, DeepSeek, Groq, OpenRouter or a local model — for a diagnosis and proposed fix
 - **Deploys with rollback:** pull, restart, health check, automatic rollback, triggered from CI or Telegram
 
 Terraform and Ansible **build** your servers. VigilOps keeps them **running**.
@@ -25,7 +25,7 @@ On an Ubuntu or Debian server:
 
 ```bash
 curl -fsSL https://vigilops.cloud/install.sh | sudo sh
-sudo nano /opt/vigil/.env      # your Telegram bot token and chat ID; DeepSeek key optional
+sudo nano /opt/vigil/.env      # your Telegram bot token and chat ID; AI key optional
 vigil start
 ```
 
