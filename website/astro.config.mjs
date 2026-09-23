@@ -58,7 +58,6 @@ export default defineConfig({
           items: [
             { label: 'Developing locally', slug: 'docs/contributing/develop' },
             { label: 'Releasing a version', slug: 'docs/contributing/release' },
-            { label: 'Website and payments', slug: 'docs/contributing/website' },
           ],
         },
       ],

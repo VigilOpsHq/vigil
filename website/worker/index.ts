@@ -1,4 +1,7 @@
 // Cloudflare Worker entry: VigilOps website, dashboard API, agent API, webhooks and scheduled checks.
+//
+// Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
+// but not as a competing product or service. Converts to MIT after two years.
 import type { Env, RequestContext } from './lib/env';
 import { HttpError, assertSameOrigin, json } from './lib/http';
 import { checkout } from './api/checkout';

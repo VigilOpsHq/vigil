@@ -19,5 +19,6 @@
   },
   "devDependencies": {
     "wrangler": "^4.133.0"
-  }
+  },
+  "license": "SEE LICENSE IN LICENSE.md"
 }

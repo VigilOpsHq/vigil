@@ -88,11 +88,15 @@ Guide: [VigilOps Cloud](https://vigilops.cloud/docs/guides/cloud/).
 
 - [Developing locally](https://vigilops.cloud/docs/contributing/develop/)
 - [Releasing a version](https://vigilops.cloud/docs/contributing/release/)
-- [Website and payments](https://vigilops.cloud/docs/contributing/website/)
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 
 Every push runs CI: type checks, builds, the Docker image, and an end-to-end test of VigilOps Cloud (`website/test/cloud-e2e.mjs`).
 
 ## License
 
-MIT
+| Part | License | What you may do |
+|---|---|---|
+| The agent: `src/`, `install.sh`, `scripts/` | [MIT](LICENSE) | Anything, including commercial use |
+| The website and VigilOps Cloud: `website/` | [FSL-1.1-MIT](website/LICENSE.md) | Read it, run it yourself, change it, use it internally. You may **not** offer it to others as a competing product or service. Becomes MIT two years after each release |
+
+In short: the software you install on your servers is free software, forever. The hosted service that VigilOps Cloud customers pay for is source-available rather than open source, so you can audit exactly what happens to your backups without anyone being able to resell it as their own service.

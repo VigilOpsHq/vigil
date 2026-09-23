@@ -35,3 +35,6 @@ Thumbs.db
 *.key
 # Private planning notes
 TODO.md
+
+# Private runbook (Cloudflare, Bachs, Cloud setup)
+RUNBOOK.md
