@@ -31,8 +31,6 @@ Needed for alerts and commands from your own bot. Optional on servers connected 
 | `AI_BASE_URL` | `https://api.deepseek.com` | Any OpenAI-compatible API. `/chat/completions` is added for you if the URL doesn't already end with it |
 | `AI_MODEL` | `deepseek-chat` | Model name, as your provider spells it |
 
-`DEEPSEEK_API_KEY` and `DEEPSEEK_MODEL` still work if you already set them; `AI_API_KEY` and `AI_MODEL` win when both are present.
-
 Providers that work as-is:
 
 | Provider | `AI_BASE_URL` | Example `AI_MODEL` |
