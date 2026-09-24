@@ -1,5 +1,6 @@
 ---
 import { site, company } from '../data/site';
+import Mark from './Mark.astro';
 
 const columns = [
   {
@@ -46,11 +47,7 @@ const columns = [
     <div class="top">
       <div class="brand">
         <a class="logo" href="/">
-          <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
-            <rect width="32" height="32" rx="7" fill="#0d7a6f" />
-            <path d="M8 10.5 16 23l8-12.5" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-            <circle cx="16" cy="8.5" r="2" fill="#8fe3d2" />
-          </svg>
+          <Mark size={26} />
           VigilOps
         </a>
         <p>Open-source ops agent for Docker servers.</p>

@@ -1,4 +1,5 @@
 ---
+import Mark from './Mark.astro';
 import { site } from '../data/site';
 
 const path = Astro.url.pathname;
@@ -14,11 +15,7 @@ const links = [
 <header class="nav">
   <div class="container nav-inner">
     <a class="logo" href="/" aria-label="VigilOps home">
-      <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
-        <rect width="32" height="32" rx="7" fill="#0d7a6f" />
-        <path d="M8 10.5 16 23l8-12.5" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-        <circle cx="16" cy="8.5" r="2" fill="#8fe3d2" />
-      </svg>
+      <Mark size={28} />
       <span>VigilOps</span>
     </a>
 
