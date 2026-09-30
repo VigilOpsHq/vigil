@@ -1,9 +1,16 @@
 #!/bin/sh
-# Host-side `vigil` command. Service commands run Docker Compose here;
-# everything else runs the CLI inside the Vigil container, so both are always the same version.
+# Host-side `vigil` command.
+#
+# Service commands, help and setup run here, so they work whether or not the
+# agent is running. Everything else runs the CLI inside the container, so the
+# command and the agent are always the same version.
 set -e
 
 VIGIL_DIR="${VIGIL_DIR:-/opt/vigil}"
+ENV_FILE="$VIGIL_DIR/.env"
+IMAGE_NAME="ghcr.io/vigilopshq/vigil"
+# Overridable so the setup flow can be tested against a fake API
+TG_API="${VIGIL_TELEGRAM_API:-https://api.telegram.org}"
 
 compose() {
   if docker compose version >/dev/null 2>&1; then
@@ -13,13 +20,329 @@ compose() {
   fi
 }
 
+running() {
+  [ "$(docker inspect -f '{{.State.Running}}' vigil 2>/dev/null)" = "true" ]
+}
+
+usage() {
+  cat <<'EOF'
+
+🤖 VigilOps — ops automation for a single Docker server
+
+USAGE:
+  vigil <command> [options]
+
+SERVICE:
+  start               Start the agent
+  stop                Stop the agent
+  update              Pull the newest release and restart
+  setup               Connect Telegram alerts, AI or VigilOps Cloud
+  version             Show the running version
+  help                Show this message
+
+WATCHING:
+  status              Full system snapshot
+  containers          List all Docker containers
+  logs <name> [n]     Logs from a container
+  restart <name>      Restart a container
+  disk | memory       Usage
+  health              Run the configured health checks
+
+BACKUPS:
+  backup <container> [database]      Back up a database now
+  backup schedule <container> <when> hourly | daily HH:MM | weekly <day> HH:MM
+  backups [container]                List backups
+  restore <file> [container] [db]    Restore a backup
+
+DEPLOYS:
+  apps                               List registered apps
+  app add <name> --compose <file> --service <name> --image <image>
+  deploy <app>                       Deploy with health check and rollback
+
+CLOUD:
+  cloud connect <token> | status | backups | disconnect
+
+Settings live in /opt/vigil/.env. `vigil setup` fills in the common ones.
+Pass secrets as environment variables rather than arguments, so they stay
+out of `ps` and your shell history.
+
+Docs: https://vigilops.cloud/docs/
+EOF
+}
+
+# ── Settings file ───────────────────────────────────────────────────────────
+env_get() {
+  [ -f "$ENV_FILE" ] || return 0
+  grep "^$1=" "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2-
+}
+
+env_set() {
+  if [ ! -f "$ENV_FILE" ]; then
+    echo "No settings file at $ENV_FILE. Re-run the installer." >&2
+    exit 1
+  fi
+  cp "$ENV_FILE" "$ENV_FILE.bak.$(date +%Y%m%d-%H%M%S)"
+  KEY="$1" VAL="$2" awk '
+    BEGIN { k = ENVIRON["KEY"]; v = ENVIRON["VAL"]; done = 0 }
+    $0 ~ "^" k "=" && !done { print k "=" v; done = 1; next }
+    { print }
+    END { if (!done) print k "=" v }
+  ' "$ENV_FILE" > "$ENV_FILE.tmp"
+  mv "$ENV_FILE.tmp" "$ENV_FILE"
+  chmod 600 "$ENV_FILE"
+}
+
+ask() {
+  # ask <prompt> [-s]   → answer on stdout, prompt on stderr
+  printf '%s' "$1" >&2
+  if [ "$2" = "-s" ]; then
+    stty -echo 2>/dev/null || true
+    read -r REPLY_VALUE
+    stty echo 2>/dev/null || true
+    printf '\n' >&2
+  else
+    read -r REPLY_VALUE
+  fi
+  printf '%s' "$REPLY_VALUE"
+}
+
+# Telegram's replies are small and predictable, so jq is a bonus, not a need
+json_str() { sed -n "s/.*\"$1\":\"\([^\"]*\)\".*/\1/p" | head -1; }
+
+restart_agent() {
+  if running; then
+    printf 'Restarting VigilOps... ' >&2
+    (cd "$VIGIL_DIR" && compose up -d >/dev/null 2>&1)
+    printf 'done.\n' >&2
+  fi
+}
+
+# ── setup: Telegram ─────────────────────────────────────────────────────────
+setup_telegram() {
+  cat >&2 <<'EOF'
+
+Telegram alerts
+───────────────
+Create a bot: open Telegram, message @BotFather, send /newbot.
+It replies with a token that looks like 123456789:AAH....
+
+EOF
+
+  current=$(env_get TELEGRAM_CHAT_ID)
+  if [ -n "$current" ]; then
+    echo "Alerts currently go to chat $current." >&2
+    answer=$(ask "Replace it? [y/N]: ")
+    case "$answer" in y|Y|yes|YES) ;; *) echo "Left unchanged." >&2; return 0 ;; esac
+  fi
+
+  token=""
+  attempts=0
+  while [ "$attempts" -lt 3 ]; do
+    attempts=$((attempts + 1))
+    entered=$(ask "Paste the token (or press Enter to skip): " -s)
+    [ -z "$entered" ] && { echo "Skipped. Alerts stay in the local log." >&2; return 0; }
+
+    printf 'Checking... ' >&2
+    me=$(curl -fsS "$TG_API/bot$entered/getMe" 2>/dev/null || true)
+    if printf '%s' "$me" | grep -q '"ok":[[:space:]]*true'; then
+      username=$(printf '%s' "$me" | json_str username)
+      printf '✅ @%s\n' "$username" >&2
+      token="$entered"
+      break
+    fi
+    printf '❌ Telegram rejected that token.\n' >&2
+  done
+  [ -z "$token" ] && { echo "Giving up for now. Run \`vigil setup\` when you have a working token." >&2; return 1; }
+
+  # A webhook makes getUpdates return 409, and discovery would hang forever
+  curl -fsS "$TG_API/bot$token/deleteWebhook" >/dev/null 2>&1 || true
+
+  printf '\nNow open Telegram and send /start to @%s.\nWaiting' "$username" >&2
+  chat=""
+  # Measure real elapsed time: a long-poll that errors returns at once, so we
+  # must neither burn the whole budget in seconds nor hammer the API
+  deadline=$(( $(date +%s) + ${VIGIL_SETUP_TIMEOUT:-180} ))
+  while [ "$(date +%s)" -lt "$deadline" ]; do
+    tick=$(date +%s)
+    updates=$(curl -fsS "$TG_API/bot$token/getUpdates?timeout=25&offset=-1" 2>/dev/null || true)
+    chats=$(printf '%s' "$updates" | grep -o '"chat":[[:space:]]*{[[:space:]]*"id":[[:space:]]*-\{0,1\}[0-9]\{1,\}' | sed 's/.*"id":[[:space:]]*//' | sort -u)
+    count=$(printf '%s' "$chats" | grep -c . || true)
+
+    if [ "$count" -eq 1 ]; then
+      chat="$chats"
+      break
+    elif [ "$count" -gt 1 ]; then
+      printf '\n\nMessages arrived from more than one chat:\n' >&2
+      printf '%s\n' "$chats" | awk '{ printf "  %d) %s\n", NR, $0 }' >&2
+      pick=$(ask "Which one should get alerts? [1]: ")
+      [ -z "$pick" ] && pick=1
+      # Anything but a plain number would make sed fail and take the script with it
+      case "$pick" in
+        *[!0-9]*) chat="" ;;
+        *) chat=$(printf '%s\n' "$chats" | sed -n "${pick}p") ;;
+      esac
+      [ -n "$chat" ] && break
+      echo "That wasn't one of the options." >&2
+    fi
+    printf '.' >&2
+    [ $(( $(date +%s) - tick )) -lt 2 ] && sleep 2
+  done
+
+  if [ -z "$chat" ]; then
+    printf '\n\nNo message arrived, so the chat ID is unknown.\n' >&2
+    chat=$(ask "Paste the chat ID manually, or press Enter to try again later: ")
+    [ -z "$chat" ] && { echo "Nothing saved. Run \`vigil setup\` again when you're ready." >&2; return 1; }
+  fi
+
+  # Never save a target we haven't successfully delivered to
+  printf '\nSending a test message... ' >&2
+  if ! curl -fsS -X POST "$TG_API/bot$token/sendMessage" \
+      -d "chat_id=$chat" \
+      -d "text=✅ VigilOps is connected. Alerts from $(hostname) will arrive here." >/dev/null 2>&1; then
+    printf '❌\n' >&2
+    echo "The token works but Telegram would not deliver to chat $chat, so nothing was saved." >&2
+    return 1
+  fi
+  printf 'sent.\n' >&2
+
+  env_set TELEGRAM_BOT_TOKEN "$token"
+  env_set TELEGRAM_CHAT_ID "$chat"
+  printf '\n✅ Connected — alerts will go to chat %s.\n' "$chat" >&2
+  restart_agent
+}
+
+# ── setup: AI ───────────────────────────────────────────────────────────────
+setup_ai() {
+  cat >&2 <<'EOF'
+
+AI escalation (optional)
+────────────────────────
+When no rule matches a problem, VigilOps can ask a model what to do.
+Anything it suggests still has to pass the command allowlist.
+
+  1) OpenAI          2) DeepSeek      3) Groq
+  4) OpenRouter      5) Ollama (local, no key)      6) Skip
+
+EOF
+  choice=$(ask "Provider [6]: ")
+  case "$choice" in
+    1) base="https://api.openai.com/v1"; model="gpt-4o-mini" ;;
+    2) base="https://api.deepseek.com"; model="deepseek-chat" ;;
+    3) base="https://api.groq.com/openai/v1"; model="llama-3.3-70b-versatile" ;;
+    4) base="https://openrouter.ai/api/v1"; model="anthropic/claude-sonnet-4" ;;
+    5) base="http://localhost:11434/v1"; model="llama3.2" ;;
+    *) echo "Skipped. VigilOps runs on its rules alone." >&2; return 0 ;;
+  esac
+
+  entered=$(ask "Model [$model]: ")
+  [ -n "$entered" ] && model="$entered"
+
+  key=""
+  if [ "$choice" != "5" ]; then
+    key=$(ask "API key: " -s)
+    [ -z "$key" ] && { echo "No key given, skipping." >&2; return 0; }
+  fi
+
+  printf 'Checking... ' >&2
+  probe=$(curl -fsS -X POST "$base/chat/completions" \
+    ${key:+-H "Authorization: Bearer $key"} \
+    -H "Content-Type: application/json" \
+    -d "{\"model\":\"$model\",\"messages\":[{\"role\":\"user\",\"content\":\"ok\"}],\"max_tokens\":1}" 2>/dev/null || true)
+  if ! printf '%s' "$probe" | grep -q '"choices"'; then
+    printf '❌\n' >&2
+    echo "That provider did not answer as expected, so nothing was saved." >&2
+    return 1
+  fi
+  printf '✅\n' >&2
+
+  env_set AI_BASE_URL "$base"
+  env_set AI_MODEL "$model"
+  env_set AI_API_KEY "$key"
+  printf '\n✅ AI escalation will use %s (%s).\n' "$base" "$model" >&2
+  restart_agent
+}
+
+# ── setup: Cloud ────────────────────────────────────────────────────────────
+setup_cloud() {
+  cat >&2 <<'EOF'
+
+VigilOps Cloud (optional, paid)
+───────────────────────────────
+Managed backup storage, a dashboard, and alerts when this server goes quiet.
+Get a server token from https://vigilops.cloud/app → Add server.
+
+EOF
+  token=$(ask "Paste the token (or press Enter to skip): " -s)
+  [ -z "$token" ] && { echo "Skipped." >&2; return 0; }
+  case "$token" in
+    vo_srv_*) ;;
+    *) echo "That does not look like a server token (it should start with vo_srv_)." >&2; return 1 ;;
+  esac
+
+  url="${VIGIL_CLOUD_URL:-https://vigilops.cloud}"
+  printf 'Checking... ' >&2
+  probe=$(curl -fsS -X POST "$url/api/agent/heartbeat" \
+    -H "Authorization: Bearer $token" -H "Content-Type: application/json" \
+    -d "{\"version\":\"setup\",\"hostname\":\"$(hostname)\"}" 2>/dev/null || true)
+  if [ -z "$probe" ]; then
+    printf '❌\n' >&2
+    echo "VigilOps Cloud did not accept that token, so nothing was saved." >&2
+    return 1
+  fi
+  printf '✅\n' >&2
+
+  env_set VIGIL_CLOUD_TOKEN "$token"
+  printf '\n✅ Connected to VigilOps Cloud.\n' >&2
+  restart_agent
+}
+
+# ── Commands ────────────────────────────────────────────────────────────────
 case "$1" in
+  ""|help|-h|--help)
+    usage
+    exit 0
+    ;;
+
+  version|-v|--version)
+    if running; then
+      exec docker exec -i vigil node dist/cli/index.js version
+    fi
+    tag=$(env_get VIGIL_TAG)
+    v=$(docker image inspect "$IMAGE_NAME:${tag:-latest}" \
+          --format '{{index .Config.Labels "org.opencontainers.image.version"}}' 2>/dev/null || true)
+    if [ -n "$v" ]; then
+      printf '\nVigilOps %s (not running — start it with: vigil start)\n\n' "$v"
+    else
+      printf '\nVigilOps is not installed on this server yet.\n\n'
+    fi
+    exit 0
+    ;;
+
+  setup)
+    if [ ! -t 0 ]; then
+      echo "\`vigil setup\` asks questions, so it needs a terminal." >&2
+      echo "Run it directly on the server, or set the values in $ENV_FILE." >&2
+      exit 1
+    fi
+    case "$2" in
+      telegram) setup_telegram ;;
+      ai) setup_ai ;;
+      cloud) setup_cloud ;;
+      "") setup_telegram || true; setup_ai || true; setup_cloud || true
+          printf '\nDone. `vigil status` shows what VigilOps can see.\n\n' >&2 ;;
+      *) echo "Usage: vigil setup [telegram|ai|cloud]" >&2; exit 1 ;;
+    esac
+    exit 0
+    ;;
+
   start)
     cd "$VIGIL_DIR" && compose up -d
     ;;
+
   stop)
     cd "$VIGIL_DIR" && compose down
     ;;
+
   update)
     cd "$VIGIL_DIR"
     compose pull
@@ -27,9 +350,10 @@ case "$1" in
     sleep 3
     docker exec vigil node dist/cli/index.js version
     ;;
+
   *)
-    if [ "$(docker inspect -f '{{.State.Running}}' vigil 2>/dev/null)" != "true" ]; then
-      echo "Vigil is not running. Start it with: vigil start" >&2
+    if ! running; then
+      echo "VigilOps is not running. Start it with: vigil start" >&2
       exit 1
     fi
     if [ -t 0 ] && [ -t 1 ]; then
