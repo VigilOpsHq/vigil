@@ -329,7 +329,7 @@ case "$1" in
       ai) setup_ai ;;
       cloud) setup_cloud ;;
       "") setup_telegram || true; setup_ai || true; setup_cloud || true
-          printf '\nDone. `vigil status` shows what VigilOps can see.\n\n' >&2 ;;
+          printf '\nDone. Run: vigil status\n\n' >&2 ;;
       *) echo "Usage: vigil setup [telegram|ai|cloud]" >&2; exit 1 ;;
     esac
     exit 0
