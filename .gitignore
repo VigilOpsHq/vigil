@@ -38,3 +38,6 @@ TODO.md
 
 # Private runbook (Cloudflare, Bachs, Cloud setup)
 RUNBOOK.md
+
+# Social image generator caches the fonts it fetches
+website/.fonts/
