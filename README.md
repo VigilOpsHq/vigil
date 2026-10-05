@@ -4,6 +4,8 @@
 
 VigilOps is a self-hosted ops agent for Docker servers. It watches your containers, fixes common failures, backs up your databases, and checks with you on Telegram before doing anything risky.
 
+[![VigilOps demo](https://img.youtube.com/vi/tz9k2Cawn-0/maxresdefault.jpg)](https://youtu.be/tz9k2Cawn-0)
+
 🌐 **Website:** [vigilops.cloud](https://vigilops.cloud) · 📖 **Docs:** [vigilops.cloud/docs](https://vigilops.cloud/docs/) · 💳 **Plans:** [vigilops.cloud/pricing](https://vigilops.cloud/pricing/)
 
 ---

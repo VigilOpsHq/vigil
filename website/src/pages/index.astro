@@ -10,7 +10,7 @@ const checks = [
   ['containers', 'exited, unhealthy, restarting in a loop'],
   ['disk', 'usage against a threshold you set'],
   ['memory', 'free memory and swap'],
-  ['nginx', 'process, config test, certificate expiry'],
+  ['nginx', 'whether it still answers on port 80'],
   ['health URLs', 'each one mapped to the container behind it'],
 ];
 
@@ -76,6 +76,15 @@ const allowlist = [
           VigilOps runs as one container beside your apps. It checks them every 60 seconds, restarts what breaks, backs up
           your databases, and asks you on Telegram before it does anything risky.
         </p>
+        <div class="video-wrap">
+          <iframe
+            src="https://www.youtube-nocookie.com/embed/tz9k2Cawn-0?rel=0"
+            title="VigilOps — install, connect Telegram, kill the database"
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture"
+            allowfullscreen
+            referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        </div>
         <div class="copy-cmd install" data-copy={site.install}>
           <code><span class="prompt">$ </span>{site.install}</code>
           <button type="button">Copy</button>
@@ -299,7 +308,23 @@ const allowlist = [
   .hero-grid > * { min-width: 0; }
   h1 { font-size: clamp(34px, 5.2vw, 56px); letter-spacing: -0.03em; max-width: 14ch; }
   .lead { font-size: clamp(17px, 2vw, 19px); color: var(--ink-2); margin-top: 20px; max-width: 560px; }
-  .install { margin-top: 28px; max-width: 560px; }
+
+  /* Demo video. Tokens rather than literals, so it tracks the rest of the page. */
+  .video-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 900px;
+    margin: 24px 0 0;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--term);
+    border: 1px solid var(--line);
+    box-shadow: 0 1px 2px rgba(11, 27, 43, .04), 0 16px 40px -24px rgba(11, 27, 43, .25);
+  }
+  .video-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+
+  .install { margin-top: 20px; max-width: 560px; }
   .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
   .meta { color: var(--muted); font-size: 13px; margin-top: 18px; font-family: var(--mono); }
   @media (min-width: 1000px) {
