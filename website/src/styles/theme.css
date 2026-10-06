@@ -1,23 +1,143 @@
+/*
+ * Starlight theming. Docs run dark-only to match the rest of the site, so the
+ * greys are mapped onto the same slate ramp as site.css rather than Starlight's
+ * defaults. Kept in Starlight's own token names — it reads these, not ours.
+ */
 :root {
   --sl-font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --sl-font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
-  --sl-color-accent-low: #0c3a35;
-  --sl-color-accent: #2bb3a3;
-  --sl-color-accent-high: #b9efe6;
+
+  --sl-color-accent-low: rgba(34, 197, 94, 0.16);
+  --sl-color-accent: #22c55e;
+  --sl-color-accent-high: #86efac;
+
+  --sl-color-white: #f8fafc;
+  --sl-color-gray-1: #e2e8f0;
+  --sl-color-gray-2: #cbd5e1;
+  --sl-color-gray-3: #94a3b8;
+  --sl-color-gray-4: #475569;
+  --sl-color-gray-5: #334155;
+  --sl-color-gray-6: #1b2336;
+  --sl-color-gray-7: #243049;
+  --sl-color-black: #0f172a;
+
+  --sl-color-bg: #0f172a;
+  --sl-color-bg-nav: rgba(15, 23, 42, 0.86);
+  --sl-color-bg-sidebar: #0f172a;
+  --sl-color-bg-inline-code: #1b2336;
+  --sl-color-hairline: #334155;
+  --sl-color-hairline-light: #475569;
+  --sl-color-hairline-shade: #1b2336;
+
+  --sl-color-text-accent: #22c55e;
+  --sl-color-text-invert: #0f172a;
+
+  /*
+   * Aside / callout ramps. Starlight defines a dark and a light set; a browser
+   * resolving data-theme='light' was painting notes with the light set, which
+   * put pale lavender behind light text. Both blocks now carry the dark values.
+   */
+  --sl-hue-orange: 41;
+  --sl-color-orange-low: hsl(var(--sl-hue-orange), 39%, 22%);
+  --sl-color-orange: hsl(var(--sl-hue-orange), 82%, 63%);
+  --sl-color-orange-high: hsl(var(--sl-hue-orange), 82%, 87%);
+  --sl-hue-green: 101;
+  --sl-color-green-low: hsl(var(--sl-hue-green), 39%, 22%);
+  --sl-color-green: hsl(var(--sl-hue-green), 82%, 63%);
+  --sl-color-green-high: hsl(var(--sl-hue-green), 82%, 80%);
+  --sl-hue-blue: 234;
+  --sl-color-blue-low: hsl(var(--sl-hue-blue), 54%, 20%);
+  --sl-color-blue: hsl(var(--sl-hue-blue), 100%, 60%);
+  --sl-color-blue-high: hsl(var(--sl-hue-blue), 100%, 87%);
+  --sl-hue-purple: 281;
+  --sl-color-purple-low: hsl(var(--sl-hue-purple), 39%, 22%);
+  --sl-color-purple: hsl(var(--sl-hue-purple), 82%, 63%);
+  --sl-color-purple-high: hsl(var(--sl-hue-purple), 82%, 89%);
+  --sl-hue-red: 339;
+  --sl-color-red-low: hsl(var(--sl-hue-red), 39%, 22%);
+  --sl-color-red: hsl(var(--sl-hue-red), 82%, 63%);
+  --sl-color-red-high: hsl(var(--sl-hue-red), 82%, 87%);
+  --sl-color-text: var(--sl-color-gray-2);
 }
 
+/*
+ * The theme toggle can still request light. Rather than ship a half-converted
+ * light docs theme, light resolves to the same dark palette.
+ */
 :root[data-theme='light'] {
-  --sl-color-accent-low: #e6f3f1;
-  --sl-color-accent: #0d7a6f;
-  --sl-color-accent-high: #0a4d46;
-  --sl-color-white: #0b1b2b;
-  --sl-color-gray-1: #1d3043;
-  --sl-color-gray-2: #33475b;
-  --sl-color-gray-3: #5b6f82;
+  --sl-color-accent-low: rgba(34, 197, 94, 0.16);
+  --sl-color-accent: #22c55e;
+  --sl-color-accent-high: #86efac;
+  --sl-color-white: #f8fafc;
+  --sl-color-gray-1: #e2e8f0;
+  --sl-color-gray-2: #cbd5e1;
+  --sl-color-gray-3: #94a3b8;
+  --sl-color-gray-4: #475569;
+  --sl-color-gray-5: #334155;
+  --sl-color-gray-6: #1b2336;
+  --sl-color-gray-7: #243049;
+  --sl-color-black: #0f172a;
+  --sl-color-bg: #0f172a;
+  --sl-color-bg-nav: rgba(15, 23, 42, 0.86);
+  --sl-color-bg-sidebar: #0f172a;
+  --sl-color-bg-inline-code: #1b2336;
+  --sl-color-hairline: #334155;
+  --sl-color-hairline-light: #475569;
+  --sl-color-hairline-shade: #1b2336;
+  --sl-color-text-accent: #22c55e;
+  --sl-color-text-invert: #0f172a;
+
+  /*
+   * Aside / callout ramps. Starlight defines a dark and a light set; a browser
+   * resolving data-theme='light' was painting notes with the light set, which
+   * put pale lavender behind light text. Both blocks now carry the dark values.
+   */
+  --sl-hue-orange: 41;
+  --sl-color-orange-low: hsl(var(--sl-hue-orange), 39%, 22%);
+  --sl-color-orange: hsl(var(--sl-hue-orange), 82%, 63%);
+  --sl-color-orange-high: hsl(var(--sl-hue-orange), 82%, 87%);
+  --sl-hue-green: 101;
+  --sl-color-green-low: hsl(var(--sl-hue-green), 39%, 22%);
+  --sl-color-green: hsl(var(--sl-hue-green), 82%, 63%);
+  --sl-color-green-high: hsl(var(--sl-hue-green), 82%, 80%);
+  --sl-hue-blue: 234;
+  --sl-color-blue-low: hsl(var(--sl-hue-blue), 54%, 20%);
+  --sl-color-blue: hsl(var(--sl-hue-blue), 100%, 60%);
+  --sl-color-blue-high: hsl(var(--sl-hue-blue), 100%, 87%);
+  --sl-hue-purple: 281;
+  --sl-color-purple-low: hsl(var(--sl-hue-purple), 39%, 22%);
+  --sl-color-purple: hsl(var(--sl-hue-purple), 82%, 63%);
+  --sl-color-purple-high: hsl(var(--sl-hue-purple), 82%, 89%);
+  --sl-hue-red: 339;
+  --sl-color-red-low: hsl(var(--sl-hue-red), 39%, 22%);
+  --sl-color-red: hsl(var(--sl-hue-red), 82%, 63%);
+  --sl-color-red-high: hsl(var(--sl-hue-red), 82%, 87%);
+  --sl-color-text: var(--sl-color-gray-2);
 }
 
+/* Code frames follow the page surfaces */
+.expressive-code .frame pre,
+.expressive-code .frame .header {
+  background: var(--sl-color-bg-inline-code) !important;
+  border-color: var(--sl-color-hairline) !important;
+}
+
+/* Headings share the marketing pages' display face */
 .sl-markdown-content h1,
 .sl-markdown-content h2,
-.sl-markdown-content h3 {
-  letter-spacing: -0.015em;
+.sl-markdown-content h3,
+.sl-markdown-content h4,
+site-title,
+.site-title {
+  font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
+  letter-spacing: -0.02em;
+}
+
+/* Keyboard focus has to clear Starlight's own subtle outline */
+.sl-markdown-content a:focus-visible,
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid #22c55e;
+  outline-offset: 2px;
+  border-radius: 4px;
 }

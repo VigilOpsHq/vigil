@@ -14,7 +14,7 @@
 
     <defs>
       <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-        <path d="M0 0 10 5 0 10z" fill="#5b6f82" />
+        <path d="M0 0 10 5 0 10z" fill="#94a3b8" />
       </marker>
     </defs>
 
@@ -97,28 +97,28 @@
 </figure>
 
 <style>
-  .arch { margin: 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+  .arch { margin: 0; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
   .arch svg { width: 100%; height: auto; }
   @media (max-width: 640px) { .arch { padding: 10px; } }
 
   .server { fill: var(--bg-soft); stroke: var(--line-strong); stroke-width: 1.5; }
-  .box { fill: #fff; stroke: var(--line-strong); stroke-width: 1.25; }
+  .box { fill: var(--raise); stroke: var(--line-strong); stroke-width: 1.25; }
   .dashed-box { stroke-dasharray: 5 5; fill: transparent; }
   .agent { fill: var(--navy); }
-  .ext { fill: #fff; stroke: var(--line-strong); stroke-width: 1.25; }
+  .ext { fill: var(--raise); stroke: var(--line-strong); stroke-width: 1.25; }
   text { font-family: var(--font); }
   .label-strong { font-size: 16px; font-weight: 600; fill: var(--ink); }
   .label-muted { font-size: 13px; fill: var(--muted); }
   .mono { font: 500 14px var(--mono); fill: var(--ink); }
   .mono-muted { font: 12px var(--mono); fill: var(--muted); }
-  .agent-title { font-size: 17px; font-weight: 600; fill: #fff; }
-  .agent-sub { font: 12px var(--mono); fill: #8fa3b6; }
-  .agent-step { font: 500 13px var(--mono); fill: #8fe3d2; }
-  .agent-arrow { font: 13px var(--mono); fill: #5d7185; }
+  .agent-title { font-size: 17px; font-weight: 600; fill: var(--ink); }
+  .agent-sub { font: 12px var(--mono); fill: var(--muted); }
+  .agent-step { font: 500 13px var(--mono); fill: var(--brand); }
+  .agent-arrow { font: 13px var(--mono); fill: var(--muted); }
   .flow-label { font: 11px var(--mono); fill: var(--muted); }
   .dot-ok { fill: var(--ok); }
   .dot-warn { fill: var(--signal); }
-  .flow { fill: none; stroke: #7d8fa0; stroke-width: 1.5; stroke-dasharray: 4 6; animation: flow 1.4s linear infinite; }
+  .flow { fill: none; stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 4 6; animation: flow 1.4s linear infinite; }
   .flow.out { stroke: var(--brand); }
   .pulse { animation: pulse 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
   .blink { animation: blinkdot 1s steps(2) infinite; }

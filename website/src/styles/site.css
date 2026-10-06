@@ -1,24 +1,37 @@
+/*
+ * Dark theme. Token names kept from the light build on purpose: every page and
+ * component already reads them, so the palette changes in one place.
+ *   --ink / --ink-2 / --muted  text, in descending emphasis
+ *   --bg / --bg-soft / --raise  page, card, lifted surface
+ *   --brand                    accent; always pair with --on-brand for text on it
+ */
 :root {
-  color-scheme: light;
-  --ink: #0b1b2b;
-  --ink-2: #33475b;
-  --muted: #5b6f82;
-  --line: #dfe5eb;
-  --line-strong: #c9d3dc;
-  --bg: #ffffff;
-  --bg-soft: #f4f7f9;
-  --brand: #0d7a6f;
-  --brand-hover: #0a655c;
-  --brand-soft: #e6f3f1;
-  --navy: #0b1b2b;
-  --navy-2: #13283d;
-  --signal: #e8703a;
-  --ok: #1e9e5a;
-  --term: #0d1117;
-  --term-line: #232b35;
-  --term-text: #d6dde4;
+  color-scheme: dark;
+  --ink: #f8fafc;
+  --ink-2: #cbd5e1;
+  --muted: #94a3b8;
+  --line: #334155;        /* dividers and card edges: decorative, exempt from 3:1 */
+  --line-strong: #475569; /* heavier dividers */
+  --control: #64748b;     /* borders that identify a control: 3.75:1 on page, 3.29:1 on cards */
+  --bg: #0f172a;
+  --bg-soft: #1b2336;
+  --raise: #243049;
+  --brand: #22c55e;
+  --brand-hover: #16a34a;
+  --brand-soft: rgba(34, 197, 94, 0.14);
+  --on-brand: #0f172a;
+  --navy: #0b1120;
+  --navy-2: #131c30;
+  --signal: #fb923c;
+  --ok: #22c55e;
+  --warn: #fbbf24;
+  --danger: #f87171;
+  --term: #0b1120;
+  --term-line: #1e293b;
+  --term-text: #e2e8f0;
   --radius: 8px;
   --font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --display: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
   --mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
 }
 *, *::before, *::after { box-sizing: border-box; }
@@ -35,13 +48,13 @@ body {
 a { color: inherit; }
 img, svg { display: block; max-width: 100%; }
 code, pre, kbd { font-family: var(--mono); }
-h1, h2, h3, h4 { margin: 0; line-height: 1.15; letter-spacing: -0.015em; font-weight: 700; }
+h1, h2, h3, h4 { margin: 0; line-height: 1.15; letter-spacing: -0.02em; font-weight: 700; font-family: var(--display); }
 p { margin: 0; }
 .container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 16px; }
 @media (min-width: 768px) { .container { padding: 0 32px; } }
 
 .skip { position: absolute; left: -9999px; }
-.skip:focus { left: 16px; top: 12px; z-index: 100; background: var(--ink); color: #fff; padding: 8px 12px; border-radius: 6px; }
+.skip:focus { left: 16px; top: 12px; z-index: 100; background: var(--brand); color: var(--on-brand); padding: 8px 12px; border-radius: 6px; }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -50,18 +63,20 @@ p { margin: 0; }
   border: 1px solid transparent; transition: background-color .15s, border-color .15s, color .15s;
   white-space: nowrap;
 }
-.btn-primary { background: var(--brand); color: #fff; }
+.btn-primary { background: var(--brand); color: var(--on-brand); }
 .btn-primary:hover { background: var(--brand-hover); }
-.btn-secondary { background: #fff; color: var(--ink); border-color: var(--line-strong); }
-.btn-secondary:hover { border-color: var(--ink); }
-.btn-dark { background: #fff; color: var(--navy); }
-.btn-dark:hover { background: #e9eef2; }
-.btn-outline-light { color: #fff; border-color: rgba(255,255,255,.35); }
-.btn-outline-light:hover { border-color: #fff; }
+.btn-secondary { background: var(--bg-soft); color: var(--ink); border-color: var(--control); }
+.btn-secondary:hover { background: var(--raise); border-color: var(--muted); }
+.btn-dark { background: var(--brand); color: var(--on-brand); }
+.btn-dark:hover { background: var(--brand-hover); }
+.btn-outline-light { color: var(--ink); border-color: var(--control); }
+.btn-outline-light:hover { border-color: var(--ink); background: rgba(248,250,252,.06); }
 .btn-sm { height: 36px; padding: 0 14px; font-size: 14px; }
-.btn:focus-visible, a:focus-visible, button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.btn:focus-visible, a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 4px;
+}
 
-.eyebrow { font: 600 13px/1 var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--brand); }
+.eyebrow { font: 600 13px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; color: var(--brand); }
 .section { padding: 72px 0; }
 @media (min-width: 900px) { .section { padding: 104px 0; } }
 .section-soft { background: var(--bg-soft); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -77,12 +92,12 @@ p { margin: 0; }
 }
 .copy-cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-size: 14px; padding: 8px 0; scrollbar-width: none; }
 .copy-cmd code::-webkit-scrollbar { display: none; }
-.copy-cmd .prompt { color: #7ee2b8; user-select: none; }
+.copy-cmd .prompt { color: var(--brand); user-select: none; }
 .copy-cmd button {
   flex: none; height: 32px; padding: 0 12px; border-radius: 6px; cursor: pointer;
-  background: #1f2833; color: #e6edf3; border: 1px solid #334050; font: 500 13px/1 var(--font);
+  background: var(--raise); color: var(--ink); border: 1px solid var(--control); font: 500 13px/1 var(--font);
 }
-.copy-cmd button:hover { background: #2a3542; }
+.copy-cmd button:hover { background: var(--line); }
 
 .js [data-reveal] { opacity: 0; transform: translateY(16px); transition: opacity .6s ease, transform .6s ease; }
 .js [data-reveal].is-visible { opacity: 1; transform: none; }
@@ -90,4 +105,27 @@ p { margin: 0; }
   html { scroll-behavior: auto; }
   [data-reveal] { opacity: 1; transform: none; transition: none; }
   *, *::before, *::after { animation-duration: 0s !important; animation-iteration-count: 1 !important; }
+}
+
+/* Shared surface, so cards match across landing, pricing, status and dashboard */
+.surface {
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+/*
+ * Staggered fade-in. --i is the item's index; the delay is capped so a long
+ * grid never leaves the last card waiting. Motion is opt-in via .js, and
+ * prefers-reduced-motion below disables it entirely.
+ */
+.js [data-reveal] .stagger > * { opacity: 0; transform: translateY(12px); }
+.js [data-reveal].is-visible .stagger > * {
+  animation: rise .42s cubic-bezier(.22,.61,.36,1) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .js [data-reveal] .stagger > * { opacity: 1; transform: none; animation: none; }
 }

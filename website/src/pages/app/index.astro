@@ -484,7 +484,7 @@ import App from '../../layouts/App.astro';
   .muted { color: var(--muted); }
   .small { font-size: 13px; }
   .mono { font-family: var(--mono); }
-  .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 22px 24px; margin-bottom: 20px; min-width: 0; }
+  .card { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 12px; padding: 22px 24px; margin-bottom: 20px; min-width: 0; }
   .card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
   .card-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
   .card-head .card-title { margin-bottom: 0; }
@@ -501,23 +501,23 @@ import App from '../../layouts/App.astro';
   .plan-name { font-size: 24px; font-weight: 700; }
   .badge { font: 600 11px/1 var(--mono); padding: 5px 7px; border-radius: 4px; text-transform: uppercase; }
   .badge.ok { background: var(--brand-soft); color: var(--brand); }
-  .badge.warn { background: #fdf0e8; color: #b4501f; }
+  .badge.warn { background: rgba(251,146,60,.16); color: var(--signal); }
   .meter { margin-top: 16px; }
   .meter-label { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
   .bar { height: 8px; background: var(--bg-soft); border-radius: 99px; overflow: hidden; border: 1px solid var(--line); }
   .bar i { display: block; height: 100%; background: var(--brand); border-radius: 99px; width: 0; transition: width .4s ease; }
-  .bar i.high { background: #b54708; }
-  .bar i.full { background: #b42318; }
+  .bar i.high { background: var(--warn); }
+  .bar i.full { background: var(--danger); }
 
   .notice {
     display: flex; gap: 20px; align-items: center; justify-content: space-between; flex-wrap: wrap;
     padding: 16px 20px; margin-bottom: 20px; border-radius: 10px; border: 1px solid;
   }
-  .notice.warn { background: #fffaeb; border-color: #fedf89; color: #93370d; }
-  .notice.bad { background: #fef3f2; border-color: #fecdca; color: #912018; }
+  .notice.warn { background: rgba(251,191,36,.12); border-color: rgba(251,191,36,.45); color: var(--warn); }
+  .notice.bad { background: rgba(248,113,113,.12); border-color: rgba(248,113,113,.45); color: var(--danger); }
   .notice strong { display: block; font-size: 15px; }
   .notice p { margin-top: 4px; font-size: 14px; max-width: 70ch; }
-  .notice .btn { background: #fff; border-color: currentColor; color: inherit; cursor: pointer; }
+  .notice .btn { background: transparent; border-color: currentColor; color: inherit; cursor: pointer; }
   [data-retention] { margin-top: 14px; }
   [data-billing] { margin-top: 16px; }
 
@@ -534,10 +534,10 @@ import App from '../../layouts/App.astro';
   .actions { white-space: nowrap; text-align: right; }
   .link-btn { background: none; border: 0; padding: 0; margin-left: 14px; color: var(--brand); font: 500 14px var(--font); cursor: pointer; text-decoration: none; }
   .link-btn:hover { text-decoration: underline; }
-  .link-btn.danger { color: #b42318; }
+  .link-btn.danger { color: var(--danger); }
   .status { font: 500 12px var(--mono); padding: 4px 8px; border-radius: 999px; white-space: nowrap; }
-  .status.on { background: #e8f6ee; color: #177a45; }
-  .status.off { background: #fef3f2; color: #b42318; }
+  .status.on { background: rgba(34,197,94,.16); color: var(--ok); }
+  .status.off { background: rgba(248,113,113,.14); color: var(--danger); }
   .status.pending { background: var(--bg-soft); color: var(--muted); }
 
   dialog { width: min(620px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 12px; padding: 28px; }
@@ -549,11 +549,11 @@ import App from '../../layouts/App.astro';
   dialog label { display: grid; gap: 6px; margin-top: 18px; font-size: 14px; font-weight: 600; }
   dialog input { height: 42px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; font: 16px var(--font); }
   .wide { width: 100%; margin-top: 20px; }
-  .error { color: #b42318; background: #fef3f2; border: 1px solid #fecdca; padding: 8px 12px; border-radius: 8px; font-size: 14px; margin-top: 12px; }
-  .warn { background: #fdf0e8; color: #8a3d17; border: 1px solid #f6cfb6; padding: 8px 12px; border-radius: 8px; font-size: 14px; }
+  .error { color: var(--danger); background: rgba(248,113,113,.12); border: 1px solid rgba(248,113,113,.4); padding: 8px 12px; border-radius: 8px; font-size: 14px; margin-top: 12px; }
+  .warn { background: rgba(251,146,60,.12); color: var(--signal); border: 1px solid rgba(251,146,60,.4); padding: 8px 12px; border-radius: 8px; font-size: 14px; }
   .label { font-size: 13px; font-weight: 600; margin-top: 18px !important; }
   .cmd { display: flex; gap: 8px; align-items: center; margin-top: 6px; background: var(--term); border-radius: 8px; padding: 6px 6px 6px 12px; }
   .cmd code { flex: 1; min-width: 0; color: var(--term-text); font-size: 12.5px; overflow-x: auto; white-space: nowrap; padding: 6px 0; }
-  .cmd button { flex: none; height: 30px; padding: 0 10px; border-radius: 6px; background: #1f2833; color: #e6edf3; border: 1px solid #334050; cursor: pointer; font: 500 12px var(--font); }
+  .cmd button { flex: none; height: 30px; padding: 0 10px; border-radius: 6px; background: var(--raise); color: var(--ink); border: 1px solid var(--control); cursor: pointer; font: 500 12px var(--font); }
   code { font-size: 13px; }
 </style>

@@ -23,7 +23,7 @@ const { title } = Astro.props;
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap"
     />
   </head>
   <body class="app-body">
@@ -50,7 +50,7 @@ const { title } = Astro.props;
 
 <style>
   .app-body { background: var(--bg-soft); min-height: 100vh; }
-  .app-nav { background: #fff; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
+  .app-nav { background: var(--bg-soft); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
   .app-nav-inner { display: flex; align-items: center; gap: 16px; height: 60px; }
   .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; }
   .cloud-tag { font: 600 11px/1 var(--mono); color: var(--brand); background: var(--brand-soft); padding: 4px 6px; border-radius: 4px; }

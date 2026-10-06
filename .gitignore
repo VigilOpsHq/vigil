@@ -41,3 +41,9 @@ RUNBOOK.md
 
 # Social image generator caches the fonts it fetches
 website/.fonts/
+
+# Locally installed Claude skills (4.7 MB of third-party data, not ours to ship)
+.claude/
+
+# Update-check cache written by the running agent
+logs/.update-latest

@@ -64,7 +64,7 @@ const links = [
 <style>
   .nav {
     position: sticky; top: 0; z-index: 50;
-    background: rgba(255, 255, 255, 0.94);
+    background: rgba(15, 23, 42, 0.86);
     backdrop-filter: saturate(180%) blur(10px);
     border-bottom: 1px solid var(--line);
   }
@@ -86,7 +86,7 @@ const links = [
   .menu span { display: block; width: 18px; height: 2px; background: var(--ink); transition: transform .2s; }
   .menu[aria-expanded='true'] span:first-child { transform: translateY(3.5px) rotate(45deg); }
   .menu[aria-expanded='true'] span:last-child { transform: translateY(-3.5px) rotate(-45deg); }
-  .mobile { border-top: 1px solid var(--line); background: #fff; }
+  .mobile { border-top: 1px solid var(--line); background: var(--bg-soft); }
   .mobile .container { display: grid; padding-top: 8px; padding-bottom: 16px; }
   .mobile a { padding: 12px 0; text-decoration: none; font-weight: 500; border-bottom: 1px solid var(--line); }
   .mobile a:last-child { border-bottom: 0; }

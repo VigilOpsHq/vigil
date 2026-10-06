@@ -121,20 +121,20 @@ const { title = 'root@prod-01: ~' } = Astro.props;
     overflow: hidden; box-shadow: 0 1px 2px rgba(11,27,43,.06), 0 24px 48px -24px rgba(11,27,43,.35);
     min-width: 0;
   }
-  .bar { display: flex; align-items: center; gap: 12px; height: 38px; padding: 0 14px; border-bottom: 1px solid var(--term-line); background: #111821; }
+  .bar { display: flex; align-items: center; gap: 12px; height: 38px; padding: 0 14px; border-bottom: 1px solid var(--term-line); background: var(--term-line); }
   .dots { display: flex; gap: 6px; }
-  .dots i { width: 10px; height: 10px; border-radius: 50%; background: #2b3542; }
-  .title { font: 500 12px/1 var(--mono); color: #7d8b99; }
+  .dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line-strong); }
+  .title { font: 500 12px/1 var(--mono); color: var(--muted); }
   .screen {
     margin: 0; padding: 16px 18px; height: 372px; overflow: hidden;
     font: 13px/1.62 var(--mono); color: var(--term-text); white-space: pre;
   }
   .screen :global(.ln) { display: inline; }
-  .screen :global(.cmd) { color: #fff; }
-  .screen :global(.prompt) { color: #7ee2b8; }
-  .screen :global(.dim) { color: #8b98a5; }
-  .screen :global(.ok) { color: #d6f5e4; }
-  .screen :global(.caret) { display: inline-block; width: 8px; height: 15px; background: #7ee2b8; vertical-align: -2px; animation: blink 1s steps(1) infinite; margin-left: 1px; }
+  .screen :global(.cmd) { color: var(--ink); }
+  .screen :global(.prompt) { color: var(--brand); }
+  .screen :global(.dim) { color: var(--muted); }
+  .screen :global(.ok) { color: var(--term-text); }
+  .screen :global(.caret) { display: inline-block; width: 8px; height: 15px; background: var(--brand); vertical-align: -2px; animation: blink 1s steps(1) infinite; margin-left: 1px; }
   @keyframes blink { 50% { opacity: 0; } }
   @media (max-width: 560px) { .screen { font-size: 11.5px; height: 340px; padding: 14px; } }
 </style>

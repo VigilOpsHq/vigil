@@ -9,10 +9,22 @@ export default defineConfig({
       description: 'A self-hosted ops agent for your Docker servers.',
       favicon: '/favicon.svg',
       logo: { src: './src/assets/logo.svg', replacesTitle: false },
+      // Dark-only, so the light/dark toggle would be a no-op
+      components: { ThemeSelect: './src/components/NoThemeSelect.astro' },
+      // One dark syntax theme. With the default pair, the light theme's tokens
+      // rendered inside the dark code frame at 2.2:1.
+      expressiveCode: { themes: ['github-dark'] },
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/VigilOpsHq/vigil' }],
       editLink: { baseUrl: 'https://github.com/VigilOpsHq/vigil/edit/main/website/' },
       customCss: ['./src/styles/theme.css'],
       head: [
+        // Runs before Starlight's theme script: the site is dark-only, so pin
+        // the stored preference instead of inheriting the OS setting.
+        {
+          tag: 'script',
+          content:
+            "try{localStorage.setItem('starlight-theme','dark')}catch(e){};document.documentElement.dataset.theme='dark';",
+        },
         { tag: 'link', attrs: { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: true } },
         { tag: 'link', attrs: { rel: 'icon', href: '/favicon.ico', sizes: '32x32' } },
         { tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' } },
@@ -26,7 +38,7 @@ export default defineConfig({
           tag: 'link',
           attrs: {
             rel: 'stylesheet',
-            href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap',
+            href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap',
           },
         },
       ],
