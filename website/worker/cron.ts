@@ -1,4 +1,4 @@
-// Runs every 15 minutes: offline servers, missed scheduled backups, retention, quota and
+// Every 15 minutes: offline servers, missed backups, retention, quota and
 // billing warnings, stale uploads.
 //
 // Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,

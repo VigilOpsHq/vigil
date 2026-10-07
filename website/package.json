@@ -10,7 +10,8 @@
     "preview": "astro preview",
     "preview:worker": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler d1 migrations apply DB --remote && wrangler deploy",
-    "db:migrate": "wrangler d1 migrations apply DB --remote"
+    "db:migrate": "wrangler d1 migrations apply DB --remote",
+    "social": "node scripts/make-social.mjs"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.42.1",
@@ -18,6 +19,7 @@
     "sharp": "^0.35.4"
   },
   "devDependencies": {
+    "opentype.js": "^2.0.0",
     "wrangler": "^4.133.0"
   },
   "license": "SEE LICENSE IN LICENSE.md"

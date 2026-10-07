@@ -1,8 +1,4 @@
-/*
- * Starlight theming. Docs run dark-only to match the rest of the site, so the
- * greys are mapped onto the same slate ramp as site.css rather than Starlight's
- * defaults. Kept in Starlight's own token names — it reads these, not ours.
- */
+/* Starlight reads its own token names; mapped onto the same slate ramp as site.css. */
 :root {
   --sl-font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --sl-font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
@@ -60,10 +56,7 @@
   --sl-color-text: var(--sl-color-gray-2);
 }
 
-/*
- * The theme toggle can still request light. Rather than ship a half-converted
- * light docs theme, light resolves to the same dark palette.
- */
+/* light resolves to the same dark palette rather than a half-converted theme */
 :root[data-theme='light'] {
   --sl-color-accent-low: rgba(34, 197, 94, 0.16);
   --sl-color-accent: #22c55e;
@@ -115,14 +108,14 @@
   --sl-color-text: var(--sl-color-gray-2);
 }
 
-/* Code frames follow the page surfaces */
+
 .expressive-code .frame pre,
 .expressive-code .frame .header {
   background: var(--sl-color-bg-inline-code) !important;
   border-color: var(--sl-color-hairline) !important;
 }
 
-/* Headings share the marketing pages' display face */
+
 .sl-markdown-content h1,
 .sl-markdown-content h2,
 .sl-markdown-content h3,
@@ -133,7 +126,7 @@ site-title,
   letter-spacing: -0.02em;
 }
 
-/* Keyboard focus has to clear Starlight's own subtle outline */
+
 .sl-markdown-content a:focus-visible,
 a:focus-visible,
 button:focus-visible {

@@ -73,7 +73,6 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-# ── Settings file ───────────────────────────────────────────────────────────
 # Values are written in place so hand-edited settings and comments survive.
 env_backup_done=0
 backup_env() {
@@ -112,7 +111,6 @@ merge_env() {
   return 0
 }
 
-# ── Dependencies ────────────────────────────────────────────────────────────
 if ! command -v docker >/dev/null 2>&1; then
   say "Installing Docker..."
   curl -fsSL https://get.docker.com | sh
@@ -146,7 +144,6 @@ else
   chmod 600 "$VIGIL_DIR/.env"
 fi
 
-# ── Anything passed in ──────────────────────────────────────────────────────
 [ -n "$CLOUD_TOKEN" ] && set_env VIGIL_CLOUD_TOKEN "$CLOUD_TOKEN"
 [ -n "$AI_KEY" ] && set_env AI_API_KEY "$AI_KEY"
 
@@ -183,7 +180,6 @@ if [ "$NO_START" = 1 ]; then
   exit 0
 fi
 
-# ── Start ───────────────────────────────────────────────────────────────────
 say "Starting VigilOps..."
 cd "$VIGIL_DIR"
 docker compose pull

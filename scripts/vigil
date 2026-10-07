@@ -70,7 +70,6 @@ Docs: https://vigilops.cloud/docs/
 EOF
 }
 
-# ── Settings file ───────────────────────────────────────────────────────────
 env_get() {
   [ -f "$ENV_FILE" ] || return 0
   grep "^$1=" "$ENV_FILE" 2>/dev/null | head -1 | cut -d= -f2-
@@ -117,7 +116,6 @@ restart_agent() {
   fi
 }
 
-# ── setup: Telegram ─────────────────────────────────────────────────────────
 setup_telegram() {
   cat >&2 <<'EOF'
 
@@ -211,7 +209,6 @@ EOF
   restart_agent
 }
 
-# ── setup: AI ───────────────────────────────────────────────────────────────
 setup_ai() {
   cat >&2 <<'EOF'
 
@@ -262,7 +259,6 @@ EOF
   restart_agent
 }
 
-# ── setup: Cloud ────────────────────────────────────────────────────────────
 setup_cloud() {
   cat >&2 <<'EOF'
 
@@ -296,7 +292,6 @@ EOF
   restart_agent
 }
 
-# ── Commands ────────────────────────────────────────────────────────────────
 case "$1" in
   ""|help|-h|--help)
     usage

@@ -1,10 +1,4 @@
-/*
- * Dark theme. Token names kept from the light build on purpose: every page and
- * component already reads them, so the palette changes in one place.
- *   --ink / --ink-2 / --muted  text, in descending emphasis
- *   --bg / --bg-soft / --raise  page, card, lifted surface
- *   --brand                    accent; always pair with --on-brand for text on it
- */
+/* Token names kept from the light build: every page already reads them. */
 :root {
   color-scheme: dark;
   --ink: #f8fafc;
@@ -107,18 +101,14 @@ p { margin: 0; }
   *, *::before, *::after { animation-duration: 0s !important; animation-iteration-count: 1 !important; }
 }
 
-/* Shared surface, so cards match across landing, pricing, status and dashboard */
+
 .surface {
   background: var(--bg-soft);
   border: 1px solid var(--line);
   border-radius: 10px;
 }
 
-/*
- * Staggered fade-in. --i is the item's index; the delay is capped so a long
- * grid never leaves the last card waiting. Motion is opt-in via .js, and
- * prefers-reduced-motion below disables it entirely.
- */
+/* Staggered fade-in; --i is the item index. Disabled under reduced-motion below. */
 .js [data-reveal] .stagger > * { opacity: 0; transform: translateY(12px); }
 .js [data-reveal].is-visible .stagger > * {
   animation: rise .42s cubic-bezier(.22,.61,.36,1) both;

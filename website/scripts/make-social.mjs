@@ -1,10 +1,6 @@
-// Generates the social images in public/social/ from one source of truth.
-//
-//   node scripts/make-social.mjs
-//
-// Text is converted to outlines, so the output is identical everywhere and
-// needs no fonts installed. The IBM Plex files are fetched on first run and
-// cached in .fonts/ (git-ignored); the repo keeps the rendered PNGs.
+// Regenerates public/social/*.png:  node scripts/make-social.mjs
+// Text becomes outlines, so output is identical without IBM Plex installed.
+// Fonts are fetched on first run into .fonts/ (git-ignored).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -52,15 +48,9 @@ async function loadFonts() {
   return loaded;
 }
 
-/**
- * One glyph's outline, transformed from font units to the page.
- *
- * The commands are read straight off the cached outline and transformed here,
- * rather than through glyph.getPath(): that returned NaN control points for
- * glyphs drawn a second time at a different size, which silently produced
- * mangled letters. Contours also arrive without Z, so each one is closed —
- * otherwise counters aren't subtracted and letters like o and e fill solid.
- */
+// Transformed from the cached outline rather than via glyph.getPath(), which
+// returned NaN control points for a glyph drawn twice at different sizes.
+// Contours arrive without Z; unclosed, counters don't subtract and o and e fill solid.
 function glyphPath(glyph, penX, baselineY, scale, where) {
   const num = (v) => {
     if (!Number.isFinite(v)) throw new Error(`Non-finite coordinate in ${where}`);
@@ -89,12 +79,8 @@ function glyphPath(glyph, penX, baselineY, scale, where) {
   return out.join('');
 }
 
-/**
- * One line of text as outlines. anchor: start | middle | end
- *
- * Emitted one path per glyph on purpose: the SVG rasteriser silently truncates
- * path data past roughly 4 KB, which swallowed the back half of every headline.
- */
+// One path per glyph on purpose: the rasteriser silently truncates path data
+// past ~4 KB, which swallowed the back half of every headline.
 function text(fonts, str, { font = 'bold', size, x, y, fill = PAPER, anchor = 'start', opacity = 1 }) {
   const f = fonts[font];
   const width = f.getAdvanceWidth(str, size);
@@ -118,7 +104,7 @@ function text(fonts, str, { font = 'bold', size, x, y, fill = PAPER, anchor = 's
 
 const widthOf = (fonts, str, font, size) => fonts[font].getAdvanceWidth(str, size);
 
-/** The VigilOps mark, drawn at any size from the 120pt original */
+/** The mark, drawn at any size from the 120pt original */
 function mark(x, y, size, { bg = MINT, fg = INK } = {}) {
   const s = size / 120;
   return `<g transform="translate(${x} ${y}) scale(${s})">
@@ -128,7 +114,7 @@ function mark(x, y, size, { bg = MINT, fg = INK } = {}) {
   </g>`;
 }
 
-/** Faint dot grid, so the flat background has some texture at full size */
+
 function grid(w, h, step = 40) {
   const dots = [];
   for (let x = step; x < w; x += step) {
@@ -137,7 +123,7 @@ function grid(w, h, step = 40) {
   return `<g fill="${PAPER}" opacity="0.05">${dots.join('')}</g>`;
 }
 
-/** A terminal line: mint prompt, paper command */
+
 function prompt(fonts, cmd, { x, y, size }) {
   const dollar = text(fonts, '$', { font: 'mono', size, x, y, fill: MINT });
   const gap = widthOf(fonts, '$ ', 'mono', size);

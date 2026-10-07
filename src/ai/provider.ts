@@ -1,9 +1,6 @@
 // AI escalation through any OpenAI-compatible /chat/completions API.
-//
-// Set AI_BASE_URL, AI_API_KEY and AI_MODEL to use OpenAI, Groq, Together,
-// OpenRouter, Mistral, a local Ollama or vLLM, or anything else that speaks the
-// same endpoint. With nothing set, it talks to DeepSeek, and the older
-// DEEPSEEK_API_KEY / DEEPSEEK_MODEL settings still work.
+// Set AI_BASE_URL, AI_API_KEY and AI_MODEL. Falls back to DeepSeek and the
+// older DEEPSEEK_* names.
 import axios from 'axios';
 import { SystemSnapshot, AIDecision } from '../types';
 import { error, info } from '../logger';
@@ -17,10 +14,10 @@ const API_KEY = setting('AI_API_KEY') ?? setting('DEEPSEEK_API_KEY') ?? '';
 const MODEL = setting('AI_MODEL') ?? setting('DEEPSEEK_MODEL') ?? 'deepseek-chat';
 const BASE_URL = (setting('AI_BASE_URL') ?? DEFAULT_BASE_URL).replace(/\/+$/, '');
 
-/** Providers differ on whether the base URL already ends at the endpoint. */
+// providers differ on whether their base URL already ends at the endpoint
 const ENDPOINT = BASE_URL.endsWith('/chat/completions') ? BASE_URL : `${BASE_URL}/chat/completions`;
 
-/** Local models (Ollama, vLLM) need no key, so a custom URL is enough to count as configured. */
+// local models need no key, so a custom URL alone counts as configured
 export const aiEnabled = Boolean(API_KEY) || BASE_URL !== DEFAULT_BASE_URL;
 
 export function aiProvider(): string {
@@ -95,7 +92,7 @@ function validateDecision(raw: unknown): AIDecision | null {
   return null;
 }
 
-/** Some models wrap JSON in a code fence however firmly you ask them not to. */
+// models wrap JSON in a code fence however firmly you ask them not to
 function parseJson(text: string): unknown {
   const clean = text.replace(/```json|```/g, '').trim();
   try {
@@ -109,10 +106,7 @@ function parseJson(text: string): unknown {
   }
 }
 
-/**
- * Ask the configured model what to do about a system issue.
- * Used for continuous monitoring and healing.
- */
+
 export async function escalateForMonitoring(snapshot: SystemSnapshot): Promise<AIDecision | null> {
   if (!aiEnabled) {
     info('[ai] No provider configured — skipping escalation');
@@ -156,10 +150,7 @@ export async function escalateForMonitoring(snapshot: SystemSnapshot): Promise<A
   return null;
 }
 
-/**
- * Ask the configured model to plan a migration.
- * For complex multi-step workflows that need deep analysis.
- */
+
 export async function escalateForMigration(prompt: string, useReasoning: boolean = true): Promise<string | null> {
   if (!aiEnabled) {
     error('[ai] No provider configured — cannot plan a migration');
