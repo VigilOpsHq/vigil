@@ -10,6 +10,26 @@ app.use(express.json());
 const WEBHOOK_SECRET = process.env.VIGIL_WEBHOOK_SECRET ?? '';
 const PORT = parseInt(process.env.WEBHOOK_PORT ?? '3100', 10);
 
+const ATTEMPT_WINDOW_MS = 60_000;
+const MAX_ATTEMPTS = 10;
+const attempts = new Map<string, { count: number; resetAt: number }>();
+
+function tooManyAttempts(ip: string): boolean {
+  const now = Date.now();
+  const seen = attempts.get(ip);
+  if (!seen || now > seen.resetAt) {
+    attempts.set(ip, { count: 1, resetAt: now + ATTEMPT_WINDOW_MS });
+    return false;
+  }
+  seen.count += 1;
+  return seen.count > MAX_ATTEMPTS;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, seen] of attempts) if (now > seen.resetAt) attempts.delete(ip);
+}, ATTEMPT_WINDOW_MS).unref();
+
 function tokenMatches(token: string): boolean {
   const a = Buffer.from(token);
   const b = Buffer.from(WEBHOOK_SECRET);
@@ -22,12 +42,21 @@ function authenticate(req: Request, res: Response, next: NextFunction): void {
     return;
   }
 
+  const ip = req.ip ?? req.socket.remoteAddress ?? 'unknown';
+  if (tooManyAttempts(ip)) {
+    error(`[webhook] Too many failed attempts from ${ip}`);
+    res.status(429).json({ error: 'Too many requests' });
+    return;
+  }
+
   const token = req.headers['x-vigil-token'];
 
   if (typeof token !== 'string' || !tokenMatches(token)) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
+
+  attempts.delete(ip);
 
   next();
 }

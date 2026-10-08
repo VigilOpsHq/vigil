@@ -1,7 +1,7 @@
 {
   "name": "vigilops",
   "version": "1.4.0",
-  "description": "AI-powered DevOps agent — monitors, heals, and escalates",
+  "description": "AI-powered DevOps agent \u2014 monitors, heals, and escalates",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node src/index.ts",
@@ -14,7 +14,6 @@
     "start:mcp:http": "MCP_MODE=http node dist/mcp/index.js",
     "start:mcp:stdio": "MCP_MODE=stdio node dist/mcp/index.js",
     "start:cli": "node dist/cli/index.js",
-    "start:api": "node dist/api/server.js",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

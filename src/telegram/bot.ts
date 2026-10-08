@@ -2,7 +2,7 @@ import TelegramBot from 'node-telegram-bot-api';
 import { PendingApproval, SystemSnapshot } from '../types';
 import { execute, isSafeCommand } from '../executor';
 import { log, error, info } from '../logger';
-import { setupMigrationCommands } from './migration-commands';
+// import { setupMigrationCommands } from './migration-commands';
 import { setupBackupCommands } from '../backup/telegram';
 import { setupUpdateCommands } from '../update/telegram';
 
@@ -102,13 +102,13 @@ async function executeApproval(approvalId: string): Promise<void> {
   await notify(`✅ Approved. Running ${pending.commands.length} command(s)...`);
 
   for (const cmd of pending.commands) {
-    if (!isSafeCommand(cmd)) {
+    if (!isSafeCommand(cmd, true)) {
       await notify(`🚫 Blocked unsafe command: \`${cmd}\``);
       log({ trigger: 'approval', action: cmd, result: 'failed', message: 'Blocked by safety allowlist after approval' });
       continue;
     }
 
-    const result = await execute(cmd);
+    const result = await execute(cmd, true);
     if (result.success) {
       await notify(`✅ \`${cmd}\` — done`);
       log({ trigger: 'approval', action: cmd, result: 'success', message: pending.message });
@@ -258,7 +258,9 @@ bot.on('callback_query', async (query) => {
   }
 });
 
-setupMigrationCommands();
+// Migration commands stay unregistered while the engine is a stub (see
+// migration.engine.ts). Re-enable when the phases actually move data.
+// setupMigrationCommands();
 
 setupBackupCommands(bot);
 setupUpdateCommands(bot, telegramEnabled);

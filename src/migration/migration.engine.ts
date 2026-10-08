@@ -205,7 +205,16 @@ export async function runDryRun(plan: MigrationPlan): Promise<DryRunResult | nul
   return result;
 }
 
+// The phase implementations below record checkpoints but move no data: no SSH,
+// no rsync, no dump or restore. Until they do, refuse to run rather than report
+// a migration that did not happen.
+export const MIGRATION_ENGINE_IMPLEMENTED = false;
+
 export async function executeMigrationPhase(plan: MigrationPlan, phase: MigrationPhase): Promise<boolean> {
+  if (!MIGRATION_ENGINE_IMPLEMENTED) {
+    error('[migration] Refusing to run: the migration engine is not implemented');
+    return false;
+  }
   info(`[migration] Starting Phase ${phase}`);
 
   try {

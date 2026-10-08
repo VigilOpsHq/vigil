@@ -56,7 +56,10 @@ Allowed commands for AUTO_FIX:
 - docker image prune -f
 - docker system prune -f --volumes=false
 - systemctl restart nginx
-- systemctl reload nginx`;
+- systemctl reload nginx
+
+Installing or removing packages (apt) is never an AUTO_FIX. Use SUGGEST for it,
+so a human approves before anything is installed.`;
 
 function validateDecision(raw: unknown): AIDecision | null {
   if (typeof raw !== 'object' || raw === null) return null;

@@ -2,7 +2,7 @@ import 'dotenv/config';
 import { collect } from './collector';
 import { evaluate, hasAnomalies } from './rules/engine';
 import { aiEnabled, escalate } from './ai/brain';
-import { execute } from './executor';
+import { execute, needsApproval } from './executor';
 import { notify, requestApproval } from './telegram/bot';
 import { startWebhookServer } from './webhook/server';
 import { startBackupScheduler } from './backup/schedule';
@@ -33,7 +33,11 @@ async function handleDecision(
   decision: AIDecision,
   snapshot: SystemSnapshot
 ): Promise<void> {
-  if (decision.type === 'AUTO_FIX') {
+  if (decision.type === 'AUTO_FIX' && needsApproval(decision.command)) {
+    const approvalId = crypto.randomBytes(4).toString('hex');
+    await requestApproval(approvalId, [decision.command], `🤖 AI wants to run: ${decision.message}`, snapshot);
+    log({ trigger: 'ai', action: decision.command, result: 'pending_approval', message: decision.message });
+  } else if (decision.type === 'AUTO_FIX') {
     const result = await execute(decision.command);
     await notify(
       result.success

@@ -1,6 +1,6 @@
 import * as z from 'zod/v4';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { registerMigrationTools } from './migration-tools';
+// import { registerMigrationTools } from './migration-tools';
 import { collect, getContainers, getContainerLogs, getDisk, getMemory, getNginx, getHealthChecks, getGpuStatus } from '../collector';
 import { execute, isSafeCommand } from '../executor';
 import { deploy, listApps } from '../deploy/deployer';
@@ -270,7 +270,7 @@ export function registerTools(server: McpServer): void {
   server.registerTool(
     'execute_safe_command',
     {
-      description: 'Execute a command that is in the safety allowlist. Allowed: docker restart, docker image prune, docker system prune, systemctl restart/reload nginx.',
+      description: 'Execute a command that is in the safety allowlist. Allowed without approval: docker restart, docker image prune, docker system prune, systemctl restart/reload nginx. Package installs require human approval and cannot be run here.',
       inputSchema: {
         command: z.string().describe('The shell command to execute'),
       },
@@ -280,7 +280,8 @@ export function registerTools(server: McpServer): void {
         return {
           content: [{
             type: 'text',
-            text: `Blocked: "${command}" is not in the safety allowlist. Allowed patterns:\n- docker restart <name>\n- docker image prune -f\n- docker system prune -f --volumes=false\n- systemctl restart nginx\n- systemctl reload nginx`,
+            text: `Blocked: "${command}" is not in the safety allowlist. Allowed patterns:\n- docker restart <name>\n- docker image prune -f\n- docker system prune -f --volumes=false\n- systemctl restart nginx\n- systemctl reload nginx
+(apt install/remove needs human approval and is not available here)`,
           }],
         };
       }
@@ -317,6 +318,8 @@ export function registerTools(server: McpServer): void {
     }
   );
 
-  registerMigrationTools(server);
+  // Migration tools stay unregistered while the engine is a stub: validateSource
+  // and validateTarget return passed:true without checking anything.
+  // registerMigrationTools(server);
   info('[mcp] Migration tools registered (8 tools)');
 }
