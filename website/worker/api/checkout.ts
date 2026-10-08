@@ -1,7 +1,3 @@
-// POST /api/checkout
-// Creates a Bachs checkout session for a paid plan and returns its URL.
-// The secret key stays on the server; the browser only gets checkout_url.
-//
 // Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
 // but not as a competing product or service. Converts to MIT after two years.
 
@@ -29,7 +25,6 @@ export async function checkout({ request, env }: RequestContext): Promise<Respon
     throw new HttpError(503, 'Checkout is not available right now.');
   }
 
-  // Link the subscription to the signed-in account, if any, so the plan unlocks even if the emails differ
   const account = await getAccount(env, request).catch(() => null);
 
   const origin = new URL(request.url).origin;

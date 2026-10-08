@@ -135,7 +135,6 @@ export function registerTools(server: McpServer): void {
       if (existing) {
         return { content: [{ type: 'text', text: JSON.stringify(existing, null, 2) }] };
       }
-      // URL not in configured checks — do an ad-hoc check
       const axios = (await import('axios')).default;
       const start = Date.now();
       try {
@@ -309,7 +308,6 @@ export function registerTools(server: McpServer): void {
     async ({ message }) => {
       info(`[mcp] notify: ${message}`);
       try {
-        // Not telegram/bot: importing it starts a second poller that conflicts with the running service
         const { notifyText } = await import('../backup/offsite');
         await notifyText(`📡 MCP: ${message}`);
         return { content: [{ type: 'text', text: 'Notification sent.' }] };
@@ -319,7 +317,6 @@ export function registerTools(server: McpServer): void {
     }
   );
 
-  // Register migration orchestration tools (8 new tools)
   registerMigrationTools(server);
   info('[mcp] Migration tools registered (8 tools)');
 }

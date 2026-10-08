@@ -33,7 +33,6 @@ async function startHttp(): Promise<void> {
         return;
       }
 
-      // New session — create transport + server
       const server = createVigilMcpServer();
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
@@ -89,7 +88,6 @@ async function startHttp(): Promise<void> {
 
 async function main(): Promise<void> {
   if (MCP_MODE === 'stdio' || MCP_MODE === 'both') {
-    // stdout carries the MCP protocol in stdio mode; log lines there would corrupt it
     console.log = console.error;
   }
   info(`VigilOps MCP Server starting (mode: ${MCP_MODE})`);

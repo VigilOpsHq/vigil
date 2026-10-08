@@ -2,8 +2,8 @@
 export interface ContainerStatus {
   name: string;
   id: string;
-  state: string; // running | exited | unhealthy | restarting | paused
-  status: string; // human-readable e.g. "Up 2 hours"
+  state: string;
+  status: string;
   runningFor: string;
 }
 
@@ -41,7 +41,6 @@ export interface SystemSnapshot {
   healthChecks: HealthCheckResult[];
 }
 
-
 export type ActionTier = 'auto' | 'suggest' | 'alert';
 
 export interface RuleAction {
@@ -63,24 +62,20 @@ export interface Rule {
   action: (snapshot: SystemSnapshot) => RuleAction;
 }
 
-
 export interface RestartHistory {
-  [containerName: string]: number[]; // unix timestamps of restarts
+  [containerName: string]: number[];
 }
-
 
 export type AIDecision =
   | { type: 'AUTO_FIX'; command: string; message: string; reasoning: string }
   | { type: 'SUGGEST'; command: string; message: string; reasoning: string }
   | { type: 'ALERT'; message: string; reasoning: string };
 
-
 export interface ExecutionResult {
   success: boolean;
   output: string;
   error?: string;
 }
-
 
 export interface PendingApproval {
   id: string;
@@ -90,7 +85,6 @@ export interface PendingApproval {
   createdAt: Date;
   timeoutHandle: ReturnType<typeof setTimeout>;
 }
-
 
 export type AuditTrigger = 'rule' | 'ai' | 'manual' | 'approval';
 export type AuditResult = 'success' | 'failed' | 'pending_approval' | 'denied' | 'alert' | 'timeout';

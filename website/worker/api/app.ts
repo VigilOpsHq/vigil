@@ -1,5 +1,3 @@
-// Dashboard API: servers, backups, Telegram linking and billing.
-//
 // Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
 // but not as a competing product or service. Converts to MIT after two years.
 import type { RequestContext } from '../lib/env';
@@ -32,7 +30,6 @@ async function ownedServer(ctx: RequestContext, account: Account, serverId: stri
   return row;
 }
 
-// GET /api/app/overview
 export async function overview(ctx: RequestContext): Promise<Response> {
   const account = await requireAccount(ctx.env, ctx.request);
   const db = requireDb(ctx.env);
@@ -83,7 +80,6 @@ export async function overview(ctx: RequestContext): Promise<Response> {
   });
 }
 
-// POST /api/app/servers {name}
 export async function createServer(ctx: RequestContext): Promise<Response> {
   const account = await requireAccount(ctx.env, ctx.request);
   const db = requireDb(ctx.env);
@@ -109,7 +105,6 @@ export async function createServer(ctx: RequestContext): Promise<Response> {
   return json({ server: { id, name: clean }, token }, 201);
 }
 
-// POST /api/app/servers/:id/token  — issue a new token; the old one stops working
 export async function rotateServerToken(ctx: RequestContext): Promise<Response> {
   const account = await requireAccount(ctx.env, ctx.request);
   const server = await ownedServer(ctx, account, ctx.params.id);
@@ -118,7 +113,6 @@ export async function rotateServerToken(ctx: RequestContext): Promise<Response> 
   return json({ server, token });
 }
 
-// DELETE /api/app/servers/:id
 export async function deleteServer(ctx: RequestContext): Promise<Response> {
   const account = await requireAccount(ctx.env, ctx.request);
   const server = await ownedServer(ctx, account, ctx.params.id);
@@ -141,7 +135,6 @@ export async function deleteServer(ctx: RequestContext): Promise<Response> {
   return json({ deleted: true });
 }
 
-// GET /api/app/servers/:id/backups
 export async function listBackups(ctx: RequestContext): Promise<Response> {
   const account = await requireAccount(ctx.env, ctx.request);
   const server = await ownedServer(ctx, account, ctx.params.id);
@@ -155,7 +148,6 @@ export async function listBackups(ctx: RequestContext): Promise<Response> {
   return json({ server, backups: results });
 }
 
-// GET /api/app/backups/:id/download
 export async function downloadBackup(ctx: RequestContext): Promise<Response> {
   const account = await requireAccount(ctx.env, ctx.request);
   if (!ctx.env.BACKUPS) throw new HttpError(503, 'Backup storage is not configured');
@@ -177,7 +169,6 @@ export async function downloadBackup(ctx: RequestContext): Promise<Response> {
   });
 }
 
-// DELETE /api/app/backups/:id
 export async function deleteBackup(ctx: RequestContext): Promise<Response> {
   const account = await requireAccount(ctx.env, ctx.request);
   const db = requireDb(ctx.env);
@@ -191,7 +182,6 @@ export async function deleteBackup(ctx: RequestContext): Promise<Response> {
   return json({ deleted: true });
 }
 
-// POST /api/app/telegram/link
 export async function telegramLink(ctx: RequestContext): Promise<Response> {
   const account = await requireAccount(ctx.env, ctx.request);
   const username = ctx.env.CLOUD_TELEGRAM_BOT_USERNAME;
@@ -207,14 +197,12 @@ export async function telegramLink(ctx: RequestContext): Promise<Response> {
   return json({ url: `https://t.me/${username.replace(/^@/, '')}?start=${code}` });
 }
 
-// POST /api/app/telegram/unlink
 export async function telegramUnlink(ctx: RequestContext): Promise<Response> {
   const account = await requireAccount(ctx.env, ctx.request);
   await requireDb(ctx.env).prepare('UPDATE accounts SET telegram_chat_id = NULL WHERE id = ?').bind(account.id).run();
   return json({ connected: false });
 }
 
-// POST /api/app/billing-portal
 export async function billingPortal(ctx: RequestContext): Promise<Response> {
   const account = await requireAccount(ctx.env, ctx.request);
   const ent = await entitlementFor(requireDb(ctx.env), account);

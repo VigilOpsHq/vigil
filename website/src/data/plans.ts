@@ -1,6 +1,3 @@
-// Prices are in USD: Bachs subscriptions bill USD cards.
-// Each paid plan needs one Bachs product per billing interval. The checkout
-// function looks them up as BACHS_PRODUCT_<PLAN>_<INTERVAL>, e.g. BACHS_PRODUCT_PRO_YEARLY.
 
 export type Interval = 'monthly' | 'yearly';
 

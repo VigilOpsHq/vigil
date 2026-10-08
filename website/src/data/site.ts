@@ -7,8 +7,6 @@ export const site = {
   install: 'curl -fsSL https://vigilops.cloud/install.sh | sudo sh',
 };
 
-// Shown on the legal and contact pages. Anything still in [brackets] makes
-// those pages display a "draft" notice, so fill these in before going live.
 export const company = {
   legalName: '[Registered business name]',
   address: '[Registered business address]',

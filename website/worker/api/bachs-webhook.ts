@@ -1,6 +1,3 @@
-// POST /api/bachs-webhook
-// Verifies Bachs events, records subscriptions (which unlock plans) and notifies the team on Telegram.
-//
 // Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
 // but not as a competing product or service. Converts to MIT after two years.
 
@@ -61,7 +58,6 @@ const emailOf = (d: Record<string, any>) =>
 const productOf = (d: Record<string, any>) =>
   d.product?.id ?? d.product_id ?? d.items?.[0]?.product_id ?? d.items?.[0]?.product?.id ?? d.price?.product_id;
 
-/** Bachs doesn't always inline the customer or product on the event, so ask the API for the subscription. */
 async function fetchSubscription(env: Env, id: string): Promise<Record<string, any> | null> {
   if (!env.BACHS_API_KEY) return null;
   const base = (env.BACHS_API_BASE || 'https://sandbox-api.bachs.io').replace(/\/+$/, '');
@@ -89,7 +85,6 @@ async function recordSubscription(env: Env, event: BachsEvent): Promise<void> {
     return;
   }
 
-  // Fill in anything the event left out
   if (!emailOf(d) || !(d.metadata?.plan || planFromProduct(env, productOf(d)))) {
     const full = await fetchSubscription(env, id);
     if (full) d = { ...full, metadata: { ...(full.metadata ?? {}), ...(d.metadata ?? {}) } };
@@ -188,7 +183,6 @@ export async function bachsWebhook({ request, env }: RequestContext): Promise<Re
   try {
     await recordSubscription(env, event);
   } catch (err) {
-    // Let Bachs retry: forget the event so the retry is processed
     if (env.DB && event.id) await env.DB.prepare('DELETE FROM webhook_events WHERE id = ?').bind(event.id).run();
     console.error('failed to record subscription', err);
     return new Response('error', { status: 500 });

@@ -6,18 +6,14 @@ const CRASH_LOOP_THRESHOLD = parseInt(process.env.CRASH_LOOP_THRESHOLD ?? '3', 1
 const CRASH_LOOP_WINDOW_MS =
   parseInt(process.env.CRASH_LOOP_WINDOW_MINUTES ?? '10', 10) * 60 * 1000;
 
-// Maps health check URLs to container names so the system can restart the right container.
-// Format: URL:container,URL:container (e.g. https://api.example.com/health:my-api)
 const HEALTH_CHECK_CONTAINER_MAP = Object.fromEntries(
   (process.env.HEALTH_CHECK_CONTAINER_MAP ?? '')
     .split(',').map((pair) => pair.trim()).filter(Boolean)
     .map((pair) => {
-      // Split on the last colon: the URL itself contains "https:"
       const i = pair.lastIndexOf(':');
       return [pair.slice(0, i).trim(), pair.slice(i + 1).trim()];
     })
 );
-
 
 function isInCrashLoop(containerName: string, history: RestartHistory): boolean {
   const timestamps = history[containerName] ?? [];
@@ -35,7 +31,6 @@ function downContainers(snapshot: SystemSnapshot) {
 function unhealthyChecks(snapshot: SystemSnapshot) {
   return snapshot.healthChecks.filter((h) => !h.healthy);
 }
-
 
 export const rules: Rule[] = [
   {

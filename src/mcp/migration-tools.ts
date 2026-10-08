@@ -1,7 +1,3 @@
-/**
- * MCP Tools for Migration Orchestration
- * Allows Claude/Cursor/any MCP client to orchestrate AWS → Contabo migrations
- */
 
 import * as z from 'zod/v4';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -18,13 +14,9 @@ import {
 } from '../migration/migration.engine';
 import { MigrationConfig, MigrationPlan } from '../migration/migration.types';
 
-// In-memory store for active migrations (in production, use persistent storage)
 const activeMigrations = new Map<string, MigrationPlan>();
 
 export function registerMigrationTools(server: McpServer): void {
-  /**
-   * Tool 1: Create migration plan
-   */
   server.registerTool(
     'create_migration_plan',
     {
@@ -81,9 +73,6 @@ export function registerMigrationTools(server: McpServer): void {
     }
   );
 
-  /**
-   * Tool 2: Validate source infrastructure
-   */
   server.registerTool(
     'validate_migration_source',
     {
@@ -119,9 +108,6 @@ export function registerMigrationTools(server: McpServer): void {
     }
   );
 
-  /**
-   * Tool 3: Validate target VPS
-   */
   server.registerTool(
     'validate_migration_target',
     {
@@ -157,9 +143,6 @@ export function registerMigrationTools(server: McpServer): void {
     }
   );
 
-  /**
-   * Tool 4: Run dry-run (simulation without cutover)
-   */
   server.registerTool(
     'run_migration_dry_run',
     {
@@ -196,9 +179,6 @@ export function registerMigrationTools(server: McpServer): void {
     }
   );
 
-  /**
-   * Tool 5: Execute migration phase
-   */
   server.registerTool(
     'execute_migration_phase',
     {
@@ -254,9 +234,6 @@ export function registerMigrationTools(server: McpServer): void {
     }
   );
 
-  /**
-   * Tool 6: Monitor migration progress
-   */
   server.registerTool(
     'monitor_migration',
     {
@@ -285,9 +262,6 @@ export function registerMigrationTools(server: McpServer): void {
     }
   );
 
-  /**
-   * Tool 7: Rollback migration
-   */
   server.registerTool(
     'rollback_migration',
     {
@@ -328,9 +302,6 @@ export function registerMigrationTools(server: McpServer): void {
     }
   );
 
-  /**
-   * Tool 8: Get migration history
-   */
   server.registerTool(
     'get_migration_history',
     {

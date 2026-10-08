@@ -1,6 +1,3 @@
-// Regenerates public/social/*.png:  node scripts/make-social.mjs
-// Text becomes outlines, so output is identical without IBM Plex installed.
-// Fonts are fetched on first run into .fonts/ (git-ignored).
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -48,9 +45,6 @@ async function loadFonts() {
   return loaded;
 }
 
-// Transformed from the cached outline rather than via glyph.getPath(), which
-// returned NaN control points for a glyph drawn twice at different sizes.
-// Contours arrive without Z; unclosed, counters don't subtract and o and e fill solid.
 function glyphPath(glyph, penX, baselineY, scale, where) {
   const num = (v) => {
     if (!Number.isFinite(v)) throw new Error(`Non-finite coordinate in ${where}`);
@@ -79,8 +73,6 @@ function glyphPath(glyph, penX, baselineY, scale, where) {
   return out.join('');
 }
 
-// One path per glyph on purpose: the rasteriser silently truncates path data
-// past ~4 KB, which swallowed the back half of every headline.
 function text(fonts, str, { font = 'bold', size, x, y, fill = PAPER, anchor = 'start', opacity = 1 }) {
   const f = fonts[font];
   const width = f.getAdvanceWidth(str, size);
@@ -113,7 +105,6 @@ function mark(x, y, size, { bg = MINT, fg = INK } = {}) {
   </g>`;
 }
 
-
 function grid(w, h, step = 40) {
   const dots = [];
   for (let x = step; x < w; x += step) {
@@ -121,7 +112,6 @@ function grid(w, h, step = 40) {
   }
   return `<g fill="${PAPER}" opacity="0.05">${dots.join('')}</g>`;
 }
-
 
 function prompt(fonts, cmd, { x, y, size }) {
   const dollar = text(fonts, '$', { font: 'mono', size, x, y, fill: MINT });
@@ -157,8 +147,6 @@ function ogImage(fonts, w, h) {
 }
 
 function xHeader(fonts, w, h) {
-  // Centred: X crops the sides on mobile and drops the avatar over the bottom
-  // left on desktop, so the middle is the only reliably visible part.
   const cx = w / 2;
   const markSize = 64;
   const nameSize = 48;

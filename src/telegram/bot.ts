@@ -11,15 +11,11 @@ const CHAT_ID = process.env.TELEGRAM_CHAT_ID ?? '';
 const APPROVAL_TIMEOUT_MS =
   parseInt(process.env.APPROVAL_TIMEOUT_MINUTES ?? '10', 10) * 60 * 1000;
 
-// Optional: servers connected to VigilOps Cloud get alerts from the official bot instead
 export const telegramEnabled = Boolean(TOKEN && CHAT_ID);
 
-// Without a token the bot never polls, so registering handlers below is harmless
 export const bot = new TelegramBot(TOKEN || 'disabled', { polling: telegramEnabled });
 
-
 const pendingApprovals = new Map<string, PendingApproval>();
-
 
 function mdToHtml(text: string): string {
   const escaped = text
@@ -39,7 +35,6 @@ export async function notify(message: string): Promise<void> {
     error('Failed to send Telegram notification', err);
   }
 }
-
 
 async function handleStatus(): Promise<void> {
   const { collect } = await import('../collector');
@@ -138,7 +133,6 @@ async function denyApproval(approvalId: string): Promise<void> {
   log({ trigger: 'approval', action: pending.commands.join(' && '), result: 'denied', message: pending.message });
 }
 
-
 export async function requestApproval(
   approvalId: string,
   commands: string[],
@@ -184,7 +178,6 @@ export async function requestApproval(
     },
   });
 }
-
 
 bot.onText(/\/status/, handleStatus);
 
@@ -258,10 +251,8 @@ bot.on('callback_query', async (query) => {
   }
 });
 
-// Register migration commands
 setupMigrationCommands();
 
-// Register backup commands
 setupBackupCommands(bot);
 setupUpdateCommands(bot, telegramEnabled);
 

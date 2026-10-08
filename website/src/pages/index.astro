@@ -55,7 +55,6 @@ const capabilities = [
   },
 ];
 
-// Landing shows the three self-serve tiers; Enterprise stays on /pricing
 const tiers = plans.filter((p) => p.id !== 'enterprise');
 
 const auditLog = [
@@ -355,7 +354,6 @@ const allowlist = [
   h1 { font-size: clamp(34px, 5.2vw, 56px); letter-spacing: -0.03em; max-width: 14ch; }
   .lead { font-size: clamp(17px, 2vw, 19px); color: var(--ink-2); margin-top: 20px; max-width: 560px; }
 
-  /* Demo video. Tokens rather than literals, so it tracks the rest of the page. */
   .video-wrap {
     position: relative;
     width: 100%;
@@ -511,7 +509,6 @@ const allowlist = [
   .msg code { font-size: 12.5px; background: #101a24; padding: 1px 5px; border-radius: 4px; }
   .msg.me { justify-self: end; background: #2b5278; border-radius: 12px 12px 4px 12px; font-family: var(--mono); font-size: 13px; }
   .t { position: absolute; right: 10px; bottom: 4px; font-size: 11px; color: #8fa6bb; font-family: var(--font); }
-  /* the outgoing bubble is darker blue, so its timestamp needs lifting */
   .msg.me .t { color: #c3d6e8; }
   .buttons { display: flex; gap: 6px; margin-top: 8px; }
   .buttons span { flex: 1; text-align: center; font-size: 13px; padding: 6px 10px; background: #101a24; border-radius: 6px; }

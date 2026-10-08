@@ -1,6 +1,3 @@
-// Local HTTP API for scripts and automation:  API_PORT=3200 npm run start:api
-// Routes are listed by GET /api/info.
-
 import express, { Request, Response, NextFunction } from 'express';
 import { collect, getContainers, getContainerLogs, getDisk, getMemory, getHealthChecks } from '../collector';
 import { execute, isSafeCommand } from '../executor';

@@ -37,7 +37,6 @@ export interface BackupFile {
 }
 
 const NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/;
-// <container>__<database>__<YYYYMMDD-HHMMSS>[_<tag>].<sql|archive>.gz
 const FILE_RE = /^(.+?)__(.+)__(\d{8}-\d{6})(?:_([a-z-]+))?\.(sql|archive)\.gz$/;
 
 function assertName(value: string, label: string): void {
@@ -97,8 +96,6 @@ const MONGO_AUTH =
 function dumpArgs(t: DbTarget): string[] {
   switch (t.engine) {
     case 'postgres':
-      // --no-owner/--no-acl keep the dump portable: it restores into another container
-      // without needing the same roles to exist there
       return ['exec', t.container, 'pg_dump', '-U', t.user, '--clean', '--if-exists', '--no-owner', '--no-acl', t.database];
     case 'mysql':
       return ['exec', t.container, 'sh', '-c',
@@ -111,8 +108,6 @@ function dumpArgs(t: DbTarget): string[] {
   }
 }
 
-// Dumps drop objects one by one, which Postgres refuses for partitions and inherited
-// constraints. Emptying the database first also leaves nothing behind from before the restore.
 const PG_WIPE_SQL = `DO $$
 DECLARE s record;
 BEGIN
@@ -143,8 +138,6 @@ function runDocker(args: string[], stdin: NodeJS.ReadableStream | null, stdout: 
     let stderr = '';
     child.stderr?.on('data', (d) => { stderr += d.toString(); });
 
-    // Catch immediately: a failing command closes the pipe (EPIPE), and an unhandled
-    // rejection would crash the process before the exit code and stderr are known.
     const streams: Promise<unknown>[] = [];
     if (stdin && child.stdin) streams.push(pipeline(stdin, child.stdin).catch((err) => err));
     if (stdout && child.stdout) streams.push(pipeline(child.stdout, stdout).catch((err) => err));
@@ -228,10 +221,6 @@ export function parseBackupFile(file: string): { container: string; database: st
   return { container: m[1], database: m[2] };
 }
 
-/**
- * Which database a backup is restored into: the one named in the file when restoring onto the
- * same container, otherwise the target container's own database (staging has its own name).
- */
 export async function restoreTarget(file: string, targetContainer?: string, targetDatabase?: string): Promise<DbTarget> {
   const parsed = parseBackupFile(path.basename(file));
   const container = targetContainer ?? parsed.container;
@@ -265,8 +254,6 @@ export async function restore(file: string, targetContainer?: string, targetData
     await runDocker(restoreArgs(target), input, null);
   } else {
     const gunzip = zlib.createGunzip();
-    // If the database rejects the dump it closes stdin, which breaks this pipe (EPIPE).
-    // Swallow that so the database's own error is what surfaces.
     const reading = pipeline(input, gunzip).catch(() => undefined);
     try {
       await runDocker(restoreArgs(target), gunzip, null);
@@ -284,7 +271,6 @@ export function pruneOldBackups(): string[] {
   const cutoff = Date.now() - KEEP_DAYS * 24 * 60 * 60 * 1000;
   const removed: string[] = [];
   const seen = new Set<string>();
-  // listBackups is newest-first, so the first file per container is always kept
   for (const b of listBackups()) {
     const isLatest = !seen.has(b.container);
     seen.add(b.container);

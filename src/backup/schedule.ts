@@ -7,9 +7,9 @@ export interface BackupSchedule {
   container: string;
   database?: string;
   every: 'hourly' | 'daily' | 'weekly';
-  time: string; // HH:MM (hourly uses only the minutes)
-  day?: number; // 0 = Sunday, weekly only
-  lastRun: string; // ISO
+  time: string;
+  day?: number;
+  lastRun: string;
 }
 
 const SCHEDULE_FILE = path.join(BACKUP_DIR, 'schedules.json');
@@ -28,9 +28,6 @@ function saveSchedules(schedules: BackupSchedule[]): void {
   fs.writeFileSync(SCHEDULE_FILE, JSON.stringify(schedules, null, 2));
 }
 
-/**
- * Accepts: "hourly" | "daily [HH:MM]" | "weekly [day] [HH:MM]"
- */
 export function setSchedule(container: string, spec: string[], database?: string): BackupSchedule {
   const [every, ...rest] = spec.map((s) => s.toLowerCase());
   const timeArg = rest.find((r) => /^\d{1,2}:\d{2}$/.test(r));
@@ -102,7 +99,6 @@ async function tick(): Promise<void> {
     for (const s of loadSchedules()) {
       if (new Date(s.lastRun) >= lastSlot(s, now)) continue;
 
-      // Record the run first so a failing backup doesn't retry every minute
       const all = loadSchedules();
       const entry = all.find((x) => x.container === s.container);
       if (entry) {

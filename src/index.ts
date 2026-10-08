@@ -12,12 +12,10 @@ import { log, info, error } from './logger';
 import { RestartHistory, AIDecision, SystemSnapshot } from './types';
 import crypto from 'crypto';
 
-
 const restartHistory: RestartHistory = {};
 let isRunning = false;
 
 const POLL_SECONDS = parseInt(process.env.POLL_INTERVAL_SECONDS ?? '60', 10);
-
 
 function recordRestart(containerName: string): void {
   if (!restartHistory[containerName]) {
@@ -30,7 +28,6 @@ function recordRestart(containerName: string): void {
     (t) => t > oneHourAgo
   );
 }
-
 
 async function handleDecision(
   decision: AIDecision,
@@ -100,21 +97,17 @@ async function loop(): Promise<void> {
         return;
       }
 
-      // Alert-tier rule: notify, then escalate to AI for diagnosis
       await notify(`🚨 ${action.message}`);
       log({ trigger: 'rule', ruleId: action.ruleId, result: 'alert', message: action.message });
       needsEscalation = true;
     }
 
-    // Unmatched anomaly — escalate to AI
     if (!ruleMatch.matched && hasAnomalies(snapshot)) {
       info('Anomaly detected with no matching rule — escalating to AI');
       needsEscalation = true;
     }
 
     if (needsEscalation) {
-      // No AI configured: rule-tier alerts have already gone out, so stay quiet
-      // rather than complaining every 60 seconds
       if (!aiEnabled) {
         info('No AI provider configured — skipping escalation');
         return;
@@ -137,7 +130,6 @@ async function loop(): Promise<void> {
     isRunning = false;
   }
 }
-
 
 async function start(): Promise<void> {
   info(`🟢 Vigil is watching — polling every ${POLL_SECONDS}s`);

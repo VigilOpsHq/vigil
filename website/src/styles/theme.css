@@ -1,4 +1,3 @@
-/* Starlight reads its own token names; mapped onto the same slate ramp as site.css. */
 :root {
   --sl-font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --sl-font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
@@ -28,11 +27,6 @@
   --sl-color-text-accent: #22c55e;
   --sl-color-text-invert: #0f172a;
 
-  /*
-   * Aside / callout ramps. Starlight defines a dark and a light set; a browser
-   * resolving data-theme='light' was painting notes with the light set, which
-   * put pale lavender behind light text. Both blocks now carry the dark values.
-   */
   --sl-hue-orange: 41;
   --sl-color-orange-low: hsl(var(--sl-hue-orange), 39%, 22%);
   --sl-color-orange: hsl(var(--sl-hue-orange), 82%, 63%);
@@ -56,7 +50,6 @@
   --sl-color-text: var(--sl-color-gray-2);
 }
 
-/* light resolves to the same dark palette rather than a half-converted theme */
 :root[data-theme='light'] {
   --sl-color-accent-low: rgba(34, 197, 94, 0.16);
   --sl-color-accent: #22c55e;
@@ -80,11 +73,6 @@
   --sl-color-text-accent: #22c55e;
   --sl-color-text-invert: #0f172a;
 
-  /*
-   * Aside / callout ramps. Starlight defines a dark and a light set; a browser
-   * resolving data-theme='light' was painting notes with the light set, which
-   * put pale lavender behind light text. Both blocks now carry the dark values.
-   */
   --sl-hue-orange: 41;
   --sl-color-orange-low: hsl(var(--sl-hue-orange), 39%, 22%);
   --sl-color-orange: hsl(var(--sl-hue-orange), 82%, 63%);
@@ -108,13 +96,11 @@
   --sl-color-text: var(--sl-color-gray-2);
 }
 
-
 .expressive-code .frame pre,
 .expressive-code .frame .header {
   background: var(--sl-color-bg-inline-code) !important;
   border-color: var(--sl-color-hairline) !important;
 }
-
 
 .sl-markdown-content h1,
 .sl-markdown-content h2,
@@ -125,7 +111,6 @@ site-title,
   font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
   letter-spacing: -0.02em;
 }
-
 
 .sl-markdown-content a:focus-visible,
 a:focus-visible,

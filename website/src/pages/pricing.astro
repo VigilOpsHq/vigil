@@ -245,7 +245,6 @@ const cell = (v: string | boolean) => (v === true ? 'yes' : v === false ? 'no' :
         });
         await Bachs.Checkout.open({ checkoutUrl: body.checkout_url });
       } catch {
-        // Fall back to the hosted checkout page; it returns to /checkout/success/ when paid
         window.location.href = body.checkout_url;
       }
     } catch (err) {

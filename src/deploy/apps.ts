@@ -1,5 +1,3 @@
-// Registered with `vigil app add`, stored next to backups because /opt is
-// mounted read-only. Code-defined apps in deploy.config.ts still work.
 import fs from 'fs';
 import path from 'path';
 import codeApps, { AppDeployConfig } from './deploy.config';
@@ -21,7 +19,6 @@ function writeFileApps(apps: Record<string, AppDeployConfig>): void {
   fs.mkdirSync(path.dirname(APPS_FILE), { recursive: true });
   fs.writeFileSync(APPS_FILE, JSON.stringify(apps, null, 2));
 }
-
 
 export function allApps(): Record<string, AppDeployConfig> {
   return { ...codeApps, ...readFileApps() };

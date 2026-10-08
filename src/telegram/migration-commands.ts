@@ -1,7 +1,3 @@
-/**
- * Telegram commands for migration orchestration
- * Add these to src/telegram/bot.ts to enable migration control via Telegram
- */
 
 import { bot, notify } from './bot';
 import {
@@ -17,16 +13,9 @@ import {
 import { MigrationConfig } from '../migration/migration.types';
 import { info, error } from '../logger';
 
-// Store active migration IDs in memory (or use database in production)
 const activeMigrations = new Map<string, string>();
 
-/**
- * /migrate - Start a new migration
- * Usage: /migrate <json-config>
- * Example: /migrate {"name":"api-migration","source":"aws","target_ip":"192.168.1.50",...}
- */
 export function setupMigrationCommands(): void {
-  // ===== /migrate =====
   bot.onText(/\/migrate(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
     if (!match) return;
@@ -52,7 +41,6 @@ export function setupMigrationCommands(): void {
     }
 
     try {
-      // Parse JSON config if provided
       const config = JSON.parse(args) as MigrationConfig;
       await bot.sendMessage(chatId, '⏳ Creating migration plan...');
 
@@ -79,7 +67,6 @@ export function setupMigrationCommands(): void {
     }
   });
 
-  // ===== /migration_plan =====
   bot.onText(/\/migration_plan/, async (msg) => {
     const chatId = msg.chat.id;
     const migrationId = activeMigrations.get(chatId.toString());
@@ -99,7 +86,6 @@ export function setupMigrationCommands(): void {
     );
   });
 
-  // ===== /migration_validate =====
   bot.onText(/\/migration_validate/, async (msg) => {
     const chatId = msg.chat.id;
     const migrationId = activeMigrations.get(chatId.toString());
@@ -112,8 +98,6 @@ export function setupMigrationCommands(): void {
     await bot.sendMessage(chatId, '⏳ Validating source infrastructure...');
 
     try {
-      // Note: In real implementation, would fetch the plan from storage
-      // For now, showing the flow
       await bot.sendMessage(
         chatId,
         `✅ *Source Validation Passed*\n\n` +
@@ -133,7 +117,6 @@ export function setupMigrationCommands(): void {
     }
   });
 
-  // ===== /migration_dryrun =====
   bot.onText(/\/migration_dryrun/, async (msg) => {
     const chatId = msg.chat.id;
     const migrationId = activeMigrations.get(chatId.toString());
@@ -165,7 +148,6 @@ export function setupMigrationCommands(): void {
     }
   });
 
-  // ===== /migration_execute =====
   bot.onText(/\/migration_execute/, async (msg) => {
     const chatId = msg.chat.id;
     const migrationId = activeMigrations.get(chatId.toString());
@@ -185,19 +167,15 @@ export function setupMigrationCommands(): void {
     );
 
     try {
-      // Phase 1
       await new Promise((r) => setTimeout(r, 2000));
       await bot.sendMessage(chatId, `✅ Phase 1/5: Setup complete (14 min)`);
 
-      // Phase 2
       await new Promise((r) => setTimeout(r, 2000));
       await bot.sendMessage(chatId, `✅ Phase 2/5: Data transfer complete (30 min)\n102GB transferred`);
 
-      // Phase 3
       await new Promise((r) => setTimeout(r, 2000));
       await bot.sendMessage(chatId, `✅ Phase 3/5: Validation complete (5 min)\nAll health checks passed`);
 
-      // Phase 4 - Requires approval
       await bot.sendMessage(
         chatId,
         `⚠️ *Phase 4/5: CUTOVER - APPROVAL NEEDED*\n\n` +
@@ -211,7 +189,6 @@ export function setupMigrationCommands(): void {
     }
   });
 
-  // ===== /migration_approve =====
   bot.onText(/\/migration_approve/, async (msg) => {
     const chatId = msg.chat.id;
     const migrationId = activeMigrations.get(chatId.toString());
@@ -243,7 +220,6 @@ export function setupMigrationCommands(): void {
     }
   });
 
-  // ===== /migration_status =====
   bot.onText(/\/migration_status/, async (msg) => {
     const chatId = msg.chat.id;
     const migrationId = activeMigrations.get(chatId.toString());
@@ -269,7 +245,6 @@ export function setupMigrationCommands(): void {
     );
   });
 
-  // ===== /migration_rollback =====
   bot.onText(/\/migration_rollback/, async (msg) => {
     const chatId = msg.chat.id;
     const migrationId = activeMigrations.get(chatId.toString());
@@ -304,7 +279,6 @@ export function setupMigrationCommands(): void {
     }
   });
 
-  // ===== /migration_history =====
   bot.onText(/\/migration_history(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
     if (!match) return;

@@ -1,5 +1,3 @@
-// Agent API: heartbeats, multipart backup uploads, and restore downloads.
-//
 // Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
 // but not as a competing product or service. Converts to MIT after two years.
 import type { Env, RequestContext } from '../lib/env';
@@ -9,7 +7,6 @@ import { requireDb } from '../lib/auth';
 import { entitlementFor } from '../lib/plans';
 import { formatBytes, sendTelegram } from '../lib/telegram';
 
-// Workers accept request bodies up to 100 MB; parts stay well under that.
 export const PART_SIZE = 50 * 1024 * 1024;
 const MAX_BACKUP_BYTES = 50 * 1024 ** 3;
 const FILE_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]*__[A-Za-z0-9][A-Za-z0-9_.-]*__\d{8}-\d{6}(?:_[a-z-]+)?\.(?:sql|archive)\.gz$/;
@@ -46,20 +43,17 @@ async function limitsFor(env: Env, server: AgentServer) {
   return entitlementFor(requireDb(env), { id: server.account_id, emails: JSON.parse(server.emails || '[]') });
 }
 
-// POST /api/agent/heartbeat
 export async function heartbeat(ctx: RequestContext): Promise<Response> {
   const server = await authServer(ctx.env, ctx.request);
   const body = await readJson<{ version?: string; hostname?: string; schedules?: unknown[]; utcOffsetMinutes?: number }>(ctx.request);
 
   const offset = Number.isFinite(body.utcOffsetMinutes) ? Math.max(-840, Math.min(840, Math.round(body.utcOffsetMinutes!))) : 0;
 
-  // Remember when each schedule was first seen, so slots from before it existed never count as missed
   const previous = await requireDb(ctx.env).prepare('SELECT schedules FROM servers WHERE id = ?').bind(server.id).first<{ schedules: string }>();
   const firstSeen = new Map<string, string>();
   try {
     for (const s of JSON.parse(previous?.schedules || '[]')) firstSeen.set(scheduleKey(s), s.firstSeenAt);
   } catch {
-    /* ignore corrupt data */
   }
   const now = nowIso();
   const schedules = (Array.isArray(body.schedules) ? body.schedules.slice(0, 200) : [])
@@ -88,7 +82,6 @@ export async function heartbeat(ctx: RequestContext): Promise<Response> {
   return json({ server: { id: server.id, name: server.name }, plan: ent.plan, limits: ent.limits });
 }
 
-// POST /api/agent/backups {container, database, file, size, sha256}
 export async function startUpload(ctx: RequestContext): Promise<Response> {
   const server = await authServer(ctx.env, ctx.request);
   if (!ctx.env.BACKUPS) throw new HttpError(503, 'Backup storage is not configured');
@@ -150,7 +143,6 @@ async function uploadingBackup(ctx: RequestContext, server: AgentServer) {
   return { row, upload: ctx.env.BACKUPS.resumeMultipartUpload(row.r2_key, row.upload_id) };
 }
 
-// PUT /api/agent/backups/:id/parts/:part  (raw bytes, up to PART_SIZE)
 export async function uploadPart(ctx: RequestContext): Promise<Response> {
   const server = await authServer(ctx.env, ctx.request);
   const part = Number(ctx.params.part);
@@ -164,7 +156,6 @@ export async function uploadPart(ctx: RequestContext): Promise<Response> {
   return json({ partNumber: uploaded.partNumber, etag: uploaded.etag });
 }
 
-// POST /api/agent/backups/:id/complete {parts: [{partNumber, etag}]}
 export async function completeUpload(ctx: RequestContext): Promise<Response> {
   const server = await authServer(ctx.env, ctx.request);
   const { row, upload } = await uploadingBackup(ctx, server);
@@ -185,7 +176,6 @@ export async function completeUpload(ctx: RequestContext): Promise<Response> {
   return json({ id: row.id, file: row.file, size: object.size, status: 'complete' });
 }
 
-// POST /api/agent/backups/:id/abort
 export async function abortUpload(ctx: RequestContext): Promise<Response> {
   const server = await authServer(ctx.env, ctx.request);
   const { row, upload } = await uploadingBackup(ctx, server);
@@ -194,7 +184,6 @@ export async function abortUpload(ctx: RequestContext): Promise<Response> {
   return json({ aborted: true });
 }
 
-// GET /api/agent/backups?container=
 export async function agentListBackups(ctx: RequestContext): Promise<Response> {
   const server = await authServer(ctx.env, ctx.request);
   const container = new URL(ctx.request.url).searchParams.get('container');
@@ -206,7 +195,6 @@ export async function agentListBackups(ctx: RequestContext): Promise<Response> {
   return json({ backups: results });
 }
 
-// GET /api/agent/backups/file/:file  — download for restore (any server on the same account)
 export async function agentDownload(ctx: RequestContext): Promise<Response> {
   const server = await authServer(ctx.env, ctx.request);
   if (!ctx.env.BACKUPS) throw new HttpError(503, 'Backup storage is not configured');

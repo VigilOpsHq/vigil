@@ -1,6 +1,3 @@
-/**
- * Migration orchestration types for AWS → Contabo (or any cloud) migrations
- */
 
 export type SourceType = 'aws' | 'gcp' | 'azure' | 'digital-ocean' | 'linode' | 'existing-vps';
 export type TargetType = 'contabo' | 'linode' | 'digital-ocean' | 'self-hosted-vps';
@@ -15,33 +12,27 @@ export interface MigrationPlan {
   name: string;
   description?: string;
 
-  // Infrastructure configuration
   sourceType: SourceType;
   targetType: TargetType;
   targetVpsIp: string;
   targetVpsSshKey: string;
 
-  // Apps to migrate
   apps: MigrationApp[];
 
-  // Workflow status
   currentPhase: MigrationPhase;
   status: MigrationStatus;
   startedAt?: Date;
   completedAt?: Date;
 
-  // Progress & errors
   errors: MigrationError[];
   checkpoints: MigrationCheckpoint[];
   completedApps: number;
 
-  // Configuration
   cutoverDate?: Date;
   rollbackWindowHours: number;
   parallelAppsLimit: number;
   enableAutoRollback: boolean;
 
-  // Metadata
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,48 +40,42 @@ export interface MigrationPlan {
 export interface MigrationApp {
   name: string;
   type: MigrationType;
-  sourceId: string; // AWS instance ID, container name, DB endpoint, etc.
-  targetId?: string; // Will be assigned during migration
+  sourceId: string;
+  targetId?: string;
 
-  // Resource estimates
   estimatedSizeGb: number;
   estimatedTransferMinutes: number;
 
-  // Status tracking
   status: AppStatus;
-  dataTransferred?: number; // bytes
+  dataTransferred?: number;
   validationResults?: ValidationResult[];
 
-  // Health checks
   healthCheckUrl?: string;
-  healthCheckInterval?: number; // seconds
+  healthCheckInterval?: number;
 
-  // Specific configurations
   dockerConfig?: DockerMigrationConfig;
   databaseConfig?: DatabaseMigrationConfig;
   storageConfig?: StorageMigrationConfig;
 
-  // Dependencies
-  dependsOn?: string[]; // Other app names that must be migrated first
+  dependsOn?: string[];
 
-  // Metrics
-  rollbackPoint?: string; // How to identify pre-migration state
+  rollbackPoint?: string;
   lastValidationAt?: Date;
 }
 
 export interface DockerMigrationConfig {
-  sourceRegistry: string; // e.g., ghcr.io/myorg
+  sourceRegistry: string;
   sourceImageTag: string;
   targetRegistry: string;
   targetImageTag: string;
-  ports?: { [key: string]: number }; // "8080/tcp": 8080
+  ports?: { [key: string]: number };
   env?: { [key: string]: string };
-  volumes?: string[]; // ["data:/app/data"]
+  volumes?: string[];
   restartPolicy?: 'no' | 'always' | 'on-failure';
 }
 
 export interface DatabaseMigrationConfig {
-  sourceType: 'rds' | 'self-managed' | 'managed'; // AWS RDS, self-managed DB, etc.
+  sourceType: 'rds' | 'self-managed' | 'managed';
   sourceEndpoint: string;
   sourcePort: number;
   sourceDatabase: string;
@@ -98,13 +83,13 @@ export interface DatabaseMigrationConfig {
   targetPort: number;
   targetDatabase: string;
   transferMethod: 'mysqldump' | 'pg_dump' | 'backup-restore' | 'replication';
-  backupPath?: string; // Local backup file or S3 path
+  backupPath?: string;
 }
 
 export interface StorageMigrationConfig {
-  sourceBucket: string; // S3 bucket
+  sourceBucket: string;
   sourceRegion: string;
-  targetPath: string; // Local path on Contabo VPS
+  targetPath: string;
   transferMethod: 's3-sync' | 'aws-datamove' | 'manual-copy';
   preservePermissions: boolean;
 }
@@ -133,18 +118,16 @@ export interface MigrationError {
 export interface MigrationCheckpoint {
   id: string;
   phase: MigrationPhase;
-  app?: string; // If app-specific
+  app?: string;
   timestamp: Date;
   status: 'success' | 'warning' | 'failed';
   message: string;
 
-  // Rollback information
-  rollbackCommand?: string; // How to undo this checkpoint
-  rollbackData?: Record<string, unknown>; // State needed for rollback
+  rollbackCommand?: string;
+  rollbackData?: Record<string, unknown>;
 
-  // Metadata
-  duration: number; // milliseconds
-  resource?: string; // Container ID, DB name, etc.
+  duration: number;
+  resource?: string;
 }
 
 export interface MigrationProgress {
@@ -153,8 +136,8 @@ export interface MigrationProgress {
   totalApps: number;
   completedApps: number;
   currentApp?: string;
-  appProgress: number; // 0-100
-  overallProgress: number; // 0-100
+  appProgress: number;
+  overallProgress: number;
 
   elapsedSeconds: number;
   estimatedRemainingSeconds: number;
@@ -172,14 +155,14 @@ export interface MigrationConfig {
 
   source: {
     type: SourceType;
-    credentials?: Record<string, string>; // AWS keys, SSH keys, etc.
+    credentials?: Record<string, string>;
   };
 
   target: {
     type: TargetType;
     ip: string;
     sshKey: string;
-    sshUser?: string; // Default: root
+    sshUser?: string;
   };
 
   apps: Array<{
@@ -190,10 +173,10 @@ export interface MigrationConfig {
   }>;
 
   options?: {
-    parallelAppsLimit?: number; // Default: 3
-    rollbackWindowHours?: number; // Default: 4
-    enableAutoRollback?: boolean; // Default: true
-    dryRunFirst?: boolean; // Default: true
+    parallelAppsLimit?: number;
+    rollbackWindowHours?: number;
+    enableAutoRollback?: boolean;
+    dryRunFirst?: boolean;
   };
 }
 
@@ -204,7 +187,7 @@ export interface ValidationReport {
   checks: ValidationResult[];
   warnings: string[];
   blockers: string[];
-  estimatedReadiness: number; // 0-100
+  estimatedReadiness: number;
 }
 
 export interface DryRunResult {

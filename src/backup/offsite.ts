@@ -30,7 +30,6 @@ function s3Config() {
   return { client, bucket, prefix };
 }
 
-// Uses the HTTP API directly so the CLI can notify without starting a second bot poller
 export async function notifyText(text: string): Promise<void> {
   const tg = telegramConfig();
   if (!tg) return;

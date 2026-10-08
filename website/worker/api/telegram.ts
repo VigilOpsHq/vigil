@@ -1,5 +1,3 @@
-// Telegram webhook for the official VigilOps bot.
-//
 // Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
 // but not as a competing product or service. Converts to MIT after two years.
 import type { RequestContext } from '../lib/env';
@@ -14,7 +12,6 @@ interface Update {
   message?: { chat: { id: number; type: string }; text?: string };
 }
 
-// POST /api/telegram/webhook  — updates for the official VigilOps bot
 export async function telegramWebhook({ request, env }: RequestContext): Promise<Response> {
   const secret = env.CLOUD_TELEGRAM_WEBHOOK_SECRET;
   if (!secret || !env.CLOUD_TELEGRAM_BOT_TOKEN) throw new HttpError(503, 'Bot not configured');

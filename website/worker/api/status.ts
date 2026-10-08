@@ -1,6 +1,3 @@
-// Public, unauthenticated: must stay readable when sign-in itself is broken,
-// so it reports only component health and incidents.
-//
 // Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
 // but not as a competing product or service. Converts to MIT after two years.
 import type { RequestContext } from '../lib/env';
@@ -33,7 +30,6 @@ interface Incident {
   resolved_at: string | null;
 }
 
-// GET /api/status
 export async function status(ctx: RequestContext): Promise<Response> {
   const components: Component[] = [
     { name: 'API and dashboard', state: 'operational', detail: 'Answering requests' },
@@ -60,7 +56,6 @@ export async function status(ctx: RequestContext): Promise<Response> {
       ).all<Incident>();
       incidents = results;
     } catch {
-      // The incidents table may not exist yet on an older database
     }
   }
 
@@ -68,7 +63,7 @@ export async function status(ctx: RequestContext): Promise<Response> {
     components.push({ name: 'Backup storage', state: 'unknown', detail: 'Not configured' });
   } else {
     try {
-      await ctx.env.BACKUPS.head(PROBE_KEY); // null is the expected answer; we only check it responds
+      await ctx.env.BACKUPS.head(PROBE_KEY);
       components.push({ name: 'Backup storage', state: 'operational', detail: 'Uploads and downloads available' });
     } catch (err) {
       components.push({ name: 'Backup storage', state: 'down', detail: (err as Error).message.slice(0, 120) });

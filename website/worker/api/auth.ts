@@ -1,5 +1,3 @@
-// Sign-in: GitHub OAuth, sessions, and the current account.
-//
 // Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
 // but not as a competing product or service. Converts to MIT after two years.
 import type { RequestContext } from '../lib/env';
@@ -20,7 +18,6 @@ function redirect(location: string, cookies: string[] = []): Response {
   return new Response(null, { status: 302, headers });
 }
 
-// GET /auth/github?next=/app/
 export async function githubStart({ request, env }: RequestContext): Promise<Response> {
   if (!env.GITHUB_CLIENT_ID) throw new HttpError(503, 'GitHub sign-in is not configured');
   const url = new URL(request.url);
@@ -56,7 +53,6 @@ async function github<T>(path: string, token: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// GET /auth/github/callback
 export async function githubCallback({ request, env }: RequestContext): Promise<Response> {
   const db = requireDb(env);
   const url = new URL(request.url);
@@ -100,7 +96,6 @@ export async function githubCallback({ request, env }: RequestContext): Promise<
       .run();
   }
 
-  // Claim subscriptions bought with any of this account's verified emails
   const placeholders = verified.map(() => '?').join(',');
   await db
     .prepare(`UPDATE subscriptions SET account_id = ? WHERE account_id IS NULL AND email IN (${placeholders})`)
@@ -110,7 +105,6 @@ export async function githubCallback({ request, env }: RequestContext): Promise<
   return redirect(safeNext(next ?? null), [clearState, await createSession(env, request, accountId)]);
 }
 
-// GET /auth/dev?email=you@example.com  (local development only)
 export async function devLogin({ request, env }: RequestContext): Promise<Response> {
   if (env.DEV_LOGIN !== 'true') throw new HttpError(404, 'Not found');
   const db = requireDb(env);
@@ -126,12 +120,10 @@ export async function devLogin({ request, env }: RequestContext): Promise<Respon
   return redirect('/app/', [await createSession(env, request, row.id)]);
 }
 
-// POST /auth/logout
 export async function logout({ request, env }: RequestContext): Promise<Response> {
   return redirect('/', [await destroySession(env, request)]);
 }
 
-// GET /api/me
 export async function me({ request, env }: RequestContext): Promise<Response> {
   const account = await getAccount(env, request);
   if (!account) return json({ signedIn: false }, 401);

@@ -1,21 +1,13 @@
-/**
- * Vigil CLI Entry Point
- * Run as: node dist/cli/index.js <command> [options]
- * Or: vigil <command> [options]
- */
 
 import path from 'path';
 import dotenv from 'dotenv';
 
-// The `vigil` wrapper runs from any directory, so load .env relative to the install
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import { getCommand } from './commands';
 import { updateNotice } from '../update';
 import { error } from '../logger';
 
-// A quiet reminder after the command's own output. `version` says it itself, and
-// help is usually the first thing a new install runs.
 function showUpdateNotice(commandName: string): void {
   if (commandName === 'version' || commandName === 'help') return;
   const notice = updateNotice();
@@ -45,7 +37,6 @@ async function main() {
   try {
     await command.handler(commandArgs);
     showUpdateNotice(commandName);
-    // Open HTTP keep-alive sockets (Telegram, S3) would otherwise hold the process open
     process.exit(0);
   } catch (err) {
     error(`Command failed: ${commandName}`, err);

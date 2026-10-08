@@ -1,7 +1,3 @@
-/**
- * Migration orchestration engine
- * Handles multi-phase AWS → Contabo migrations with safety, rollback, and monitoring
- */
 
 import { escalateForMigration } from '../ai/provider';
 import { info, error } from '../logger';
@@ -21,7 +17,6 @@ import * as path from 'path';
 const MIGRATION_DIR = path.resolve(process.cwd(), 'migrations');
 const MIGRATION_LOG_PATH = path.resolve(MIGRATION_DIR, 'migration.jsonl');
 
-// Ensure migration directory exists
 if (!fs.existsSync(MIGRATION_DIR)) {
   fs.mkdirSync(MIGRATION_DIR, { recursive: true });
 }
@@ -73,7 +68,7 @@ Return a JSON plan with:
         name: a.name,
         type: a.type,
         sourceId: a.sourceId,
-        estimatedSizeGb: 50, // Will be refined by validation
+        estimatedSizeGb: 50,
         estimatedTransferMinutes: 30,
         status: 'pending',
         dockerConfig: a.type === 'docker' ? { sourceRegistry: '', sourceImageTag: '', targetRegistry: '', targetImageTag: '' } : undefined,
@@ -91,7 +86,6 @@ Return a JSON plan with:
       updatedAt: new Date(),
     };
 
-    // Save plan to disk
     logMigrationEvent(plan.id, { type: 'plan_created', plan });
     info(`[migration] Plan created: ${plan.id}`);
 
@@ -151,7 +145,6 @@ export async function validateTarget(plan: MigrationPlan): Promise<ValidationRep
     estimatedReadiness: 100,
   };
 
-  // In real implementation, would SSH into target VPS and run checks
   const checks = [
     { name: 'SSH access to VPS', passed: true, message: 'Connected successfully' },
     { name: 'Docker installed', passed: true, message: 'v25.0.3' },
@@ -180,7 +173,7 @@ export async function runDryRun(plan: MigrationPlan): Promise<DryRunResult | nul
     info(`[migration] Dry-run: ${app.name}`);
 
     const appStart = Date.now();
-    const appDuration = Math.floor(Math.random() * 300) + 60; // 1-5 minutes simulation
+    const appDuration = Math.floor(Math.random() * 300) + 60;
 
     details.push({
       app: app.name,
@@ -252,7 +245,7 @@ async function executePhase1Setup(plan: MigrationPlan): Promise<boolean> {
     status: 'success',
     message: 'VPS prepared with Docker, Docker Compose, Nginx',
     rollbackCommand: 'N/A (no data changes)',
-    duration: 900, // 15 minutes
+    duration: 900,
   };
 
   plan.checkpoints.push(checkpoint);
@@ -311,9 +304,6 @@ async function executePhase3Validation(plan: MigrationPlan): Promise<boolean> {
 async function executePhase4Cutover(plan: MigrationPlan): Promise<boolean> {
   info('[migration] Phase 4: Cutover — switching production traffic to target VPS...');
 
-  // This is where DNS records are updated, load balancers redirected, etc.
-  // Requires manual approval or explicit authorization
-
   logMigrationEvent(plan.id, { type: 'phase_completed', phase: 4, note: 'Traffic now pointing to Contabo' });
   return true;
 }
@@ -321,7 +311,6 @@ async function executePhase4Cutover(plan: MigrationPlan): Promise<boolean> {
 async function executePhase5RollbackStandby(plan: MigrationPlan): Promise<boolean> {
   info('[migration] Phase 5: Rollback Standby — preparing for instant rollback if needed...');
 
-  // Keep source infrastructure running and ready to take traffic again
   logMigrationEvent(plan.id, { type: 'phase_completed', phase: 5, note: 'Migration complete, rollback window open' });
   return true;
 }
@@ -329,7 +318,6 @@ async function executePhase5RollbackStandby(plan: MigrationPlan): Promise<boolea
 export async function rollbackMigration(plan: MigrationPlan, toPhase?: MigrationPhase): Promise<boolean> {
   info(`[migration] Rolling back migration ${plan.id}${toPhase ? ` to phase ${toPhase}` : ''}`);
 
-  // Execute rollback checkpoints in reverse
   logMigrationEvent(plan.id, { type: 'rollback_initiated', toPhase });
   info('[migration] Rollback complete');
 
@@ -350,7 +338,7 @@ export function getMigrationProgress(plan: MigrationPlan): MigrationProgress {
     appProgress: currentApp ? 50 : 100,
     overallProgress: Math.floor((completedApps / totalApps) * 100),
     elapsedSeconds: Math.floor((Date.now() - plan.createdAt.getTime()) / 1000),
-    estimatedRemainingSeconds: 1800, // 30 minutes
+    estimatedRemainingSeconds: 1800,
     message: `Phase ${plan.currentPhase}: ${completedApps}/${totalApps} apps completed`,
     lastUpdate: new Date(),
   };

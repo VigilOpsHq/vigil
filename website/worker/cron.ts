@@ -1,6 +1,3 @@
-// Every 15 minutes: offline servers, missed backups, retention, quota and
-// billing warnings, stale uploads.
-//
 // Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
 // but not as a competing product or service. Converts to MIT after two years.
 import type { Env } from './lib/env';
@@ -20,10 +17,8 @@ interface Schedule {
   firstSeenAt?: string;
 }
 
-/** Most recent scheduled slot at or before `now`, for a schedule defined in the server's local time. */
 export function lastSlotUtc(s: Schedule, now: Date, utcOffsetMinutes: number): Date {
   const [h, m] = s.time.split(':').map(Number);
-  // Shift into "server local time expressed as UTC" so the arithmetic uses UTC getters
   const local = new Date(now.getTime() + utcOffsetMinutes * 60_000);
   const slot = new Date(local);
   slot.setUTCSeconds(0, 0);
@@ -53,7 +48,6 @@ export async function runScheduled(env: Env, now = new Date()): Promise<void> {
   const db = env.DB;
   if (!db) return;
 
-  // 1. Servers that stopped checking in
   const offlineBefore = new Date(now.getTime() - OFFLINE_AFTER_MS).toISOString();
   const { results: offline } = await db
     .prepare(
@@ -72,7 +66,6 @@ export async function runScheduled(env: Env, now = new Date()): Promise<void> {
     );
   }
 
-  // 2. Scheduled backups that never arrived
   const { results: servers } = await db
     .prepare(
       `SELECT s.id, s.name, s.schedules, s.utc_offset_minutes, a.telegram_chat_id
@@ -109,7 +102,6 @@ export async function runScheduled(env: Env, now = new Date()): Promise<void> {
     }
   }
 
-  // 3. Retention: delete backups older than the plan allows, always keeping the newest per container
   const { results: accounts } = await db
     .prepare(
       `SELECT a.id, a.emails, (
@@ -123,7 +115,6 @@ export async function runScheduled(env: Env, now = new Date()): Promise<void> {
     .all<{ id: string; plan: string | null }>();
 
   for (const account of accounts) {
-    // Lapsed subscriptions keep backups for the Pro retention period
     const days = LIMITS[(account.plan ?? 'pro') as PaidPlan]?.retentionDays ?? LIMITS.pro.retentionDays;
     const cutoff = new Date(now.getTime() - days * 86400_000).toISOString();
     const { results: expired } = await db
@@ -141,7 +132,6 @@ export async function runScheduled(env: Env, now = new Date()): Promise<void> {
     await db.batch(expired.map((e) => db.prepare('DELETE FROM backups WHERE id = ?').bind(e.id)));
   }
 
-  // 4. Storage running out, and payments that failed
   const { results: quota } = await db
     .prepare(
       `SELECT a.id, a.telegram_chat_id, (
@@ -189,7 +179,6 @@ export async function runScheduled(env: Env, now = new Date()): Promise<void> {
         `⚠️ Your VigilOps Cloud storage is ${Math.round(pct)}% full (${gb(account.bytes)} of ${gb(limits.storageBytes)}).\nWhen it fills up, new backups are rejected: https://vigilops.cloud/app/`
       );
     }
-    // Below 75%, forget the warnings so the next one can fire (hysteresis around 80%)
     if (pct < 75) {
       await db.prepare("DELETE FROM alerts WHERE key IN (?, ?)").bind(`quota:${account.id}:high`, `quota:${account.id}:full`).run();
     } else if (pct < 100) {
@@ -197,7 +186,6 @@ export async function runScheduled(env: Env, now = new Date()): Promise<void> {
     }
   }
 
-  // 5. Uploads that never finished
   const staleBefore = new Date(now.getTime() - 24 * 3600 * 1000).toISOString();
   const { results: stale } = await db
     .prepare("SELECT id, r2_key, upload_id FROM backups WHERE status IN ('uploading', 'failed') AND created_at < ? LIMIT 200")
@@ -208,13 +196,11 @@ export async function runScheduled(env: Env, now = new Date()): Promise<void> {
     await db.prepare('DELETE FROM backups WHERE id = ?').bind(b.id).run();
   }
 
-  // 6. Record the run so /status can show that monitoring is alive
   await db
     .prepare("INSERT INTO meta (key, value, updated_at) VALUES ('last_cron_run', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at")
     .bind(now.toISOString(), now.toISOString())
     .run();
 
-  // 7. Housekeeping
   const monthAgo = new Date(now.getTime() - 30 * 86400_000).toISOString();
   await db.batch([
     db.prepare('DELETE FROM sessions WHERE expires_at < ?').bind(now.toISOString()),

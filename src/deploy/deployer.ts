@@ -13,7 +13,6 @@ export interface DeployResult {
   duration?: number;
 }
 
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -25,7 +24,6 @@ async function run(cmd: string): Promise<{ stdout: string; stderr: string }> {
 
 async function getCurrentImageId(config: AppDeployConfig): Promise<string | null> {
   try {
-    // Get the image ID of the currently running container for this service
     const { stdout } = await run(
       `docker compose -f ${config.composePath} images -q ${config.service}`
     );
@@ -40,7 +38,7 @@ async function waitForHealthy(
   timeoutSeconds: number
 ): Promise<boolean> {
   const deadline = Date.now() + timeoutSeconds * 1000;
-  const interval = 5000; // check every 5s
+  const interval = 5000;
 
   info(`[deploy] Waiting up to ${timeoutSeconds}s for ${url} to be healthy...`);
 
@@ -51,7 +49,6 @@ async function waitForHealthy(
         return true;
       }
     } catch {
-      // not ready yet
     }
     await sleep(interval);
   }
@@ -68,7 +65,6 @@ async function rollback(
 
   try {
     if (previousImageId) {
-      // Retag the old image back as latest so compose picks it up
       await run(`docker tag ${previousImageId} ${config.image}:latest`);
     }
 
@@ -81,7 +77,6 @@ async function rollback(
     error(`[deploy] Rollback of ${appName} failed`, err);
   }
 }
-
 
 export async function deploy(appName: string): Promise<DeployResult> {
   const config = getApp(appName);
@@ -106,7 +101,6 @@ export async function deploy(appName: string): Promise<DeployResult> {
     info(`[deploy] Starting new container for ${appName}...`);
     await run(`docker compose -f ${config.composePath} up -d ${config.service}`);
 
-    // No health check URL: treat a successful restart as done
     const healthy = config.healthCheckUrl
       ? await waitForHealthy(config.healthCheckUrl, config.healthCheckTimeout)
       : true;

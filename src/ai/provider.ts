@@ -33,7 +33,7 @@ You must respond with ONLY valid JSON — no markdown, no explanation outside th
 Response format:
 {
   "type": "AUTO_FIX" | "SUGGEST" | "ALERT",
-  "command": "<shell command>",   // required for AUTO_FIX and SUGGEST
+  "command": "<shell command>",
   "message": "<human-readable summary>",
   "reasoning": "<why you made this decision>"
 }
@@ -97,7 +97,6 @@ function parseJson(text: string): unknown {
   }
 }
 
-
 export async function escalateForMonitoring(snapshot: SystemSnapshot): Promise<AIDecision | null> {
   if (!aiEnabled) {
     info('[ai] No provider configured — skipping escalation');
@@ -140,7 +139,6 @@ export async function escalateForMonitoring(snapshot: SystemSnapshot): Promise<A
 
   return null;
 }
-
 
 export async function escalateForMigration(prompt: string, useReasoning: boolean = true): Promise<string | null> {
   if (!aiEnabled) {

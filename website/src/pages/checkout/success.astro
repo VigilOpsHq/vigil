@@ -40,7 +40,6 @@ import { company } from '../../data/site';
   </section>
 
   <script>
-    // Wait for the payment to register, then go straight to the dashboard
     const show = (name: string) =>
       document.querySelectorAll<HTMLElement>('[data-waiting],[data-signin],[data-slow]').forEach((el) => {
         el.hidden = el.dataset[name] === undefined;
@@ -55,7 +54,6 @@ import { company } from '../../data/site';
         const me = await res.json();
         if (me.plan) return location.replace('/app/');
       } catch {
-        /* keep trying */
       }
       if (tries >= 20) return show('slow');
       setTimeout(poll, 3000);

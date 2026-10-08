@@ -1,5 +1,3 @@
-// Plan limits and how a subscription becomes an entitlement.
-//
 // Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
 // but not as a competing product or service. Converts to MIT after two years.
 import type { D1Database } from './env';
@@ -14,14 +12,12 @@ export interface Limits {
 
 const GB = 1024 ** 3;
 
-// Keep in sync with src/data/plans.ts
 export const LIMITS: Record<PaidPlan, Limits> = {
   pro: { servers: 5, storageBytes: 50 * GB, retentionDays: 30 },
   team: { servers: 20, storageBytes: 250 * GB, retentionDays: 90 },
   enterprise: { servers: 1000, storageBytes: 5000 * GB, retentionDays: 365 },
 };
 
-// past_due keeps access while Bachs retries the card
 const ACTIVE = ['active', 'trialing', 'past_due'];
 const RANK: Record<string, number> = { pro: 1, team: 2, enterprise: 3 };
 

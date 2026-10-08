@@ -1,7 +1,3 @@
-/**
- * CLI Commands for Vigil
- * Usage: vigil <command> [options]
- */
 
 import { collect, getContainers, getContainerLogs, getDisk, getMemory, getNginx, getHealthChecks } from '../collector';
 import { execute, isSafeCommand } from '../executor';
@@ -14,7 +10,6 @@ import { describeSchedule, loadSchedules, removeSchedule, setSchedule } from '..
 import { currentVersion, isNewer, latestRelease, rememberLatest } from '../update';
 import * as cloud from '../cloud';
 
-// Tell VigilOps Cloud about schedule changes right away, so missed-backup alerts use the new schedule
 const syncSchedules = () => (cloud.cloudEnabled() ? cloud.heartbeat().then(() => undefined).catch(() => undefined) : Promise.resolve());
 
 export interface CLICommand {
@@ -33,7 +28,6 @@ export const statusCommand: CLICommand = {
 
     console.log('\n📊 VIGIL STATUS\n');
 
-    // Containers
     console.log('🐳 CONTAINERS');
     if (snapshot.containers.length === 0) {
       console.log('   (none)');
@@ -44,24 +38,20 @@ export const statusCommand: CLICommand = {
       });
     }
 
-    // Disk
     console.log('\n💾 DISK');
     const diskIcon = snapshot.disk.usedPercent >= 85 ? '⚠️ ' : '✅';
     console.log(`   ${diskIcon}${snapshot.disk.usedPercent}% used (${snapshot.disk.used} / ${snapshot.disk.total})`);
     console.log(`      Free: ${snapshot.disk.available}`);
 
-    // Memory
     console.log('\n🧠 MEMORY');
     const memIcon = snapshot.memory.usedPercent >= 90 ? '⚠️ ' : '✅';
     console.log(`   ${memIcon}${snapshot.memory.usedPercent}% used (${snapshot.memory.usedMb}MB / ${snapshot.memory.totalMb}MB)`);
     console.log(`      Free: ${snapshot.memory.freeMb}MB`);
 
-    // Nginx
     console.log('\n🌐 NGINX');
     const nginxIcon = snapshot.nginx.running ? '🟢' : '🔴';
     console.log(`   ${nginxIcon} ${snapshot.nginx.running ? 'Running' : 'NOT RUNNING'}`);
 
-    // Health checks
     if (snapshot.healthChecks.length > 0) {
       console.log('\n❤️ HEALTH CHECKS');
       snapshot.healthChecks.forEach((h) => {
@@ -486,7 +476,7 @@ export const versionCommand: CLICommand = {
     console.log(`\nVigilOps ${current}`);
     try {
       const latest = await latestRelease();
-      rememberLatest(latest); // so other commands can mention it without a network call
+      rememberLatest(latest);
       console.log(
         isNewer(latest.version, current)
           ? `⬆️  ${latest.version} is available — run: vigil update\n   ${latest.url}\n`

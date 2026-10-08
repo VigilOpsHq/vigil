@@ -1,5 +1,3 @@
-// JSON responses, request parsing and the same-origin guard.
-//
 // Licensed under FSL-1.1-MIT (see website/LICENSE.md): use and self-host freely,
 // but not as a competing product or service. Converts to MIT after two years.
 export class HttpError extends Error {
@@ -46,7 +44,6 @@ export function cookie(name: string, value: string, maxAgeSeconds: number, secur
     .join('; ');
 }
 
-/** Blocks cross-site form posts against cookie-authenticated endpoints. */
 export function assertSameOrigin(request: Request): void {
   const origin = request.headers.get('Origin');
   if (origin && origin !== new URL(request.url).origin) throw new HttpError(403, 'Cross-origin request blocked');

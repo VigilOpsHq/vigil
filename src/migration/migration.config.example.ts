@@ -1,7 +1,3 @@
-/**
- * Example Migration Configuration
- * Copy to migration.config.ts and fill in your AWS/Contabo details
- */
 
 import { MigrationConfig } from './migration.types';
 
@@ -20,7 +16,7 @@ export const simpleDockerMigration: MigrationConfig = {
 
   target: {
     type: 'contabo',
-    ip: '192.168.1.100', // Your Contabo VPS IP
+    ip: '192.168.1.100',
     sshKey: '/home/user/.ssh/contabo-key.pem',
     sshUser: 'root',
   },
@@ -29,7 +25,7 @@ export const simpleDockerMigration: MigrationConfig = {
     {
       name: 'api-server',
       type: 'docker',
-      sourceId: 'i-0123456789abcdef', // AWS EC2 instance ID
+      sourceId: 'i-0123456789abcdef',
       config: {
         sourceRegistry: 'ghcr.io/myorg',
         sourceImageTag: 'api:latest',
@@ -74,7 +70,6 @@ export const multiTierMigration: MigrationConfig = {
   },
 
   apps: [
-    // First: API service (no dependencies)
     {
       name: 'api-server',
       type: 'docker',
@@ -87,12 +82,11 @@ export const multiTierMigration: MigrationConfig = {
         ports: {
           '8080/tcp': 8080,
         },
-        volumes: ['/data:/app/data'], // Mount persistent data
+        volumes: ['/data:/app/data'],
         restartPolicy: 'always',
       },
     },
 
-    // Second: PostgreSQL database (must wait for API to be ready)
     {
       name: 'postgres-primary',
       type: 'managed-database',
@@ -105,12 +99,11 @@ export const multiTierMigration: MigrationConfig = {
         targetEndpoint: 'localhost',
         targetPort: 5432,
         targetDatabase: 'production',
-        transferMethod: 'backup-restore', // RDS automated backup
+        transferMethod: 'backup-restore',
         backupPath: 's3://my-backups/prod-db-2024-09-12.sql',
       },
     },
 
-    // Third: S3 storage (independent, can run parallel)
     {
       name: 'static-files',
       type: 'object-storage',
@@ -126,7 +119,7 @@ export const multiTierMigration: MigrationConfig = {
   ],
 
   options: {
-    parallelAppsLimit: 3, // Can transfer DB and storage simultaneously
+    parallelAppsLimit: 3,
     rollbackWindowHours: 6,
     enableAutoRollback: true,
     dryRunFirst: true,
@@ -204,39 +197,9 @@ export const k8sToDockerMigration: MigrationConfig = {
   ],
 
   options: {
-    parallelAppsLimit: 3, // All services can migrate in parallel
-    rollbackWindowHours: 2, // Quick turnaround
+    parallelAppsLimit: 3,
+    rollbackWindowHours: 2,
     enableAutoRollback: true,
     dryRunFirst: true,
   },
 };
-
-/**
- * How to use these configs:
- *
- * 1. Via MCP from Claude/Cursor:
- *    create_migration_plan {
- *      name: "Full Stack Migration"
- *      source: "aws"
- *      target_ip: "192.168.1.100"
- *      target_ssh_key: "/path/to/key.pem"
- *      apps: [...]
- *    }
- *
- * 2. Via CLI (future):
- *    vigilops migrate plan --config ./src/migration/migration.config.ts --preset multi-tier
- *
- * 3. Programmatically:
- *    import { multiTierMigration } from './migration.config';
- *    const plan = await createMigrationPlan(multiTierMigration);
- *
- * Then execute:
- *    await validateSource(plan);
- *    await validateTarget(plan);
- *    await runDryRun(plan);
- *    await executeMigrationPhase(plan, 1);  // Setup
- *    await executeMigrationPhase(plan, 2);  // Data
- *    await executeMigrationPhase(plan, 3);  // Validate
- *    await executeMigrationPhase(plan, 4);  // Cutover (requires approval)
- *    await executeMigrationPhase(plan, 5);  // Rollback standby
- */

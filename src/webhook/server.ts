@@ -25,15 +25,10 @@ function authenticate(req: Request, res: Response, next: NextFunction): void {
   next();
 }
 
-
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', service: 'vigil' });
 });
 
-// Deploy endpoint — called by GitHub Actions after a successful build
-// POST /webhook/deploy
-// Headers: x-vigil-token: <secret>
-// Body: { "app": "token-radar" }
 app.post('/webhook/deploy', authenticate, async (req: Request, res: Response) => {
   const { app: appName } = req.body as { app?: string };
 
@@ -71,11 +66,9 @@ app.post('/webhook/deploy', authenticate, async (req: Request, res: Response) =>
   }
 });
 
-// List registered apps
 app.get('/webhook/apps', authenticate, (_req: Request, res: Response) => {
   res.json({ apps: listApps() });
 });
-
 
 export function startWebhookServer(): void {
   const server = app.listen(PORT, '0.0.0.0', () => {

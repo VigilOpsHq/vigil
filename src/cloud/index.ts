@@ -56,7 +56,6 @@ export async function heartbeat(token?: string): Promise<CloudStatus> {
     body: JSON.stringify({
       version: process.env.VIGIL_VERSION ?? 'dev',
       hostname: os.hostname(),
-      // getTimezoneOffset() is minutes *behind* UTC; the cloud wants minutes ahead
       utcOffsetMinutes: -new Date().getTimezoneOffset(),
       schedules: await schedulesForCloud(),
     }),

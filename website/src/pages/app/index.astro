@@ -176,7 +176,6 @@ import App from '../../layouts/App.astro';
 
   const barClass = (pct: number) => (pct >= 100 ? 'full' : pct >= 80 ? 'high' : '');
 
-  /** One banner at a time, most urgent first: payment problem, then quota. */
   function renderNotice(storagePct: number, serverPct: number) {
     const nextPlan = data.plan === 'pro' ? 'Team' : null;
     const more = nextPlan ? ` Upgrading to ${nextPlan} gives you more room.` : ' Contact support if you need more room.';
