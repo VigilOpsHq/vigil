@@ -104,7 +104,6 @@ function text(fonts, str, { font = 'bold', size, x, y, fill = PAPER, anchor = 's
 
 const widthOf = (fonts, str, font, size) => fonts[font].getAdvanceWidth(str, size);
 
-/** The mark, drawn at any size from the 120pt original */
 function mark(x, y, size, { bg = MINT, fg = INK } = {}) {
   const s = size / 120;
   return `<g transform="translate(${x} ${y}) scale(${s})">

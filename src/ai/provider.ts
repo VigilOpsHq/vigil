@@ -1,23 +1,16 @@
-// AI escalation through any OpenAI-compatible /chat/completions API.
-// Set AI_BASE_URL, AI_API_KEY and AI_MODEL. Falls back to DeepSeek and the
-// older DEEPSEEK_* names.
 import axios from 'axios';
 import { SystemSnapshot, AIDecision } from '../types';
 import { error, info } from '../logger';
 
 const DEFAULT_BASE_URL = 'https://api.deepseek.com';
 
-/** A setting left blank in .env means "not set", not an empty provider. */
 const setting = (name: string): string | undefined => process.env[name]?.trim() || undefined;
 
 const API_KEY = setting('AI_API_KEY') ?? setting('DEEPSEEK_API_KEY') ?? '';
 const MODEL = setting('AI_MODEL') ?? setting('DEEPSEEK_MODEL') ?? 'deepseek-chat';
 const BASE_URL = (setting('AI_BASE_URL') ?? DEFAULT_BASE_URL).replace(/\/+$/, '');
-
-// providers differ on whether their base URL already ends at the endpoint
 const ENDPOINT = BASE_URL.endsWith('/chat/completions') ? BASE_URL : `${BASE_URL}/chat/completions`;
 
-// local models need no key, so a custom URL alone counts as configured
 export const aiEnabled = Boolean(API_KEY) || BASE_URL !== DEFAULT_BASE_URL;
 
 export function aiProvider(): string {
@@ -92,13 +85,11 @@ function validateDecision(raw: unknown): AIDecision | null {
   return null;
 }
 
-// models wrap JSON in a code fence however firmly you ask them not to
 function parseJson(text: string): unknown {
   const clean = text.replace(/```json|```/g, '').trim();
   try {
     return JSON.parse(clean);
   } catch {
-    // A model that added a sentence before or after the object
     const start = clean.indexOf('{');
     const end = clean.lastIndexOf('}');
     if (start < 0 || end <= start) throw new Error(`no JSON in response: ${clean.slice(0, 200)}`);
@@ -176,7 +167,6 @@ Respond with ONLY valid JSON.`
         max_tokens: 3000,
       };
 
-      // Only DeepSeek's reasoner takes this parameter; other providers reject unknown fields
       if (useReasoning && MODEL.includes('reasoner')) {
         config['reasoning_effort'] = 'high';
       }

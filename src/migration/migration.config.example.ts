@@ -5,9 +5,6 @@
 
 import { MigrationConfig } from './migration.types';
 
-/**
- * Example 1: Simple Docker app migration
- */
 export const simpleDockerMigration: MigrationConfig = {
   name: 'API Server Migration — AWS → Contabo',
   description: 'Moving Node.js API service from AWS EC2 to Contabo VPS',
@@ -57,9 +54,6 @@ export const simpleDockerMigration: MigrationConfig = {
   },
 };
 
-/**
- * Example 2: Multi-tier migration (API + Database + Storage)
- */
 export const multiTierMigration: MigrationConfig = {
   name: 'Full Stack Migration — AWS → Contabo',
   description: 'Moving entire production stack: API, Database, and Static Files',
@@ -139,10 +133,6 @@ export const multiTierMigration: MigrationConfig = {
   },
 };
 
-/**
- * Example 3: Kubernetes to Docker migration
- * (K8s deployment → docker-compose on Contabo)
- */
 export const k8sToDockerMigration: MigrationConfig = {
   name: 'Kubernetes to Docker — Cost Optimization',
   description: 'Consolidating microservices from EKS to single Contabo VPS with docker-compose',

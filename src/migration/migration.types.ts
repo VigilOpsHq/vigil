@@ -10,9 +10,6 @@ export type MigrationStatus = 'planning' | 'validated' | 'dry-run-passed' | 'in-
 export type MigrationPhase = 1 | 2 | 3 | 4 | 5;
 export type AppStatus = 'pending' | 'transferring' | 'validating' | 'live' | 'failed' | 'rolled-back';
 
-/**
- * High-level migration plan with all details
- */
 export interface MigrationPlan {
   id: string;
   name: string;
@@ -49,9 +46,6 @@ export interface MigrationPlan {
   updatedAt: Date;
 }
 
-/**
- * Individual app to be migrated
- */
 export interface MigrationApp {
   name: string;
   type: MigrationType;
@@ -84,9 +78,6 @@ export interface MigrationApp {
   lastValidationAt?: Date;
 }
 
-/**
- * Docker container/image migration configuration
- */
 export interface DockerMigrationConfig {
   sourceRegistry: string; // e.g., ghcr.io/myorg
   sourceImageTag: string;
@@ -98,9 +89,6 @@ export interface DockerMigrationConfig {
   restartPolicy?: 'no' | 'always' | 'on-failure';
 }
 
-/**
- * Database migration configuration
- */
 export interface DatabaseMigrationConfig {
   sourceType: 'rds' | 'self-managed' | 'managed'; // AWS RDS, self-managed DB, etc.
   sourceEndpoint: string;
@@ -113,9 +101,6 @@ export interface DatabaseMigrationConfig {
   backupPath?: string; // Local backup file or S3 path
 }
 
-/**
- * Object storage migration configuration
- */
 export interface StorageMigrationConfig {
   sourceBucket: string; // S3 bucket
   sourceRegion: string;
@@ -124,9 +109,6 @@ export interface StorageMigrationConfig {
   preservePermissions: boolean;
 }
 
-/**
- * Validation result from running checks
- */
 export interface ValidationResult {
   checkName: string;
   passed: boolean;
@@ -135,9 +117,6 @@ export interface ValidationResult {
   executedAt: Date;
 }
 
-/**
- * Error tracking during migration
- */
 export interface MigrationError {
   id: string;
   app: string;
@@ -151,9 +130,6 @@ export interface MigrationError {
   timestamp: Date;
 }
 
-/**
- * Checkpoint for rollback capability
- */
 export interface MigrationCheckpoint {
   id: string;
   phase: MigrationPhase;
@@ -171,9 +147,6 @@ export interface MigrationCheckpoint {
   resource?: string; // Container ID, DB name, etc.
 }
 
-/**
- * Real-time progress update during migration
- */
 export interface MigrationProgress {
   migrationId: string;
   phase: MigrationPhase;
@@ -193,9 +166,6 @@ export interface MigrationProgress {
   warnings?: string[];
 }
 
-/**
- * Migration configuration (what user provides to start)
- */
 export interface MigrationConfig {
   name: string;
   description?: string;
@@ -227,9 +197,6 @@ export interface MigrationConfig {
   };
 }
 
-/**
- * Result of validation checks on source or target infrastructure
- */
 export interface ValidationReport {
   timestamp: Date;
   target: 'source' | 'target';
@@ -240,9 +207,6 @@ export interface ValidationReport {
   estimatedReadiness: number; // 0-100
 }
 
-/**
- * Dry-run results (simulated migration without actual cutover)
- */
 export interface DryRunResult {
   migrationId: string;
   simulatedDurationSeconds: number;

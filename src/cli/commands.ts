@@ -24,9 +24,6 @@ export interface CLICommand {
   handler: (args: string[]) => Promise<void>;
 }
 
-/**
- * status - Full system snapshot
- */
 export const statusCommand: CLICommand = {
   name: 'status',
   description: 'Full system snapshot (containers, disk, memory, nginx, health)',
@@ -78,9 +75,6 @@ export const statusCommand: CLICommand = {
   },
 };
 
-/**
- * containers - List containers
- */
 export const containersCommand: CLICommand = {
   name: 'containers',
   description: 'List all Docker containers',
@@ -103,9 +97,6 @@ export const containersCommand: CLICommand = {
   },
 };
 
-/**
- * logs - Get container logs
- */
 export const logsCommand: CLICommand = {
   name: 'logs',
   description: 'Get logs from a container',
@@ -127,9 +118,6 @@ export const logsCommand: CLICommand = {
   },
 };
 
-/**
- * restart - Restart a container
- */
 export const restartCommand: CLICommand = {
   name: 'restart',
   description: 'Restart a Docker container',
@@ -160,9 +148,6 @@ export const restartCommand: CLICommand = {
   },
 };
 
-/**
- * disk - Show disk usage
- */
 export const diskCommand: CLICommand = {
   name: 'disk',
   description: 'Show disk usage',
@@ -181,9 +166,6 @@ export const diskCommand: CLICommand = {
   },
 };
 
-/**
- * memory - Show memory usage
- */
 export const memoryCommand: CLICommand = {
   name: 'memory',
   description: 'Show memory usage',
@@ -202,9 +184,6 @@ export const memoryCommand: CLICommand = {
   },
 };
 
-/**
- * health - Run health checks
- */
 export const healthCommand: CLICommand = {
   name: 'health',
   description: 'Run health checks on configured endpoints',
@@ -227,9 +206,6 @@ export const healthCommand: CLICommand = {
   },
 };
 
-/**
- * apps - List deployable apps
- */
 export const appsCommand: CLICommand = {
   name: 'apps',
   description: 'List apps registered for deployment',
@@ -249,9 +225,6 @@ export const appsCommand: CLICommand = {
   },
 };
 
-/**
- * deploy - Deploy an app
- */
 export const deployCommand: CLICommand = {
   name: 'deploy',
   description: 'Deploy an app',
@@ -525,9 +498,6 @@ export const versionCommand: CLICommand = {
   },
 };
 
-/**
- * help - Show help
- */
 export const helpCommand: CLICommand = {
   name: 'help',
   description: 'Show help',

@@ -26,9 +26,6 @@ if (!fs.existsSync(MIGRATION_DIR)) {
   fs.mkdirSync(MIGRATION_DIR, { recursive: true });
 }
 
-/**
- * Create a new migration plan, using the configured AI provider for strategy
- */
 export async function createMigrationPlan(config: MigrationConfig): Promise<MigrationPlan | null> {
   const planPrompt = `
 Create a detailed AWS to Contabo VPS migration plan for the following apps:
@@ -105,9 +102,6 @@ Return a JSON plan with:
   }
 }
 
-/**
- * Validate source infrastructure before migration
- */
 export async function validateSource(plan: MigrationPlan): Promise<ValidationReport | null> {
   const report: ValidationReport = {
     timestamp: new Date(),
@@ -146,9 +140,6 @@ export async function validateSource(plan: MigrationPlan): Promise<ValidationRep
   return report;
 }
 
-/**
- * Validate target VPS infrastructure
- */
 export async function validateTarget(plan: MigrationPlan): Promise<ValidationReport | null> {
   const report: ValidationReport = {
     timestamp: new Date(),
@@ -179,9 +170,6 @@ export async function validateTarget(plan: MigrationPlan): Promise<ValidationRep
   return report;
 }
 
-/**
- * Run a dry-run migration without actually switching traffic
- */
 export async function runDryRun(plan: MigrationPlan): Promise<DryRunResult | null> {
   info(`[migration] Starting dry-run for migration ${plan.id}`);
 
@@ -224,10 +212,6 @@ export async function runDryRun(plan: MigrationPlan): Promise<DryRunResult | nul
   return result;
 }
 
-/**
- * Execute one phase of the migration
- * Phases: 1=Setup, 2=DataTransfer, 3=Validation, 4=Cutover, 5=RollbackStandby
- */
 export async function executeMigrationPhase(plan: MigrationPlan, phase: MigrationPhase): Promise<boolean> {
   info(`[migration] Starting Phase ${phase}`);
 
@@ -258,9 +242,6 @@ export async function executeMigrationPhase(plan: MigrationPlan, phase: Migratio
   }
 }
 
-/**
- * Phase 1: Prepare target VPS (Docker, nginx, networking)
- */
 async function executePhase1Setup(plan: MigrationPlan): Promise<boolean> {
   info('[migration] Phase 1: Setup — installing Docker, configuring networking...');
 
@@ -280,9 +261,6 @@ async function executePhase1Setup(plan: MigrationPlan): Promise<boolean> {
   return true;
 }
 
-/**
- * Phase 2: Transfer data (databases, volumes, configs)
- */
 async function executePhase2DataTransfer(plan: MigrationPlan): Promise<boolean> {
   info('[migration] Phase 2: Data Transfer — moving data from source to target...');
 
@@ -291,7 +269,6 @@ async function executePhase2DataTransfer(plan: MigrationPlan): Promise<boolean> 
     app.status = 'transferring';
     app.dataTransferred = 0;
 
-    // Simulate data transfer
     const transferBytes = app.estimatedSizeGb * 1024 * 1024 * 1024;
     app.dataTransferred = transferBytes;
     app.status = 'validating';
@@ -315,9 +292,6 @@ async function executePhase2DataTransfer(plan: MigrationPlan): Promise<boolean> 
   return true;
 }
 
-/**
- * Phase 3: Validate services on target
- */
 async function executePhase3Validation(plan: MigrationPlan): Promise<boolean> {
   info('[migration] Phase 3: Validation — running health checks on target infrastructure...');
 
@@ -334,9 +308,6 @@ async function executePhase3Validation(plan: MigrationPlan): Promise<boolean> {
   return true;
 }
 
-/**
- * Phase 4: Switch traffic to target (POINT OF NO RETURN)
- */
 async function executePhase4Cutover(plan: MigrationPlan): Promise<boolean> {
   info('[migration] Phase 4: Cutover — switching production traffic to target VPS...');
 
@@ -347,9 +318,6 @@ async function executePhase4Cutover(plan: MigrationPlan): Promise<boolean> {
   return true;
 }
 
-/**
- * Phase 5: Prepare rollback standby
- */
 async function executePhase5RollbackStandby(plan: MigrationPlan): Promise<boolean> {
   info('[migration] Phase 5: Rollback Standby — preparing for instant rollback if needed...');
 
@@ -358,9 +326,6 @@ async function executePhase5RollbackStandby(plan: MigrationPlan): Promise<boolea
   return true;
 }
 
-/**
- * Rollback migration to source infrastructure
- */
 export async function rollbackMigration(plan: MigrationPlan, toPhase?: MigrationPhase): Promise<boolean> {
   info(`[migration] Rolling back migration ${plan.id}${toPhase ? ` to phase ${toPhase}` : ''}`);
 
@@ -371,9 +336,6 @@ export async function rollbackMigration(plan: MigrationPlan, toPhase?: Migration
   return true;
 }
 
-/**
- * Get real-time migration progress
- */
 export function getMigrationProgress(plan: MigrationPlan): MigrationProgress {
   const totalApps = plan.apps.length;
   const completedApps = plan.apps.filter((a) => a.status === 'live').length;
@@ -394,9 +356,6 @@ export function getMigrationProgress(plan: MigrationPlan): MigrationProgress {
   };
 }
 
-/**
- * Log migration event to JSONL file
- */
 function logMigrationEvent(migrationId: string, event: Record<string, unknown>): void {
   try {
     const entry = {
@@ -410,9 +369,6 @@ function logMigrationEvent(migrationId: string, event: Record<string, unknown>):
   }
 }
 
-/**
- * Read migration history from log file
- */
 export function getMigrationHistory(migrationId?: string, limit: number = 50): Record<string, unknown>[] {
   try {
     if (!fs.existsSync(MIGRATION_LOG_PATH)) return [];

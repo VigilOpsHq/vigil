@@ -1,21 +1,5 @@
-/**
- * Vigil HTTP API Server
- * Local API for interacting with Vigil from scripts/automation
- *
- * Usage:
- *   API_PORT=3200 npm run start:api
- *
- * Endpoints:
- *   GET  /api/status            - Full system snapshot
- *   GET  /api/containers        - List containers
- *   GET  /api/containers/:name/logs - Get container logs
- *   POST /api/containers/:name/restart - Restart container
- *   GET  /api/disk              - Disk usage
- *   GET  /api/memory            - Memory usage
- *   GET  /api/health            - Health checks
- *   GET  /api/apps              - List deployable apps
- *   POST /api/apps/:name/deploy - Deploy an app
- */
+// Local HTTP API for scripts and automation:  API_PORT=3200 npm run start:api
+// Routes are listed by GET /api/info.
 
 import express, { Request, Response, NextFunction } from 'express';
 import { collect, getContainers, getContainerLogs, getDisk, getMemory, getHealthChecks } from '../collector';
@@ -26,22 +10,17 @@ import { info, error } from '../logger';
 const app = express();
 const PORT = parseInt(process.env.API_PORT ?? '3200', 10);
 
-// Middleware
 app.use(express.json());
 
-// Logging middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
   info(`[API] ${req.method} ${req.path}`);
   next();
 });
 
-// Error handling middleware
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   error('[API] Error', err);
   res.status(500).json({ error: 'Internal server error', message: err.message });
 });
-
-
 
 app.get('/api/status', async (req: Request, res: Response) => {
   try {
@@ -59,7 +38,6 @@ app.get('/api/status', async (req: Request, res: Response) => {
   }
 });
 
-
 app.get('/api/containers', async (req: Request, res: Response) => {
   try {
     const containers = await getContainers();
@@ -69,9 +47,6 @@ app.get('/api/containers', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * GET /api/containers/:name/logs - Get container logs
- */
 app.get('/api/containers/:name/logs', async (req: Request, res: Response) => {
   try {
     const { name } = req.params;
@@ -84,9 +59,6 @@ app.get('/api/containers/:name/logs', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * POST /api/containers/:name/restart - Restart container
- */
 app.post('/api/containers/:name/restart', async (req: Request, res: Response) => {
   try {
     const { name } = req.params;
@@ -108,9 +80,6 @@ app.post('/api/containers/:name/restart', async (req: Request, res: Response) =>
   }
 });
 
-/**
- * GET /api/disk - Disk usage
- */
 app.get('/api/disk', async (req: Request, res: Response) => {
   try {
     const disk = await getDisk();
@@ -120,9 +89,6 @@ app.get('/api/disk', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * GET /api/memory - Memory usage
- */
 app.get('/api/memory', async (req: Request, res: Response) => {
   try {
     const memory = await getMemory();
@@ -132,9 +98,6 @@ app.get('/api/memory', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * GET /api/health - Health checks
- */
 app.get('/api/health', async (req: Request, res: Response) => {
   try {
     const checks = await getHealthChecks();
@@ -144,13 +107,6 @@ app.get('/api/health', async (req: Request, res: Response) => {
   }
 });
 
-// ============================================
-// DEPLOYMENT ENDPOINTS
-// ============================================
-
-/**
- * GET /api/apps - List deployable apps
- */
 app.get('/api/apps', async (req: Request, res: Response) => {
   try {
     const apps = listApps();
@@ -160,9 +116,6 @@ app.get('/api/apps', async (req: Request, res: Response) => {
   }
 });
 
-/**
- * POST /api/apps/:name/deploy - Deploy an app
- */
 app.post('/api/apps/:name/deploy', async (req: Request, res: Response) => {
   try {
     const { name } = req.params;
@@ -184,20 +137,10 @@ app.post('/api/apps/:name/deploy', async (req: Request, res: Response) => {
   }
 });
 
-// ============================================
-// HEALTH & INFO ENDPOINTS
-// ============================================
-
-/**
- * GET /api/ping - Simple health check
- */
 app.get('/api/ping', (req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-/**
- * GET /api/info - API info
- */
 app.get('/api/info', (req: Request, res: Response) => {
   res.json({
     name: 'Vigil',
@@ -210,10 +153,6 @@ app.get('/api/info', (req: Request, res: Response) => {
     },
   });
 });
-
-// ============================================
-// START SERVER
-// ============================================
 
 export function startAPIServer() {
   app.listen(PORT, () => {
