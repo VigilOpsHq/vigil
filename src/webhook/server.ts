@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import express, { Request, Response, NextFunction } from 'express';
 import { deploy, listApps } from '../deploy/deployer';
 import { notify } from '../telegram/bot';
@@ -9,6 +10,12 @@ app.use(express.json());
 const WEBHOOK_SECRET = process.env.VIGIL_WEBHOOK_SECRET ?? '';
 const PORT = parseInt(process.env.WEBHOOK_PORT ?? '3100', 10);
 
+function tokenMatches(token: string): boolean {
+  const a = Buffer.from(token);
+  const b = Buffer.from(WEBHOOK_SECRET);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 function authenticate(req: Request, res: Response, next: NextFunction): void {
   if (!WEBHOOK_SECRET) {
     res.status(503).json({ error: 'Deploy webhook is disabled. Set VIGIL_WEBHOOK_SECRET in .env to enable it.' });
@@ -17,7 +24,7 @@ function authenticate(req: Request, res: Response, next: NextFunction): void {
 
   const token = req.headers['x-vigil-token'];
 
-  if (!token || token !== WEBHOOK_SECRET) {
+  if (typeof token !== 'string' || !tokenMatches(token)) {
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }

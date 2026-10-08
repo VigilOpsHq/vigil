@@ -15,9 +15,12 @@ import { info, error } from '../logger';
 
 const activeMigrations = new Map<string, string>();
 
+const CHAT_ID = process.env.TELEGRAM_CHAT_ID ?? '';
+
 export function setupMigrationCommands(): void {
   bot.onText(/\/migrate(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
+    if (String(chatId) !== CHAT_ID) return;
     if (!match) return;
     const args = match[1]?.trim();
 
@@ -69,6 +72,7 @@ export function setupMigrationCommands(): void {
 
   bot.onText(/\/migration_plan/, async (msg) => {
     const chatId = msg.chat.id;
+    if (String(chatId) !== CHAT_ID) return;
     const migrationId = activeMigrations.get(chatId.toString());
 
     if (!migrationId) {
@@ -88,6 +92,7 @@ export function setupMigrationCommands(): void {
 
   bot.onText(/\/migration_validate/, async (msg) => {
     const chatId = msg.chat.id;
+    if (String(chatId) !== CHAT_ID) return;
     const migrationId = activeMigrations.get(chatId.toString());
 
     if (!migrationId) {
@@ -119,6 +124,7 @@ export function setupMigrationCommands(): void {
 
   bot.onText(/\/migration_dryrun/, async (msg) => {
     const chatId = msg.chat.id;
+    if (String(chatId) !== CHAT_ID) return;
     const migrationId = activeMigrations.get(chatId.toString());
 
     if (!migrationId) {
@@ -150,6 +156,7 @@ export function setupMigrationCommands(): void {
 
   bot.onText(/\/migration_execute/, async (msg) => {
     const chatId = msg.chat.id;
+    if (String(chatId) !== CHAT_ID) return;
     const migrationId = activeMigrations.get(chatId.toString());
 
     if (!migrationId) {
@@ -191,6 +198,7 @@ export function setupMigrationCommands(): void {
 
   bot.onText(/\/migration_approve/, async (msg) => {
     const chatId = msg.chat.id;
+    if (String(chatId) !== CHAT_ID) return;
     const migrationId = activeMigrations.get(chatId.toString());
 
     if (!migrationId) {
@@ -222,6 +230,7 @@ export function setupMigrationCommands(): void {
 
   bot.onText(/\/migration_status/, async (msg) => {
     const chatId = msg.chat.id;
+    if (String(chatId) !== CHAT_ID) return;
     const migrationId = activeMigrations.get(chatId.toString());
 
     if (!migrationId) {
@@ -247,6 +256,7 @@ export function setupMigrationCommands(): void {
 
   bot.onText(/\/migration_rollback/, async (msg) => {
     const chatId = msg.chat.id;
+    if (String(chatId) !== CHAT_ID) return;
     const migrationId = activeMigrations.get(chatId.toString());
 
     if (!migrationId) {
@@ -281,6 +291,7 @@ export function setupMigrationCommands(): void {
 
   bot.onText(/\/migration_history(.*)/, async (msg, match) => {
     const chatId = msg.chat.id;
+    if (String(chatId) !== CHAT_ID) return;
     if (!match) return;
     const migrationId = match[1]?.trim();
 

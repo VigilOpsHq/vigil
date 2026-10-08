@@ -1,4 +1,4 @@
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 import { promisify } from 'util';
 import axios from 'axios';
 import {
@@ -9,6 +9,7 @@ import {
 import { error } from '../logger';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const HEALTH_CHECK_URLS: string[] = (process.env.HEALTH_CHECK_URLS ?? '')
   .split(',').map((u) => u.trim()).filter(Boolean);
@@ -31,11 +32,10 @@ export async function getContainers(): Promise<ContainerStatus[]> {
 }
 
 export async function getContainerLogs(name: string, lines: number = 100): Promise<ContainerLogs> {
+  const tail = Number.isFinite(lines) ? Math.min(Math.max(Math.trunc(lines), 1), 10_000) : 100;
   try {
-    const { stdout } = await execAsync(
-      `docker logs --tail ${lines} ${name} 2>&1`
-    );
-    return { name, logs: stdout.trim() };
+    const { stdout, stderr } = await execFileAsync('docker', ['logs', '--tail', String(tail), name]);
+    return { name, logs: (stdout + stderr).trim() };
   } catch (err) {
     error(`Failed to fetch logs for container: ${name}`, err);
     return { name, logs: `Error fetching logs: ${err instanceof Error ? err.message : String(err)}` };

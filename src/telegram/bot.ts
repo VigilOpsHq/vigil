@@ -179,25 +179,31 @@ export async function requestApproval(
   });
 }
 
-bot.onText(/\/status/, handleStatus);
+const fromOwner = (chatId: number | string | undefined): boolean =>
+  String(chatId ?? '') === CHAT_ID;
 
-bot.onText(/\/apps/, handleApps);
+bot.onText(/\/status/, (msg) => { if (fromOwner(msg.chat.id)) void handleStatus(); });
 
-bot.onText(/\/help/, handleHelp);
+bot.onText(/\/apps/, (msg) => { if (fromOwner(msg.chat.id)) void handleApps(); });
 
-bot.onText(/\/approve_([a-zA-Z0-9]+)/, async (_, match) => {
+bot.onText(/\/help/, (msg) => { if (fromOwner(msg.chat.id)) void handleHelp(); });
+
+bot.onText(/\/approve_([a-zA-Z0-9]+)/, async (msg, match) => {
+  if (!fromOwner(msg.chat.id)) return;
   const approvalId = match?.[1];
   if (!approvalId) return;
   await executeApproval(approvalId);
 });
 
-bot.onText(/\/deny_([a-zA-Z0-9]+)/, async (_, match) => {
+bot.onText(/\/deny_([a-zA-Z0-9]+)/, async (msg, match) => {
+  if (!fromOwner(msg.chat.id)) return;
   const approvalId = match?.[1];
   if (!approvalId) return;
   await denyApproval(approvalId);
 });
 
-bot.onText(/\/deploy(?:\s+(.+))?/, async (_, match) => {
+bot.onText(/\/deploy(?:\s+(.+))?/, async (msg, match) => {
+  if (!fromOwner(msg.chat.id)) return;
   const appName = match?.[1]?.trim();
 
   if (!appName) {
@@ -230,6 +236,7 @@ bot.onText(/\/deploy(?:\s+(.+))?/, async (_, match) => {
 });
 
 bot.on('callback_query', async (query) => {
+  if (!fromOwner(query.message?.chat.id)) return;
   const data = query.data ?? '';
   const [prefix, id] = data.includes(':') ? data.split(':') : [data, ''];
 
