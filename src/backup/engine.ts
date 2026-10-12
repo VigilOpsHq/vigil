@@ -5,6 +5,7 @@ import path from 'path';
 import zlib from 'zlib';
 import { pipeline } from 'stream/promises';
 import { deliverOffsite, fetchFromStorage, notifyText } from './offsite';
+import { record } from '../history';
 
 const execFileAsync = promisify(execFile);
 
@@ -241,6 +242,7 @@ export async function restore(file: string, targetContainer?: string, targetData
 
   const safety = await backup(container, target.database, 'pre-restore');
   await loadDump(target, filePath);
+  record({ type: 'restore', container, database: target.database, safetyBackup: safety.file });
   return { safetyBackup: safety.file };
 }
 

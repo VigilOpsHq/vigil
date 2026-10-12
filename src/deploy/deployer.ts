@@ -4,6 +4,7 @@ import axios from 'axios';
 import { AppDeployConfig } from './deploy.config';
 import { allApps, getApp } from './apps';
 import { log, info, error } from '../logger';
+import { record } from '../history';
 
 const execAsync = promisify(exec);
 
@@ -108,6 +109,17 @@ export async function deploy(appName: string): Promise<DeployResult> {
     const duration = Math.round((Date.now() - startedAt) / 1000);
 
     if (healthy) {
+      if (previousImageId) {
+        record({
+          type: 'deploy',
+          app: appName,
+          image: config.image,
+          previousImageId,
+          composePath: config.composePath,
+          service: config.service,
+        });
+      }
+
       log({
         trigger: 'manual',
         action: `deploy ${appName}`,

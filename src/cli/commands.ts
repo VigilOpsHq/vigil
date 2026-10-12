@@ -8,6 +8,7 @@ import readline from 'readline';
 import { BACKUP_DIR, backupAndNotify, detectDatabase, formatSize, listBackups, restore, restoreTarget } from '../backup/engine';
 import { describeSchedule, loadSchedules, removeSchedule, setSchedule } from '../backup/schedule';
 import { restoreTest } from '../backup/restore-test';
+import { describe, lastReversible, undo } from '../undo';
 import { currentVersion, isNewer, latestRelease, rememberLatest } from '../update';
 import * as cloud from '../cloud';
 
@@ -505,6 +506,36 @@ export const cloudCommand: CLICommand = {
   },
 };
 
+export const undoCommand: CLICommand = {
+  name: 'undo',
+  description: 'Reverse the last deploy or restore',
+  usage: 'vigil undo [--yes]',
+  handler: async (args) => {
+    const entry = lastReversible();
+    if (!entry) {
+        console.log('\nNothing to undo. VigilOps can reverse the last deploy or the last restore.\n');
+      return;
+    }
+
+    console.log(`\n↩️  Last reversible action: ${describe(entry)}\n`);
+
+    if (!args.includes('--yes')) {
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      const answer = await new Promise<string>((resolve) =>
+        rl.question('Undo it? Type "yes" to continue: ', resolve)
+      );
+      rl.close();
+      if (answer.trim().toLowerCase() !== 'yes') {
+        console.log('Cancelled.\n');
+        return;
+      }
+    }
+
+    const result = await undo(entry);
+    console.log(`\n✅ ${result.what} — ${result.detail}\n`);
+  },
+};
+
 export const versionCommand: CLICommand = {
   name: 'version',
   description: 'Show the running version and check for updates',
@@ -567,6 +598,7 @@ BACKUPS:
   backups [container]                     List backups on this server
   restore <file> [container] [db] [--yes] Restore a backup (safety backup taken first)
   restore test <file|container>       Prove a backup restores, without touching live data
+  undo                                Reverse the last deploy or restore
   backup schedule <container> daily 02:00 Schedule backups (hourly | daily | weekly sun 03:00)
   backup unschedule <container>           Remove a schedule
   backup schedules                        List schedules
@@ -597,6 +629,7 @@ export const commands: CLICommand[] = [
   backupCommand,
   backupsCommand,
   restoreCommand,
+  undoCommand,
   appCommand,
   cloudCommand,
   versionCommand,
