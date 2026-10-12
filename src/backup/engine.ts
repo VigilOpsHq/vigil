@@ -240,7 +240,11 @@ export async function restore(file: string, targetContainer?: string, targetData
   }
 
   const safety = await backup(container, target.database, 'pre-restore');
+  await loadDump(target, filePath);
+  return { safetyBackup: safety.file };
+}
 
+export async function loadDump(target: DbTarget, filePath: string): Promise<void> {
   if (target.engine === 'postgres') {
     await runDocker(
       ['exec', target.container, 'psql', '-q', '-v', 'ON_ERROR_STOP=1', '-U', target.user, '-d', target.database, '-c', PG_WIPE_SQL],
@@ -252,19 +256,33 @@ export async function restore(file: string, targetContainer?: string, targetData
   const input = fs.createReadStream(filePath);
   if (target.engine === 'mongodb') {
     await runDocker(restoreArgs(target), input, null);
-  } else {
-    const gunzip = zlib.createGunzip();
-    const reading = pipeline(input, gunzip).catch(() => undefined);
-    try {
-      await runDocker(restoreArgs(target), gunzip, null);
-      await reading;
-    } catch (err) {
-      input.destroy();
-      throw err;
-    }
+    return;
   }
 
-  return { safetyBackup: safety.file };
+  const gunzip = zlib.createGunzip();
+  const reading = pipeline(input, gunzip).catch(() => undefined);
+  try {
+    await runDocker(restoreArgs(target), gunzip, null);
+    await reading;
+  } catch (err) {
+    input.destroy();
+    throw err;
+  }
+}
+
+export async function containerImage(container: string): Promise<string> {
+  assertName(container, 'container name');
+  const { stdout } = await execFileAsync('docker', ['inspect', '--format', '{{.Config.Image}}', container]);
+  return stdout.trim();
+}
+
+export async function ensureLocalCopy(name: string): Promise<string> {
+  const filePath = path.join(BACKUP_DIR, name);
+  if (!fs.existsSync(filePath)) {
+    const fetched = await fetchFromStorage(name, filePath);
+    if (!fetched) throw new Error(`Backup "${name}" not found on this server or in storage`);
+  }
+  return filePath;
 }
 
 export function pruneOldBackups(): string[] {

@@ -53,6 +53,7 @@ BACKUPS:
   backup schedule <container> <when> hourly | daily HH:MM | weekly <day> HH:MM
   backups [container]                List backups
   restore <file> [container] [db]    Restore a backup
+  restore test <file|container>      Check a backup really restores
 
 DEPLOYS:
   apps                               List registered apps

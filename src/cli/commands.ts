@@ -7,6 +7,7 @@ import { info, error } from '../logger';
 import readline from 'readline';
 import { BACKUP_DIR, backupAndNotify, detectDatabase, formatSize, listBackups, restore, restoreTarget } from '../backup/engine';
 import { describeSchedule, loadSchedules, removeSchedule, setSchedule } from '../backup/schedule';
+import { restoreTest } from '../backup/restore-test';
 import { currentVersion, isNewer, latestRelease, rememberLatest } from '../update';
 import * as cloud from '../cloud';
 
@@ -320,12 +321,49 @@ export const backupsCommand: CLICommand = {
 export const restoreCommand: CLICommand = {
   name: 'restore',
   description: 'Restore a database from a backup file',
-  usage: 'vigil restore <file> [container] [database] [--yes]',
+  usage: 'vigil restore <file> [container] [database] [--yes]  |  vigil restore test <file|container> [--keep]',
   handler: async (args) => {
+    if (args[0] === 'test') {
+      const keep = args.includes('--keep');
+      const which = args.slice(1).find((a) => !a.startsWith('--'));
+      if (!which) {
+        console.error('❌ Usage: vigil restore test <file|container> [--keep]');
+        console.error('   Example: vigil restore test api-postgres');
+        process.exit(1);
+      }
+
+      console.log(`\n🧪 Testing a restore of ${which}`);
+      console.log('   Nothing touches your live database: the backup is loaded into a');
+      console.log('   throwaway container with no network, which is removed afterwards.\n');
+
+      const result = await restoreTest(which, { keep });
+
+      console.log(`   File:     ${result.file} (${formatSize(result.sizeBytes)})`);
+      console.log(`   Restored: ${result.image} in ${result.durationSeconds}s`);
+      console.log(`   Tables:   ${result.tablesRestored}${result.tablesLive !== null ? ` (live has ${result.tablesLive})` : ''}`);
+      if (result.counts.length) {
+        console.log('\n   Rows in the largest tables:');
+        for (const c of result.counts) {
+          const live = c.live === null ? '' : `  (live ${c.live.toLocaleString()})`;
+          console.log(`      ${c.table.padEnd(34)} ${c.restored.toLocaleString().padStart(12)}${live}`);
+        }
+      }
+      if (result.warnings.length) {
+        console.log('');
+        for (const w of result.warnings) console.log(`   ⚠️  ${w}`);
+      }
+      console.log(result.ok
+        ? '\n✅ This backup restores.\n'
+        : '\n❌ This backup did not restore cleanly. Do not rely on it.\n');
+      if (!result.ok) process.exit(1);
+      return;
+    }
+
     const yes = args.includes('--yes');
     const [file, container, database] = args.filter((a) => a !== '--yes');
     if (!file) {
       console.error('❌ Usage: vigil restore <file> [container] [database] [--yes]');
+      console.error('   Or test one safely: vigil restore test <file|container>');
       console.error('   See files: vigil backups');
       process.exit(1);
     }
@@ -528,6 +566,7 @@ BACKUPS:
   backup <container> [db]                 Back up a database now
   backups [container]                     List backups on this server
   restore <file> [container] [db] [--yes] Restore a backup (safety backup taken first)
+  restore test <file|container>       Prove a backup restores, without touching live data
   backup schedule <container> daily 02:00 Schedule backups (hourly | daily | weekly sun 03:00)
   backup unschedule <container>           Remove a schedule
   backup schedules                        List schedules
