@@ -61,7 +61,7 @@ export default defineConfig({
             { label: 'Auto-fixes, AI and approvals', slug: 'docs/guides/auto-fixes' },
             { label: 'Deploying apps', slug: 'docs/guides/deploys' },
             { label: 'Updating VigilOps', slug: 'docs/guides/updating' },
-            { label: 'Using VigilOps from AI agents (MCP)', slug: 'docs/guides/mcp' },
+            { label: 'Run it from your editor (MCP)', slug: 'docs/guides/mcp' },
           ],
         },
         {

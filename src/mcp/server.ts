@@ -9,7 +9,7 @@ export function createVigilMcpServer(): McpServer {
   });
 
   registerTools(server);
-  info('MCP server created — 22 tools registered (14 monitoring + 8 migration)');
+  info('MCP server ready');
 
   return server;
 }

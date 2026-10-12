@@ -321,5 +321,4 @@ export function registerTools(server: McpServer): void {
   // Migration tools stay unregistered while the engine is a stub: validateSource
   // and validateTarget return passed:true without checking anything.
   // registerMigrationTools(server);
-  info('[mcp] Migration tools registered (8 tools)');
 }

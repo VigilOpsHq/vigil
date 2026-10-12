@@ -1,15 +1,119 @@
 ---
-title: Using VigilOps from AI agents (MCP)
-description: Let Claude, Cursor and other MCP clients check and manage your server through VigilOps.
+title: Run your server from your editor (MCP)
+description: Connect Claude Code, Cursor, VS Code or Claude Desktop to VigilOps, so your AI assistant can check and fix your server inside the command allowlist.
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
-VigilOps includes a [Model Context Protocol](https://modelcontextprotocol.io) server, so AI assistants such as Claude Desktop, Claude Code and Cursor can check your server's status, read logs, restart containers and trigger deploys.
+VigilOps includes a [Model Context Protocol](https://modelcontextprotocol.io) server. Point your editor's assistant at it and it can read your server's real state — containers, logs, disk, deploys — and act on it, without you opening a terminal.
 
-<Aside type="caution">An MCP client can restart containers and deploy apps on your server. Only connect assistants you trust, and don't expose the HTTP mode to the internet without a firewall or authenticating proxy in front.</Aside>
+```
+you:    the app is down
 
-## Tools
+claude: [get_container_status]  worker exited, code 137
+        [get_container_logs]    out of memory in the resize job
+        [restart_container]     worker is running again
+
+        It has done this twice today. Raising the memory limit is a
+        change I can't make — want me to send it for approval?
+```
+
+The assistant is working from your server's actual state, not a guess. What it can *do* is limited to the [command allowlist](/docs/guides/auto-fixes/#command-allowlist): restarting a container and clearing old images are allowed, anything else is refused, and risky actions still wait for your tap on Telegram.
+
+<Aside type="caution">An MCP client can restart containers and deploy apps. Connect assistants you trust, and don't expose the HTTP mode to the internet without a firewall or an authenticating proxy.</Aside>
+
+## Before you start
+
+You need SSH key access to the server with no password prompt — the editor runs `ssh` on your behalf. Check it works:
+
+```bash
+ssh root@my-server docker exec vigil node dist/cli/index.js version
+```
+
+If that prints a version, the setup below will work. If it asks for a password, [add your key](https://www.ssh.com/academy/ssh/copy-id) first.
+
+## Connect your editor
+
+<Tabs>
+<TabItem label="Claude Code">
+
+Add it once, from any directory:
+
+```bash
+claude mcp add vigilops -- ssh root@my-server docker exec -i -e MCP_MODE=stdio vigil node dist/mcp/index.js
+```
+
+Check it connected with `/mcp` inside Claude Code. Run `claude mcp --help` if your version takes different flags.
+
+</TabItem>
+<TabItem label="Cursor">
+
+Create `~/.cursor/mcp.json` for every project, or `.cursor/mcp.json` for one:
+
+```json
+{
+  "mcpServers": {
+    "vigilops": {
+      "command": "ssh",
+      "args": ["root@my-server", "docker", "exec", "-i", "-e", "MCP_MODE=stdio", "vigil", "node", "dist/mcp/index.js"]
+    }
+  }
+}
+```
+
+Then open Settings → MCP and check VigilOps is listed.
+
+</TabItem>
+<TabItem label="VS Code">
+
+Create `.vscode/mcp.json` in your project. VS Code names the key `servers`, not `mcpServers`:
+
+```json
+{
+  "servers": {
+    "vigilops": {
+      "type": "stdio",
+      "command": "ssh",
+      "args": ["root@my-server", "docker", "exec", "-i", "-e", "MCP_MODE=stdio", "vigil", "node", "dist/mcp/index.js"]
+    }
+  }
+}
+```
+
+Open Copilot Chat in agent mode and VigilOps' tools appear in the tools picker.
+
+</TabItem>
+<TabItem label="Claude Desktop">
+
+Edit `claude_desktop_config.json` (Settings → Developer → Edit Config):
+
+```json
+{
+  "mcpServers": {
+    "vigilops": {
+      "command": "ssh",
+      "args": ["root@my-server", "docker", "exec", "-i", "-e", "MCP_MODE=stdio", "vigil", "node", "dist/mcp/index.js"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop afterwards.
+
+</TabItem>
+</Tabs>
+
+Replace `root@my-server` with your own SSH target. Nothing new is exposed: the connection is your existing SSH login, and the MCP server only runs while your editor is talking to it.
+
+## Things worth asking
+
+- *Why is my app slow?* — reads disk, memory and container state together
+- *Show me what the worker logged before it died*
+- *Which containers restarted today?* — from the audit log
+- *Deploy shopkit* — runs the real deploy, with health check and rollback
+- *Is my last backup any good?* — pair it with [`vigil restore test`](/docs/guides/restore/)
+
+## The tools it gets
 
 | Tool | What it does |
 |---|---|
@@ -27,32 +131,34 @@ VigilOps includes a [Model Context Protocol](https://modelcontextprotocol.io) se
 | `execute_safe_command` | Run an allowlisted command |
 | `notify` | Send a Telegram message |
 
-## Connect a local assistant over SSH
+Package installs and anything outside the allowlist are refused here, and need a human approval on Telegram.
 
-Assistants running on your computer can start the MCP server inside the VigilOps container over SSH (stdio mode). For example, in Claude Desktop's `claude_desktop_config.json`:
+## If it doesn't connect
 
-```json
-{
-  "mcpServers": {
-    "vigilops": {
-      "command": "ssh",
-      "args": ["root@my-server", "docker", "exec", "-i", "-e", "MCP_MODE=stdio", "vigil", "node", "dist/mcp/index.js"]
-    }
-  }
-}
+Run the command your editor runs, by hand:
+
+```bash
+ssh root@my-server docker exec -i -e MCP_MODE=stdio vigil node dist/mcp/index.js
 ```
 
-This needs SSH key login to the server, with no password prompt.
+It should sit there waiting for input rather than exiting. Ctrl-C to quit.
+
+| What you see | Usually means |
+|---|---|
+| Password prompt | SSH key login isn't set up; the editor can't type a password |
+| `Error: No such container: vigil` | VigilOps isn't running — `vigil start` |
+| Exits immediately | Check `MCP_MODE=stdio` is in the command |
+| Editor shows no tools | Restart the editor; most only read the config at startup |
 
 ## HTTP mode
 
-For remote agents, run the MCP server over HTTP on the server:
+For an agent that isn't on your machine, run the server over HTTP instead:
 
 ```bash
 docker exec -d -e MCP_MODE=http -e MCP_PORT=3200 vigil node dist/mcp/index.js
 ```
 
-Clients connect to `http://<server>:3200/mcp`. VigilOps uses the host network, so this port is open on the server. Firewall it, or reach it through an SSH tunnel:
+Clients connect to `http://<server>:3200/mcp`. VigilOps uses the host network, so that port is reachable on the server — firewall it, or tunnel instead:
 
 ```bash
 ssh -L 3200:127.0.0.1:3200 root@my-server

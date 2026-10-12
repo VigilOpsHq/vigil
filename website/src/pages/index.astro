@@ -80,10 +80,11 @@ const allowlist = [
   <section class="hero">
     <div class="container hero-grid">
       <div class="hero-copy">
-        <h1>Ops automation for a single Docker server.</h1>
+        <h1>Give your AI a safe key to your server.</h1>
         <p class="lead">
-          VigilOps runs as one container beside your apps. It checks them every 60 seconds, restarts what breaks, backs up
-          your databases, and asks you on Telegram before it does anything risky.
+          VigilOps runs beside your apps on one Docker server. Connect it to Claude Code, Cursor or VS Code and your
+          assistant reads the real logs, restarts what broke and ships a deploy — while a command allowlist keeps it
+          away from anything it shouldn't touch. It also watches the server on its own, every 60 seconds.
         </p>
         <div class="video-wrap">
           <iframe
@@ -99,10 +100,10 @@ const allowlist = [
           <button type="button">Copy</button>
         </div>
         <div class="cta">
-          <a class="btn btn-primary" href="/docs/install/">Installation guide</a>
-          <a class="btn btn-secondary" href={site.github}>Source on GitHub</a>
+          <a class="btn btn-primary" href="/docs/guides/mcp/">Connect your editor</a>
+          <a class="btn btn-secondary" href="/docs/install/">Installation guide</a>
         </div>
-        <p class="meta">MIT licensed · Ubuntu and Debian · amd64 and arm64 · no account needed</p>
+        <p class="meta">MIT licensed · works with Claude Code, Cursor, VS Code · no account needed</p>
       </div>
       <div class="hero-visual">
         <Terminal />
