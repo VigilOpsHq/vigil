@@ -344,9 +344,16 @@ export const restoreCommand: CLICommand = {
       console.log(`   Tables:   ${result.tablesRestored}${result.tablesLive !== null ? ` (live has ${result.tablesLive})` : ''}`);
       if (result.counts.length) {
         console.log('\n   Rows in the largest tables:');
+        const nameWidth = Math.max(...result.counts.map((c) => c.table.length));
+        const numWidth = Math.max(...result.counts.map((c) => c.restored.toLocaleString().length));
         for (const c of result.counts) {
-          const live = c.live === null ? '' : `  (live ${c.live.toLocaleString()})`;
-          console.log(`      ${c.table.padEnd(34)} ${c.restored.toLocaleString().padStart(12)}${live}`);
+          const rows = c.restored.toLocaleString().padStart(numWidth);
+          const live = c.live === null
+            ? ''
+            : c.live === c.restored
+              ? '  = live'
+              : `  live ${c.live.toLocaleString()}`;
+          console.log(`      ${c.table.padEnd(nameWidth)}  ${rows}${live}`);
         }
       }
       if (result.warnings.length) {
