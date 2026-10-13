@@ -44,10 +44,27 @@ If step 3 fails, the database may be partly restored. Restore the `_pre-restore`
 
 ## Undo a restore
 
-Restore the safety backup that was taken just before:
+Every restore takes a safety backup of the target first, so the last one can be reversed:
 
 ```bash
-vigil backups myapp-postgres        # look for the newest ..._pre-restore file
+vigil undo
+```
+
+It shows what it would reverse and asks before doing anything:
+
+```
+↩️  Last reversible action: restore of myapp in myapp-postgres (12 min ago)
+    — would put back the safety backup taken first
+
+Undo it? Type "yes" to continue:
+```
+
+The undo itself takes a safety backup too, so it can be reversed in turn. `vigil undo` also reverses the last deploy, whichever happened most recently.
+
+To pick a specific point instead, restore the safety backup by name:
+
+```bash
+vigil backups myapp-postgres        # the newest ..._pre-restore file
 vigil restore myapp-postgres__myapp__20260916-101500_pre-restore.sql.gz
 ```
 
@@ -101,16 +118,36 @@ For scripts, add `--yes`:
 vigil restore <file> [container] [database] --yes
 ```
 
-## Test your backups
+## Test that a backup really restores
 
-A backup you've never restored is only a hope. Every so often, restore a recent backup into a throwaway container:
+A backup you've never restored is only a hope. One command restores the newest backup into a throwaway container and reports what arrived:
 
 ```bash
-docker run -d --name restore-test -e POSTGRES_PASSWORD=test -e POSTGRES_DB=myapp postgres:17-alpine
-sleep 10
-vigil restore myapp-postgres__myapp__20260916-020000.sql.gz restore-test --yes
-docker exec restore-test psql -U postgres -d myapp -c "\dt"
-docker rm -f restore-test
+vigil restore test myapp-postgres
 ```
 
-Use the same database version as production.
+```
+🧪 Testing a restore of myapp-postgres
+   Nothing touches your live database: the backup is loaded into a
+   throwaway container with no network, which is removed afterwards.
+
+   File:     myapp-postgres__myapp__20261013-020032.sql.gz (193.8 MB)
+   Restored: postgres:17-alpine in 137s
+   Tables:   131 (live has 131)
+
+   Rows in the largest tables:
+      public.analytics_stream_facts_default             1,229,803  = live
+      public.royalty_data                                 764,968  = live
+
+✅ This backup restores.
+```
+
+Pass a file name instead of a container to test a specific backup.
+
+**Nothing touches your live database.** The copy runs in its own container, started from the same image your database uses, with a generated password, `--network none`, no volume, and removal at the end even if the restore fails. Your live database is only ever read, to compare counts against.
+
+**Exit code 0 is not the check.** A dump can load cleanly and be empty, which is the failure that actually bites — a backup quietly capturing nothing for weeks. So it compares table counts against the live database and row counts for the five largest tables, and fails when the restore is empty or a table that has rows live comes back empty.
+
+It needs free disk of about twice the backup size, and it costs real CPU and memory while it runs, so prefer a quiet hour on a busy server. `--keep` leaves the test container running if you want to poke at it yourself.
+
+Exit status is `0` when the backup restores and `1` when it doesn't, so it works in a cron job or CI.

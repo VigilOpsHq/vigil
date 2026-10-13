@@ -14,6 +14,8 @@ VigilOps is a self-hosted ops agent for Docker servers. It watches your containe
 
 - **Fixes the usual problems:** restarts stopped containers, clears old Docker images when the disk fills up, restarts apps whose health check fails
 - **Backs up databases:** Postgres, MySQL/MariaDB and MongoDB, on a schedule, with copies off the server and restores that take a safety backup first
+- **Proves the backup works:** `vigil restore test` loads it into a throwaway container and checks the tables and rows actually arrived
+- **Has an undo:** `vigil undo` reverses the last deploy or restore
 - **Runs from Telegram:** status, backups, restores, deploys and updates from your phone
 - **Asks before anything risky:** only allowlisted commands run; anything uncertain comes to you with Approve / Deny buttons
 - **Uses AI when the rules run out:** unusual problems go to the AI provider of your choice — OpenAI, DeepSeek, Groq, OpenRouter or a local model — for a diagnosis and proposed fix

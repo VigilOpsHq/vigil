@@ -35,6 +35,8 @@ Run `vigil help` on the server for a short version of this page.
 | `vigil backup <container> [database]` | Back up a database now |
 | `vigil backups [container]` | List backups on this server, newest first |
 | `vigil restore <file> [container] [database] [--yes]` | Restore a backup. Takes a safety backup first. `--yes` skips the confirmation |
+| `vigil restore test <file\|container> [--keep]` | Restore into a throwaway container and check what arrived. Never touches live data |
+| `vigil undo [--yes]` | Reverse the last deploy or restore |
 | `vigil backup schedule <container> <when>` | Schedule backups: `hourly`, `daily HH:MM`, `weekly <day> HH:MM` |
 | `vigil backup unschedule <container>` | Remove a schedule |
 | `vigil backup schedules` | List schedules |
