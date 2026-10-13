@@ -48,6 +48,26 @@ vigil update                                       # update VigilOps
 
 The same things work from Telegram: `/status`, `/backup myapp-postgres`, `/backups`, `/restore <file>`, `/update`.
 
+## Use it from your editor
+
+VigilOps ships an [MCP](https://modelcontextprotocol.io) server, so Claude Code, Cursor, VS Code and Claude Desktop can read your server's real state and act on it. Point your editor at your own server:
+
+```bash
+claude mcp add vigilops -- ssh root@my-server docker exec -i -e MCP_MODE=stdio vigil node dist/mcp/index.js
+```
+
+```
+you:    the app is down
+
+claude: [get_container_status]  worker exited, code 137
+        [get_container_logs]    out of memory in the resize job
+        [restart_container]     worker is running again
+```
+
+Thirteen tools: container state, logs, restarts, disk, memory, health checks, audit history, deploys. What the assistant can *do* is bounded by the same command allowlist as everything else — anything outside it is refused, and risky actions still wait for your approval on Telegram.
+
+Config for Cursor, VS Code and Claude Desktop is in [the guide](https://vigilops.cloud/docs/guides/mcp/).
+
 ## VigilOps Cloud (Pro and Team)
 
 The self-hosted version is free and complete. [Pro and Team plans](https://vigilops.cloud/pricing/) add VigilOps Cloud:
