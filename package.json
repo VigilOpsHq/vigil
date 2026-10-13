@@ -1,7 +1,7 @@
 {
   "name": "vigilops",
-  "version": "1.4.0",
-  "description": "AI-powered DevOps agent \u2014 monitors, heals, and escalates",
+  "version": "1.4.1",
+  "description": "AI-powered DevOps agent — monitors, heals, and escalates",
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node src/index.ts",
