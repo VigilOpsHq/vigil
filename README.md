@@ -2,7 +2,9 @@
 
 **The ops engineer that lives on your server.**
 
-VigilOps is a self-hosted ops agent for Docker servers. It watches your containers, fixes common failures, backs up your databases, and checks with you on Telegram before doing anything risky.
+VigilOps watches your containers, fixes what it safely can, and keeps database backups it has actually restored — on the one Docker server you already have. It runs a short allowlist on its own, asks before anything risky, and can undo what it did. Reach it from Telegram, or from Cursor and Claude Code.
+
+Three jobs, one container: **keep it running**, **keep it recoverable**, **keep you in charge**.
 
 [![VigilOps demo](https://img.youtube.com/vi/tz9k2Cawn-0/maxresdefault.jpg)](https://youtu.be/tz9k2Cawn-0)
 

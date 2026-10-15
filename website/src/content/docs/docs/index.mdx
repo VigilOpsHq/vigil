@@ -1,15 +1,15 @@
 ---
 title: What is VigilOps?
-description: VigilOps is a self-hosted ops agent that watches your Docker server, fixes common problems, backs up databases and keeps you informed on Telegram.
+description: VigilOps watches your Docker server, fixes what it safely can, and keeps database backups it has actually restored — while you stay in charge of anything risky.
 ---
 
 import { CardGrid, LinkCard } from '@astrojs/starlight/components';
 
-VigilOps is an **ops agent that lives on your server**. It runs as one Docker container next to your apps and handles the day-to-day work of keeping a server healthy:
+VigilOps is an **ops engineer that lives on your server** — one you can safely give root to. It runs as one Docker container next to your apps and does three jobs:
 
 - **Watches** your containers, disk, memory and health-check URLs every minute
 - **Fixes** known problems on its own, like restarting a stopped container or clearing old Docker images when the disk fills up
-- **Backs up** your Postgres, MySQL and MongoDB databases, on demand or on a schedule
+- **Backs up** your Postgres, MySQL and MongoDB databases, and **proves a backup restores** by loading it into a throwaway container and counting the rows
 - **Asks you** on Telegram before doing anything risky, and tells you what it did
 - **Deploys** your apps with a health check and automatic rollback
 

@@ -132,8 +132,8 @@ function ogImage(fonts, w, h) {
     ${mark(pad, pad, 64)}
     ${text(fonts, 'VigilOps', { size: 38, x: pad + 84, y: pad + 46 }).svg}
 
-    ${text(fonts, 'Ops automation for', { size: Math.round(w * 0.0583), x: pad, y: h * 0.52 }).svg}
-    ${text(fonts, 'a single Docker server.', { size: Math.round(w * 0.0583), x: pad, y: h * 0.52 + w * 0.065 }).svg}
+    ${text(fonts, 'An ops engineer that', { size: Math.round(w * 0.0583), x: pad, y: h * 0.52 }).svg}
+    ${text(fonts, 'lives on your server.', { size: Math.round(w * 0.0583), x: pad, y: h * 0.52 + w * 0.065 }).svg}
 
     <rect x="${pad}" y="${h * 0.70}" width="${cmdWidth + 48}" height="${cmdSize * 2.4}" rx="8"
           fill="${PAPER}" opacity="0.06"/>
@@ -161,7 +161,7 @@ function xHeader(fonts, w, h) {
     ${grid(w, h, 44)}
     ${mark(left, top, markSize)}
     ${text(fonts, 'VigilOps', { size: nameSize, x: left + markSize + gap, y: top + markSize * 0.76 }).svg}
-    ${text(fonts, 'It restarts what breaks, backs up your databases, and asks first.', {
+    ${text(fonts, 'Watches it, fixes what it safely can, and proves your backups restore.', {
       font: 'body', size: 26, x: cx, y: top + markSize + 54, anchor: 'middle', fill: PAPER, opacity: 0.84,
     }).svg}
     ${text(fonts, 'vigilops.cloud', {
