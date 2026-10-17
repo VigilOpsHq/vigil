@@ -54,6 +54,16 @@ check('duplicate webhook ignored', (await r.text()) === 'duplicate');
 r = await fetch(`${B}/api/bachs-webhook`, { method: 'POST', headers: { 'X-Bachs-Signature-V2': 't=1,v1=bad' }, body: '{}' });
 check('unsigned webhook rejected', r.status === 401);
 
+// A paid event in a shape we don't act on must not become a silent 200
+r = await webhook({
+  id: 'evt_odd_1',
+  type: 'checkout.completed',
+  data: { id: 'co_1', customer: { email: 'odd@example.com' }, metadata: { plan: 'pro', interval: 'monthly' } },
+});
+const odd = await signIn('odd@example.com');
+const oddMe = await (await fetch(`${B}/api/me`, { headers: odd.headers })).json();
+check('unhandled paid event leaves no plan and is reported', r.status === 200 && !oddMe.plan, String(oddMe.plan));
+
 // Bachs doesn't always put the plan in metadata: fall back to the product ID
 r = await webhook({
   id: 'evt_team_1',

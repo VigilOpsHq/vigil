@@ -124,13 +124,13 @@ async function fetchSubscription(env: Env, id: string): Promise<Record<string, a
   }
 }
 
-async function recordSubscription(env: Env, event: BachsEvent): Promise<void> {
-  if (!env.DB || !event.type.startsWith('customer.subscription.')) return;
+async function recordSubscription(env: Env, event: BachsEvent): Promise<boolean> {
+  if (!env.DB || !event.type.startsWith('customer.subscription.')) return false;
   let d = event.data ?? {};
   const id = String(d.id ?? d.subscription_id ?? '');
   if (!id.startsWith('sub_')) {
     console.error(`subscription event without an id: ${event.id} ${JSON.stringify(d).slice(0, 400)}`);
-    return;
+    return false;
   }
 
   if (!emailOf(d) || !(d.metadata?.plan || planFromProduct(env, productOf(d)))) {
@@ -141,14 +141,14 @@ async function recordSubscription(env: Env, event: BachsEvent): Promise<void> {
   const email = emailOf(d);
   if (!email) {
     console.error(`subscription ${id}: no customer email ${JSON.stringify(d).slice(0, 400)}`);
-    return;
+    return false;
   }
 
   const fromProduct = planFromProduct(env, productOf(d));
   const plan = String(d.metadata?.plan ?? fromProduct?.plan ?? '');
   if (!['pro', 'team', 'enterprise'].includes(plan)) {
     console.error(`subscription ${id}: unknown plan ${JSON.stringify({ metadata: d.metadata, product: productOf(d) }).slice(0, 400)}`);
-    return;
+    return false;
   }
   const interval = String(d.metadata?.interval ?? fromProduct?.interval ?? '');
   const status = event.type === 'customer.subscription.deleted' ? 'canceled' : String(d.status ?? 'active');
@@ -177,6 +177,34 @@ async function recordSubscription(env: Env, event: BachsEvent): Promise<void> {
       new Date().toISOString()
     )
     .run();
+  return true;
+}
+
+/**
+ * Bachs event names are not ours to choose. If something that looks like money
+ * arrives and nothing was written, say so rather than returning 200 in silence.
+ */
+const MONEY_EVENT = /subscription|checkout|payment|invoice|order|charge/i;
+const EXPECTED_SILENT = new Set(['checkout.expired', 'checkout.created', 'invoice.created', 'payment_intent.created']);
+
+async function reportUnhandled(env: Env, event: BachsEvent): Promise<void> {
+  console.error(`bachs webhook recorded nothing for ${event.type} (${event.id})`);
+  if (!env.DB) return;
+
+  const hour = new Date().toISOString().slice(0, 13);
+  const { meta } = await env.DB
+    .prepare('INSERT OR IGNORE INTO alerts (key) VALUES (?)')
+    .bind(`webhook-unhandled:${event.type}:${hour}`)
+    .run();
+  if (!meta.changes) return;
+
+  await sendTelegram(
+    env.SALES_TELEGRAM_BOT_TOKEN,
+    env.SALES_TELEGRAM_CHAT_ID,
+    `⚠️ Bachs sent "${event.type}" and VigilOps recorded no subscription.\n\n` +
+      `The signature was valid, so this is an event type VigilOps does not act on, or one missing the plan or email. ` +
+      `If someone just paid, they have no plan yet. Event ${event.id}.`
+  );
 }
 
 function describe(event: BachsEvent): string | null {
@@ -231,7 +259,8 @@ export async function bachsWebhook({ request, env }: RequestContext): Promise<Re
   }
 
   try {
-    await recordSubscription(env, event);
+    const written = await recordSubscription(env, event);
+    if (!written && MONEY_EVENT.test(event.type) && !EXPECTED_SILENT.has(event.type)) await reportUnhandled(env, event);
   } catch (err) {
     if (env.DB && event.id) await env.DB.prepare('DELETE FROM webhook_events WHERE id = ?').bind(event.id).run();
     console.error('failed to record subscription', err);
