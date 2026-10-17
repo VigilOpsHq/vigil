@@ -23,6 +23,7 @@ export interface MemoryStatus {
 
 export interface NginxStatus {
   running: boolean;
+  reason?: string;
 }
 
 export interface HealthCheckResult {
@@ -30,6 +31,7 @@ export interface HealthCheckResult {
   statusCode: number | null;
   healthy: boolean;
   responseTimeMs: number;
+  attempts?: number;
 }
 
 export interface SystemSnapshot {

@@ -54,8 +54,10 @@ Anthropic's and Google's own APIs use a different request format, so point them 
 |---|---|---|
 | `POLL_INTERVAL_SECONDS` | `60` | How often to check the server |
 | `EXCLUDED_CONTAINERS` | — | Comma-separated container names to ignore completely |
-| `HEALTH_CHECK_URLS` | — | Comma-separated URLs that must answer with 2xx/3xx within 5 seconds |
+| `HEALTH_CHECK_URLS` | — | Comma-separated URLs that must answer with 2xx/3xx |
 | `HEALTH_CHECK_CONTAINER_MAP` | — | `URL:container` pairs, comma-separated. Restarts the container when its URL fails |
+| `HEALTH_CHECK_TIMEOUT_MS` | `10000` | How long to wait for a URL, and for port 80, before counting the attempt as failed |
+| `HEALTH_CHECK_RETRIES` | `2` | Attempts, two seconds apart, before a URL or port 80 is called down. Raise it on a busy server that alerts when it is only slow |
 | `DISK_ALERT_PERCENT` | `85` | Disk usage that triggers Docker image clean-up |
 | `MEMORY_ALERT_PERCENT` | `90` | Memory usage that triggers an alert |
 | `CRASH_LOOP_THRESHOLD` | `3` | Restarts within the window that count as a crash loop |

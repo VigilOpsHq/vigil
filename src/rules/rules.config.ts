@@ -99,11 +99,12 @@ export const rules: Rule[] = [
     id: 'nginx-down',
     description: 'Alert when nginx is not responding — manual intervention required',
     condition: (snapshot) => !snapshot.nginx.running,
-    action: () => ({
+    action: (snapshot) => ({
       tier: 'alert',
       ruleId: 'nginx-down',
       commands: [],
-      message: '🔴 nginx is not responding on port 80. SSH in and check: systemctl status nginx',
+      message: `🔴 Port 80 is not answering — ${snapshot.nginx.reason ?? 'no response'}, after repeated attempts.\n\n`
+        + 'If your reverse proxy is a container, check it with `docker ps`; if it is a host service, `systemctl status nginx`.',
     }),
   },
 
@@ -122,7 +123,7 @@ export const rules: Rule[] = [
         ruleId: 'health-check-failed',
         commands,
         message: `🔴 Health check(s) failing:\n${failed
-          .map((h) => `  • ${h.url} → ${h.statusCode ?? 'no response'} (${h.responseTimeMs}ms)`)
+          .map((h) => `  • ${h.url} → ${h.statusCode ?? 'no response'} (${h.responseTimeMs}ms, ${h.attempts ?? 1} attempts)`)
           .join('\n')}${commands.length > 0 ? `\n\nRestarting: ${matchedContainers.join(', ')}` : ''}`,
       };
     },

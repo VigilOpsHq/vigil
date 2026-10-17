@@ -75,33 +75,54 @@ export async function getMemory(): Promise<MemoryStatus> {
   }
 }
 
+const HEALTH_TIMEOUT_MS = positive(process.env.HEALTH_CHECK_TIMEOUT_MS, 10_000);
+const HEALTH_RETRIES = positive(process.env.HEALTH_CHECK_RETRIES, 2);
+
+function positive(value: string | undefined, fallback: number): number {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.trunc(n) : fallback;
+}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function getNginx(): Promise<NginxStatus> {
   if (process.platform !== 'linux') return { running: true };
-  try {
-    await axios.get('http://localhost', { timeout: 2000 });
-    return { running: true };
-  } catch (err) {
-    if (axios.isAxiosError(err) && err.response) {
+
+  let reason = 'no response';
+  for (let attempt = 1; attempt <= HEALTH_RETRIES; attempt++) {
+    if (attempt > 1) await wait(2000);
+    try {
+      await axios.get('http://localhost', { timeout: HEALTH_TIMEOUT_MS });
       return { running: true };
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.response) return { running: true };
+        reason = err.code === 'ECONNREFUSED' ? 'nothing is listening on port 80'
+          : err.code === 'ECONNABORTED' ? `no reply within ${HEALTH_TIMEOUT_MS}ms`
+          : err.code ?? 'no response';
+      }
     }
-    return { running: false };
   }
+  return { running: false, reason };
 }
 
 async function checkHealth(url: string): Promise<HealthCheckResult> {
-  const start = Date.now();
-  try {
-    const response = await axios.get(url, { timeout: 5000 });
-    return {
-      url,
-      statusCode: response.status,
-      healthy: response.status >= 200 && response.status < 400,
-      responseTimeMs: Date.now() - start,
-    };
-  } catch (err) {
-    const statusCode = axios.isAxiosError(err) && err.response ? err.response.status : null;
-    return { url, statusCode, healthy: false, responseTimeMs: Date.now() - start };
+  let last: HealthCheckResult = { url, statusCode: null, healthy: false, responseTimeMs: 0 };
+
+  for (let attempt = 1; attempt <= HEALTH_RETRIES; attempt++) {
+    if (attempt > 1) await wait(2000);
+    const start = Date.now();
+    try {
+      const response = await axios.get(url, { timeout: HEALTH_TIMEOUT_MS });
+      const healthy = response.status >= 200 && response.status < 400;
+      last = { url, statusCode: response.status, healthy, responseTimeMs: Date.now() - start, attempts: attempt };
+      if (healthy) return last;
+    } catch (err) {
+      const statusCode = axios.isAxiosError(err) && err.response ? err.response.status : null;
+      last = { url, statusCode, healthy: false, responseTimeMs: Date.now() - start, attempts: attempt };
+    }
   }
+  return last;
 }
 
 export async function getHealthChecks(): Promise<HealthCheckResult[]> {

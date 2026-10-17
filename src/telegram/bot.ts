@@ -30,7 +30,7 @@ function mdToHtml(text: string): string {
 export async function notify(message: string): Promise<void> {
   if (!telegramEnabled) return;
   try {
-    await bot.sendMessage(CHAT_ID, mdToHtml(message), { parse_mode: 'HTML' });
+    await bot.sendMessage(CHAT_ID, mdToHtml(message), { parse_mode: 'HTML', disable_web_page_preview: true });
   } catch (err) {
     error('Failed to send Telegram notification', err);
   }
