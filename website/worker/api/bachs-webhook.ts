@@ -14,7 +14,9 @@ interface BachsEvent {
 
 const TOLERANCE_SECONDS = 300;
 
-async function verify(request: Request, raw: string, secret: string): Promise<boolean> {
+type VerifyResult = { ok: true } | { ok: false; reason: string };
+
+async function verify(request: Request, raw: string, secret: string): Promise<VerifyResult> {
   let timestamp: string | null = null;
   let signatures: string[] = [];
 
@@ -34,12 +36,58 @@ async function verify(request: Request, raw: string, secret: string): Promise<bo
     if (v1) signatures = [v1];
   }
 
-  if (!timestamp || signatures.length === 0) return false;
+  if (!timestamp || signatures.length === 0) {
+    return { ok: false, reason: 'no signature header — is this endpoint registered in Bachs?' };
+  }
   const t = Number(timestamp);
-  if (!Number.isFinite(t) || Math.abs(Date.now() / 1000 - t) > TOLERANCE_SECONDS) return false;
+  if (!Number.isFinite(t)) return { ok: false, reason: 'signature timestamp is not a number' };
+
+  const skew = Math.round(Date.now() / 1000 - t);
+  if (Math.abs(skew) > TOLERANCE_SECONDS) {
+    return { ok: false, reason: `signature is ${skew}s old (tolerance ${TOLERANCE_SECONDS}s) — replay, or a clock out of step` };
+  }
 
   const expected = await hmacHex(secret, `${timestamp}.${raw}`);
-  return signatures.some((s) => safeEqual(expected, s));
+  if (signatures.some((s) => safeEqual(expected, s))) return { ok: true };
+
+  // Never log the expected signature: it would let anyone forge the next one.
+  return { ok: false, reason: 'signature does not match BACHS_WEBHOOK_SECRET — usually the secret belongs to a different endpoint, or to test mode while the event came from live' };
+}
+
+/**
+ * A rejected webhook is a payment we never heard about, so it has to be loud.
+ * The body is unverified, so only id and type are quoted back, and only when
+ * they look like ids. Alerts are limited to one an hour by the alerts table.
+ */
+async function reportRejection(env: Env, reason: string, raw: string, request: Request): Promise<void> {
+  const ID = /^[\w.:-]{1,64}$/;
+  let claimed = '';
+  try {
+    const body = JSON.parse(raw) as { id?: unknown; type?: unknown };
+    const id = typeof body.id === 'string' && ID.test(body.id) ? body.id : null;
+    const type = typeof body.type === 'string' && ID.test(body.type) ? body.type : null;
+    if (id || type) claimed = ` It claimed to be ${type ?? 'an event'}${id ? ` (${id})` : ''}.`;
+  } catch {
+    claimed = ' The body was not JSON.';
+  }
+
+  const from = request.headers.get('cf-connecting-ip') ?? 'unknown';
+  console.error(`bachs webhook rejected: ${reason} | from ${from} | ${raw.length} bytes${claimed}`);
+
+  if (!env.DB) return;
+  const hour = new Date().toISOString().slice(0, 13);
+  const { meta } = await env.DB
+    .prepare('INSERT OR IGNORE INTO alerts (key) VALUES (?)')
+    .bind(`webhook-rejected:${hour}`)
+    .run();
+  if (!meta.changes) return;
+
+  await sendTelegram(
+    env.SALES_TELEGRAM_BOT_TOKEN,
+    env.SALES_TELEGRAM_CHAT_ID,
+    `⚠️ A Bachs webhook was rejected and VigilOps did not record it.\n\n${reason}.${claimed}\n\n` +
+      `If someone just paid, they have no plan. Check the endpoint and its signing secret in the Bachs dashboard.`
+  );
 }
 
 function planFromProduct(env: Env, productId: string | undefined): { plan: string; interval: string } | null {
@@ -164,7 +212,9 @@ export async function bachsWebhook({ request, env }: RequestContext): Promise<Re
   }
 
   const raw = await request.text();
-  if (!(await verify(request, raw, env.BACHS_WEBHOOK_SECRET))) {
+  const verified = await verify(request, raw, env.BACHS_WEBHOOK_SECRET);
+  if (!verified.ok) {
+    await reportRejection(env, verified.reason, raw, request);
     return new Response('invalid signature', { status: 401 });
   }
 
