@@ -6,7 +6,7 @@ import { execute, needsApproval } from './executor';
 import { notify, requestApproval } from './telegram/bot';
 import { startWebhookServer } from './webhook/server';
 import { startBackupScheduler } from './backup/schedule';
-import { currentVersion } from './update';
+import { currentVersion, takeUpdateResult } from './update';
 import { startCloudHeartbeat } from './cloud';
 import { log, info, error } from './logger';
 import { RestartHistory, AIDecision, SystemSnapshot } from './types';
@@ -143,6 +143,14 @@ async function start(): Promise<void> {
   startCloudHeartbeat();
 
   await notify(`🟢 *VigilOps ${currentVersion()} started* — I am watching your server.`);
+
+  // The updater may still be writing its result as this container comes up.
+  const reportUpdate = async () => {
+    const result = takeUpdateResult();
+    if (result) await notify(result);
+    return Boolean(result);
+  };
+  if (!(await reportUpdate())) setTimeout(() => { void reportUpdate(); }, 45_000);
 
   await loop();
 

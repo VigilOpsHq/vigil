@@ -1,5 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { currentVersion, isNewer, latestRelease, ReleaseInfo, startSelfUpdate, startUpdateChecker } from './index';
+import { currentVersion, isNewer, latestRelease, ReleaseInfo, startSelfUpdate, startUpdateChecker, takeUpdateResult } from './index';
 
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID ?? '';
 
@@ -36,7 +36,20 @@ export function setupUpdateCommands(bot: TelegramBot, enabled = true): void {
       await reply('⏳ Updating VigilOps — it will restart in a moment and say hello when it is back.');
     } catch (err) {
       await reply(`❌ Update failed to start: ${errMsg(err)}\nOn the server run: vigil update`);
+      return;
     }
+
+    // If the image really changed, this process is replaced and the new one
+    // reports. Still here a minute later means it did not, so say why.
+    for (let i = 0; i < 20; i++) {
+      await new Promise((r) => setTimeout(r, 5000));
+      const result = takeUpdateResult();
+      if (result) {
+        await reply(result);
+        return;
+      }
+    }
+    await reply('⚠️ The updater did not report back. On the server run: vigil update');
   };
 
   bot.onText(/^\/update(?:@\w+)?$/, async (msg) => {

@@ -51,12 +51,31 @@ export async function latestRelease(): Promise<ReleaseInfo> {
   return { version: body.tag_name.replace(/^v/, ''), url: body.html_url, notes: body.body ?? '' };
 }
 
+const RESULT_FILE = path.resolve(process.cwd(), 'logs', 'update-result.json');
+
 export async function startSelfUpdate(): Promise<void> {
   const { stdout } = await execFileAsync('docker', ['inspect', '--format', '{{json .}}', CONTAINER]);
-  const inspect = JSON.parse(stdout) as { Config: { Image: string; Labels: Record<string, string> | null } };
+  const inspect = JSON.parse(stdout) as { Image: string; Config: { Image: string; Labels: Record<string, string> | null } };
   const labels = inspect.Config.Labels ?? {};
   const dir = labels['com.docker.compose.project.working_dir'] ?? process.env.VIGIL_DIR ?? '/opt/vigil';
   const project = labels['com.docker.compose.project'] ?? 'vigil';
+
+  try {
+    fs.rmSync(RESULT_FILE, { force: true });
+  } catch {
+  }
+
+  // The updater outlives this container, so it reports through logs/, which is
+  // the same directory on the host and in the VigilOps that comes back up.
+  // The log goes to its own file: quoting it into JSON inside sh is a good way
+  // to lose the very error we are trying to keep.
+  const out = `${dir}/logs/update-result.json`;
+  const before = inspect.Image;
+  const script =
+    `sleep 3; ` +
+    `{ docker compose -p "${project}" pull && docker compose -p "${project}" up -d; } > "${out}.log" 2>&1; code=$?; ` +
+    `after=$(docker inspect --format '{{.Image}}' ${CONTAINER} 2>/dev/null); ` +
+    `printf '{"code":%s,"before":"%s","after":"%s"}' "$code" "${before}" "$after" > "${out}.tmp" && mv "${out}.tmp" "${out}"`;
 
   const child = spawn('docker', [
     'run', '-d', '--rm',
@@ -66,7 +85,7 @@ export async function startSelfUpdate(): Promise<void> {
     '-w', dir,
     '--entrypoint', 'sh',
     inspect.Config.Image,
-    '-c', `sleep 3 && docker compose -p "${project}" pull && docker compose -p "${project}" up -d`,
+    '-c', script,
   ], { stdio: 'ignore', detached: true });
   child.unref();
 
@@ -74,6 +93,45 @@ export async function startSelfUpdate(): Promise<void> {
     child.on('error', reject);
     child.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(`Could not start updater (exit ${code})`))));
   });
+}
+
+/**
+ * Read back what the updater did. An update that changes nothing used to look
+ * exactly like one that worked, so say which of the two it was.
+ */
+export function takeUpdateResult(): string | null {
+  let raw: string;
+  try {
+    raw = fs.readFileSync(RESULT_FILE, 'utf8');
+  } catch {
+    return null;
+  }
+
+  let log = '';
+  try {
+    log = fs.readFileSync(`${RESULT_FILE}.log`, 'utf8');
+  } catch {
+  }
+  try {
+    fs.rmSync(RESULT_FILE, { force: true });
+    fs.rmSync(`${RESULT_FILE}.log`, { force: true });
+  } catch {
+  }
+
+  try {
+    const r = JSON.parse(raw) as { code: number; before: string; after: string };
+    const tail = log.trim().split('\n').slice(-8).join('\n');
+    if (r.code !== 0) {
+      return `❌ Update failed (exit ${r.code}) — still on ${currentVersion()}.\n\n\`\`\`\n${tail}\n\`\`\`\nOn the server: \`vigil update\``;
+    }
+    if (r.before && r.after && r.before === r.after) {
+      return `ℹ️ Update ran but the image did not change — still ${currentVersion()}.\n\n`
+        + `The tag in \`VIGIL_TAG\` already points at this image. Set it to the version you want and run \`vigil update\`.`;
+    }
+    return `✅ Updated — now running VigilOps ${currentVersion()}.`;
+  } catch {
+    return null;
+  }
 }
 
 export function rememberLatest(release: ReleaseInfo): void {
