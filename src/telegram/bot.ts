@@ -2,7 +2,6 @@ import TelegramBot from 'node-telegram-bot-api';
 import { PendingApproval, SystemSnapshot } from '../types';
 import { execute, isSafeCommand } from '../executor';
 import { log, error, info } from '../logger';
-// import { setupMigrationCommands } from './migration-commands';
 import { setupBackupCommands } from '../backup/telegram';
 import { setupUpdateCommands } from '../update/telegram';
 
@@ -257,10 +256,6 @@ bot.on('callback_query', async (query) => {
     await denyApproval(id);
   }
 });
-
-// Migration commands stay unregistered while the engine is a stub (see
-// migration.engine.ts). Re-enable when the phases actually move data.
-// setupMigrationCommands();
 
 setupBackupCommands(bot);
 setupUpdateCommands(bot, telegramEnabled);

@@ -143,50 +143,6 @@ export async function escalateForMonitoring(snapshot: SystemSnapshot): Promise<A
   return null;
 }
 
-export async function escalateForMigration(prompt: string, useReasoning: boolean = true): Promise<string | null> {
-  if (!aiEnabled) {
-    error('[ai] No provider configured — cannot plan a migration');
-    return null;
-  }
-
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      info(`[ai] Planning a migration with ${aiProvider()} (attempt ${attempt + 1})`);
-
-      const config: Record<string, unknown> = {
-        model: MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: `You are a DevOps architect planning infrastructure migrations.
-Consider: minimal downtime, data consistency, service dependencies, rollback safety, cost optimization.
-Respond with ONLY valid JSON.`
-          },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.3,
-        max_tokens: 3000,
-      };
-
-      if (useReasoning && MODEL.includes('reasoner')) {
-        config['reasoning_effort'] = 'high';
-      }
-
-      const response = await axios.post(ENDPOINT, config, { headers, timeout: 30_000 });
-
-      const text = response.data?.choices?.[0]?.message?.content ?? '';
-      const plan = JSON.stringify(parseJson(text));
-
-      info('[ai] Migration plan generated successfully');
-      return plan;
-    } catch (err) {
-      error(`[ai] Migration planning failed (attempt ${attempt + 1})`, err);
-    }
-  }
-
-  return null;
-}
-
 function buildMonitoringPrompt(snapshot: SystemSnapshot): string {
   const lines: string[] = [];
 

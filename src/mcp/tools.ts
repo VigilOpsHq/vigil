@@ -1,6 +1,5 @@
 import * as z from 'zod/v4';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-// import { registerMigrationTools } from './migration-tools';
 import { collect, getContainers, getContainerLogs, getDisk, getMemory, getNginx, getHealthChecks, getGpuStatus } from '../collector';
 import { execute, isSafeCommand } from '../executor';
 import { deploy, listApps } from '../deploy/deployer';
@@ -318,7 +317,4 @@ export function registerTools(server: McpServer): void {
     }
   );
 
-  // Migration tools stay unregistered while the engine is a stub: validateSource
-  // and validateTarget return passed:true without checking anything.
-  // registerMigrationTools(server);
 }
