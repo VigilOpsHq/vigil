@@ -16,6 +16,40 @@ export const bot = new TelegramBot(TOKEN || 'disabled', { polling: telegramEnabl
 
 const pendingApprovals = new Map<string, PendingApproval>();
 
+/**
+ * Telegram allows one poller per bot token. When a second copy of Vigil (another server, or a
+ * dev machine) uses the same token, every poll gets "409 Conflict" and the library logs it
+ * every few seconds forever — while commands and approvals go to whichever copy wins.
+ * Say it once an hour, plainly, and back off instead of fighting the other copy.
+ */
+const CONFLICT_BACKOFF_MS = 5 * 60 * 1000;
+let lastConflictLog = 0;
+let pollingPaused = false;
+
+bot.on('polling_error', (err: Error & { code?: string; response?: { statusCode?: number } }) => {
+  const conflict = err.response?.statusCode === 409 || /\b409\b/.test(err.message ?? '');
+  if (!conflict) {
+    error(`[telegram] Polling error: ${err.code ?? ''} ${err.message}`);
+    return;
+  }
+
+  if (Date.now() - lastConflictLog > 60 * 60 * 1000) {
+    lastConflictLog = Date.now();
+    error('[telegram] Another program is using this bot token (409 Conflict). Telegram lets only one '
+      + 'copy poll a bot, so commands and approval buttons may not reach this server. Stop the other '
+      + 'copy, or give this server its own bot (new TELEGRAM_BOT_TOKEN from @BotFather).');
+  }
+
+  if (pollingPaused) return;
+  pollingPaused = true;
+  void bot.stopPolling().catch(() => undefined).finally(() => {
+    setTimeout(() => {
+      pollingPaused = false;
+      void bot.startPolling().catch(() => undefined);
+    }, CONFLICT_BACKOFF_MS);
+  });
+});
+
 function mdToHtml(text: string): string {
   const escaped = text
     .replace(/&/g, '&amp;')

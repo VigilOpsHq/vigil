@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { SystemSnapshot, AIDecision } from '../types';
 import { error, info } from '../logger';
+import { autoAllowedExamples, systemctlAvailable } from '../executor';
 
 const DEFAULT_BASE_URL = 'https://api.deepseek.com';
 
@@ -23,7 +24,8 @@ export function aiProvider(): string {
 
 const headers = API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {};
 
-const SYSTEM_PROMPT_MONITOR = `You are Vigil, an autonomous DevOps agent monitoring a Linux VPS.
+function monitorPrompt(): string {
+  return `You are Vigil, an autonomous DevOps agent monitoring a Linux VPS.
 You are called only when the rule engine cannot resolve an issue automatically.
 
 Your job is to analyse the system snapshot and decide what to do.
@@ -51,15 +53,14 @@ Safety rules you MUST follow:
 - NEVER suggest pulling or running unknown Docker images
 - If in doubt, choose ALERT over AUTO_FIX or SUGGEST
 
-Allowed commands for AUTO_FIX:
-- docker restart <container_name>
-- docker image prune -f
-- docker system prune -f --volumes=false
-- systemctl restart nginx
-- systemctl reload nginx
-
-Installing or removing packages (apt) is never an AUTO_FIX. Use SUGGEST for it,
-so a human approves before anything is installed.`;
+Allowed commands for AUTO_FIX — Vigil cannot run anything else on its own:
+${autoAllowedExamples().map((c) => `- ${c}`).join('\n')}
+${systemctlAvailable() ? '' : '\nThere is no systemctl here: never suggest a systemctl command. If a host service such as nginx is down, choose ALERT.\n'}
+SUGGEST is only for installing or removing packages (sudo apt update | upgrade -y | install -y <pkg> | remove -y <pkg>).
+Anything else — docker rm, docker compose, editing files — Vigil cannot run even with approval:
+choose ALERT and put the exact command in the message for the operator to run themselves.
+Containers in the "created" state that were never started are usually leftovers of a deploy; never suggest removing a running container.`;
+}
 
 function validateDecision(raw: unknown): AIDecision | null {
   if (typeof raw !== 'object' || raw === null) return null;
@@ -117,7 +118,7 @@ export async function escalateForMonitoring(snapshot: SystemSnapshot): Promise<A
         {
           model: MODEL,
           messages: [
-            { role: 'system', content: SYSTEM_PROMPT_MONITOR },
+            { role: 'system', content: monitorPrompt() },
             { role: 'user', content: `System snapshot:\n\n${snapshotSummary}\n\nWhat should I do?` }
           ],
           temperature: 0.3,

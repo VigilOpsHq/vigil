@@ -1,8 +1,12 @@
 import 'dotenv/config';
 import { collect } from './collector';
-import { evaluate, hasAnomalies } from './rules/engine';
+import { anomalySignature, evaluate, hasAnomalies } from './rules/engine';
 import { aiEnabled, escalate } from './ai/brain';
-import { execute, needsApproval } from './executor';
+import { canEverRun, execute, needsApproval } from './executor';
+import {
+  ESCALATION_COOLDOWN_MS, FAILED_COMMAND_COOLDOWN_MS, clearAlerts, hasOpenAlerts,
+  recentlyFailed, recentlySucceeded, recordResult, shouldAlert,
+} from './memory';
 import { notify, requestApproval } from './telegram/bot';
 import { startWebhookServer } from './webhook/server';
 import { startBackupScheduler } from './backup/schedule';
@@ -29,31 +33,72 @@ function recordRestart(containerName: string): void {
   );
 }
 
+/** Send an alert unless the same one went out within the cooldown. */
+async function alertOnce(key: string, message: string): Promise<void> {
+  if (shouldAlert(key)) await notify(message);
+}
+
+/**
+ * Run a fix unless it failed recently (it will fail again) or just worked (running it again
+ * changes nothing). Returns whether it ran.
+ */
+async function runFix(command: string, origin: { trigger: 'rule' | 'ai'; ruleId?: string; message: string }): Promise<boolean> {
+  if (recentlyFailed(command)) {
+    await alertOnce(`failed:${command}`,
+      `⏸ Not retrying \`${command}\` — it failed within the last ${Math.round(FAILED_COMMAND_COOLDOWN_MS / 3_600_000)}h. ${origin.message}\nThis needs a person.`);
+    return false;
+  }
+  if (recentlySucceeded(command)) return false;
+
+  const result = await execute(command);
+  recordResult(command, result.success);
+  log({ trigger: origin.trigger, ruleId: origin.ruleId, action: command, result: result.success ? 'success' : 'failed', message: result.success ? origin.message : result.error ?? 'unknown' });
+
+  if (result.success) {
+    const restartMatch = command.match(/^docker restart (.+)$/);
+    if (restartMatch?.[1]) recordRestart(restartMatch[1]);
+  }
+  return true;
+}
+
 async function handleDecision(
   decision: AIDecision,
   snapshot: SystemSnapshot
 ): Promise<void> {
+  // The AI may name a command Vigil can never run (docker rm, compose…). Asking for approval
+  // would only end in "not in allowlist", so it becomes advice for the operator instead.
+  if (decision.type !== 'ALERT' && !canEverRun(decision.command)) {
+    await alertOnce(`ai:manual:${decision.command}`,
+      `🤖 *AI*: ${decision.message}\n\nVigil can't run this itself. If it looks right, run it on the server:\n\`${decision.command}\``);
+    log({ trigger: 'ai', action: decision.command, result: 'alert', message: `manual: ${decision.message}` });
+    return;
+  }
+
   if (decision.type === 'AUTO_FIX' && needsApproval(decision.command)) {
+    if (!shouldAlert(`approval:${decision.command}`)) return;
     const approvalId = crypto.randomBytes(4).toString('hex');
     await requestApproval(approvalId, [decision.command], `🤖 AI wants to run: ${decision.message}`, snapshot);
     log({ trigger: 'ai', action: decision.command, result: 'pending_approval', message: decision.message });
   } else if (decision.type === 'AUTO_FIX') {
-    const result = await execute(decision.command);
-    await notify(
-      result.success
-        ? `🤖 *AI Auto-fix*: ${decision.message}\n\`${decision.command}\` — done`
-        : `🤖 *AI Auto-fix failed*: \`${decision.command}\` — ${result.error}`
-    );
-    log({ trigger: 'ai', action: decision.command, result: result.success ? 'success' : 'failed', message: decision.message });
+    const failedBefore = recentlyFailed(decision.command);
+    const ran = await runFix(decision.command, { trigger: 'ai', message: decision.message });
+    if (!ran || failedBefore) return;
+    const ok = !recentlyFailed(decision.command);
+    await notify(ok
+      ? `🤖 *AI Auto-fix*: ${decision.message}\n\`${decision.command}\` — done`
+      : `🤖 *AI Auto-fix failed*: \`${decision.command}\` — Vigil won't try it again for ${Math.round(FAILED_COMMAND_COOLDOWN_MS / 3_600_000)}h.`);
   } else if (decision.type === 'SUGGEST') {
+    if (!shouldAlert(`approval:${decision.command}`)) return;
     const approvalId = crypto.randomBytes(4).toString('hex');
     await requestApproval(approvalId, [decision.command], `🤖 AI suggests: ${decision.message}`, snapshot);
     log({ trigger: 'ai', action: decision.command, result: 'pending_approval', message: decision.message });
   } else {
-    await notify(`🤖 *AI Alert*: ${decision.message}`);
+    await alertOnce(`ai:alert:${anomalySignature(snapshot)}`, `🤖 *AI Alert*: ${decision.message}`);
     log({ trigger: 'ai', result: 'alert', message: decision.message });
   }
 }
+
+let lastEscalation: { signature: string; at: number } | null = null;
 
 async function loop(): Promise<void> {
   if (isRunning) {
@@ -66,47 +111,57 @@ async function loop(): Promise<void> {
   try {
     const snapshot = await collect();
     const ruleMatch = evaluate(snapshot, restartHistory);
+    const anomalous = hasAnomalies(snapshot);
     let needsEscalation = false;
+
+    // Healthy again after an alert: say so once, and forget the open alerts.
+    if (!ruleMatch.matched && !anomalous) {
+      lastEscalation = null;
+      if (hasOpenAlerts()) {
+        clearAlerts();
+        await notify('✅ *All clear* — the server is healthy again.');
+      }
+      return;
+    }
 
     if (ruleMatch.matched && ruleMatch.action) {
       const { action } = ruleMatch;
 
       if (action.tier === 'auto' && action.commands.length > 0) {
-        await notify(`🔧 *Auto-fix*: ${action.message}`);
+        const runnable = action.commands.filter((c) => !recentlyFailed(c) && !recentlySucceeded(c));
 
-        for (const cmd of action.commands) {
-          const result = await execute(cmd);
-
-          if (result.success) {
-            await notify(`✅ \`${cmd}\` — done`);
-            log({ trigger: 'rule', ruleId: action.ruleId, action: cmd, result: 'success', message: action.message });
-
-            const restartMatch = cmd.match(/^docker restart (.+)$/);
-            if (restartMatch?.[1]) {
-              recordRestart(restartMatch[1]);
-            }
-          } else {
-            await notify(`❌ \`${cmd}\` — failed: ${result.error}`);
-            log({ trigger: 'rule', ruleId: action.ruleId, action: cmd, result: 'failed', message: result.error ?? 'unknown' });
+        if (runnable.length > 0) {
+          await notify(`🔧 *Auto-fix*: ${action.message}`);
+          for (const cmd of action.commands) {
+            const failedBefore = recentlyFailed(cmd);
+            const ran = await runFix(cmd, { trigger: 'rule', ruleId: action.ruleId, message: action.message });
+            if (!ran || failedBefore) continue;
+            await notify(recentlyFailed(cmd) ? `❌ \`${cmd}\` — failed. Vigil won't retry it for a while.` : `✅ \`${cmd}\` — done`);
           }
+          return;
         }
 
-        return;
+        // Every fix was already tried and the problem is still here: say so once, and let the
+        // AI look at it instead of repeating the same fix every minute.
+        await alertOnce(`rule:${action.ruleId}:stuck`, `⚠️ ${action.message}\n\nAlready tried — it is still happening. This needs a person.`);
       }
 
-      if (action.tier === 'suggest' && action.commands.length > 0) {
+      else if (action.tier === 'suggest' && action.commands.length > 0) {
+        if (!shouldAlert(`rule:${action.ruleId}:approval`)) return;
         const approvalId = crypto.randomBytes(4).toString('hex');
         await requestApproval(approvalId, action.commands, action.message, snapshot);
         log({ trigger: 'rule', ruleId: action.ruleId, action: action.commands.join(' && '), result: 'pending_approval', message: action.message });
         return;
       }
 
-      await notify(`🚨 ${action.message}`);
-      log({ trigger: 'rule', ruleId: action.ruleId, result: 'alert', message: action.message });
+      else if (shouldAlert(`rule:${action.ruleId}`)) {
+        await notify(`🚨 ${action.message}`);
+        log({ trigger: 'rule', ruleId: action.ruleId, result: 'alert', message: action.message });
+      }
       needsEscalation = true;
     }
 
-    if (!ruleMatch.matched && hasAnomalies(snapshot)) {
+    if (!ruleMatch.matched && anomalous) {
       info('Anomaly detected with no matching rule — escalating to AI');
       needsEscalation = true;
     }
@@ -117,11 +172,19 @@ async function loop(): Promise<void> {
         return;
       }
 
+      // The same problem, already put to the AI: its answer won't change, so don't ask again
+      // every minute.
+      const signature = anomalySignature(snapshot);
+      if (lastEscalation && lastEscalation.signature === signature && Date.now() - lastEscalation.at < ESCALATION_COOLDOWN_MS) {
+        return;
+      }
+      lastEscalation = { signature, at: Date.now() };
+
       info('Escalating to AI...');
       const decision = await escalate(snapshot);
 
       if (!decision) {
-        await notify('⚠️ AI escalation failed — manual review required.');
+        await alertOnce('ai:failed', '⚠️ AI escalation failed — manual review required.');
         return;
       }
 
