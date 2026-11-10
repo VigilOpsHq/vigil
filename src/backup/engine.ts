@@ -6,11 +6,13 @@ import zlib from 'zlib';
 import { pipeline } from 'stream/promises';
 import { deliverOffsite, fetchFromStorage, notifyText } from './offsite';
 import { record } from '../history';
+import { error } from '../logger';
 
 const execFileAsync = promisify(execFile);
 
 export const BACKUP_DIR = process.env.BACKUP_DIR ?? '/var/backups/vigil';
 const KEEP_DAYS = parseInt(process.env.BACKUP_KEEP_DAYS ?? '7', 10);
+const RETRY_DELAY_MS = Math.max(0, Number(process.env.BACKUP_RETRY_SECONDS ?? 30) || 0) * 1000;
 
 export type DbEngine = 'postgres' | 'mysql' | 'mongodb';
 
@@ -165,7 +167,7 @@ export async function backup(container: string, database?: string, tag?: string)
   const finalPath = path.join(BACKUP_DIR, file);
   const partialPath = `${finalPath}.partial`;
 
-  try {
+  const dumpOnce = async () => {
     const out = fs.createWriteStream(partialPath);
     if (target.engine === 'mongodb') {
       await runDocker(dumpArgs(target), null, out);
@@ -175,10 +177,23 @@ export async function backup(container: string, database?: string, tag?: string)
       await runDocker(dumpArgs(target), null, gzip);
       await writing;
     }
-    fs.renameSync(partialPath, finalPath);
-  } catch (err) {
-    fs.rmSync(partialPath, { force: true });
-    throw err;
+  };
+
+  // A dump cut off part-way — the database restarted under it (a deploy recreating the
+  // container), or was briefly unreachable — usually works a few seconds later. One retry
+  // turns a missed backup into a late one.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await dumpOnce();
+      fs.renameSync(partialPath, finalPath);
+      break;
+    } catch (err) {
+      fs.rmSync(partialPath, { force: true });
+      if (attempt >= 2) throw err;
+      const msg = err instanceof Error ? err.message : String(err);
+      error(`[backup] Dump of ${target.container} failed, retrying in ${RETRY_DELAY_MS / 1000}s — ${msg}`);
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+    }
   }
 
   const sizeBytes = fs.statSync(finalPath).size;
