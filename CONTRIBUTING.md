@@ -5,8 +5,8 @@ Thanks for your interest. Contributions are welcome — bug fixes, new rules, im
 ## Getting started
 
 ```bash
-git clone https://github.com/yourorg/vigilops
-cd vigilops
+git clone https://github.com/VigilOpsHq/vigil
+cd vigil
 npm install
 cp .env.example .env  # fill in your values
 npm run dev
