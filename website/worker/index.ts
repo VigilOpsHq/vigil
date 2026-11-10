@@ -59,6 +59,8 @@ const routes: Route[] = [
   route('POST', '/api/agent/backups/:id/complete', agent.completeUpload),
   route('POST', '/api/agent/backups/:id/abort', agent.abortUpload),
   route('GET', '/api/agent/backups/file/:file', agent.agentDownload),
+  route('DELETE', '/api/agent/backups/file/:file', agent.agentDelete),
+  route('POST', '/api/agent/backups/thin', agent.agentThin),
 ];
 
 const isDynamic = (path: string) => path.startsWith('/api/') || path.startsWith('/auth/');

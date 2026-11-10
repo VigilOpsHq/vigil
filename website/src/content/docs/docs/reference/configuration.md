@@ -63,6 +63,11 @@ Anthropic's and Google's own APIs use a different request format, so point them 
 | `CRASH_LOOP_THRESHOLD` | `3` | Restarts within the window that count as a crash loop |
 | `CRASH_LOOP_WINDOW_MINUTES` | `10` | Crash-loop window |
 | `APPROVAL_TIMEOUT_MINUTES` | `10` | How long a suggested action waits for approval before it's denied |
+| `FAILED_COMMAND_COOLDOWN_MINUTES` | `360` | A fix that failed is not tried again for this long; you get one alert instead |
+| `REPEAT_FIX_COOLDOWN_MINUTES` | `60` | A clean-up that worked (image prune) is not repeated for this long, even if the problem stays |
+| `ALERT_COOLDOWN_MINUTES` | `60` | The same alert is not sent again for this long while the problem lasts. You get "All clear" when it ends |
+| `ESCALATION_COOLDOWN_MINUTES` | `30` | The same unexplained problem is not sent to the AI again for this long |
+| `VIGIL_SYSTEMCTL` | auto | Whether Vigil can run `systemctl` on the host. Detected automatically; inside a container it can't, so nginx restarts are never attempted there |
 
 ## Backups
 
@@ -70,6 +75,7 @@ Anthropic's and Google's own APIs use a different request format, so point them 
 |---|---|---|
 | `BACKUP_DIR` | `/var/backups/vigil` | Where backups and schedules are stored. If you change it, change the volume in `docker-compose.yml` too |
 | `BACKUP_KEEP_DAYS` | `7` | Delete server-disk backups older than this. The newest per container is always kept |
+| `BACKUP_RETRY_SECONDS` | `30` | A dump that fails part-way (the database restarted under it) is tried once more after this many seconds |
 | `BACKUP_SEND_TO_TELEGRAM` | `true` | Send backups up to 50 MB to the Telegram chat |
 | `BACKUP_S3_ENDPOINT` | — | S3 endpoint URL. Leave empty for AWS S3 |
 | `BACKUP_S3_REGION` | `us-east-1` | Bucket region |

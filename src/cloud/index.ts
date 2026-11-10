@@ -169,6 +169,18 @@ export async function listCloudBackups(container?: string): Promise<CloudBackup[
   return ((await res.json()) as { backups: CloudBackup[] }).backups;
 }
 
+/** Delete one of this server's backups from the cloud. */
+export async function deleteCloudBackup(file: string): Promise<{ deleted: number; bytes: number }> {
+  const res = await request(`/api/agent/backups/file/${encodeURIComponent(file)}`, { method: 'DELETE' });
+  return (await res.json()) as { deleted: number; bytes: number };
+}
+
+/** Thin this server's backups older than a few days to one a day, now. */
+export async function thinCloudBackups(): Promise<{ removed: number; bytes: number }> {
+  const res = await request('/api/agent/backups/thin', { method: 'POST' });
+  return (await res.json()) as { removed: number; bytes: number };
+}
+
 export function startCloudHeartbeat(): void {
   const beat = async () => {
     if (!cloudEnabled()) return;

@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { execSync } from 'node:child_process';
 
 const B = process.env.BASE ?? 'http://127.0.0.1:8787';
 const WEBHOOK_SECRET = 'testsecret';
@@ -145,6 +146,32 @@ r = await fetch(`${B}/api/app/backups/${backups[0].id}/download`, { headers: pro
 check('dashboard download matches', crypto.createHash('sha256').update(Buffer.from(await r.arrayBuffer())).digest('hex') === sha);
 r = await fetch(`${B}/api/app/backups/${backups[0].id}/download`);
 check('download needs sign-in', r.status === 401);
+
+// ── Thinning and delete ───────────────────────────────────────────────
+// Three backups from one old day: prune keeps the last of the day and frees the other two.
+const sameDay = ['010000', '020000', '030000'].map((t) => `app-postgres__app__20260910-${t}.sql.gz`);
+for (const f of sameDay) {
+  fs.writeFileSync(path.join(state, f), crypto.randomBytes(2048));
+  await offsite.deliverOffsite(path.join(state, f), f, 2048, { container: 'app-postgres', database: 'app' });
+}
+const persist = process.env.WRANGLER_PERSIST ?? '/tmp/vigil-state';
+execSync(
+  `npx wrangler d1 execute DB --local --persist-to ${persist} --command "UPDATE backups SET completed_at = '2026-09-10T0' || substr(file, 30, 1) || ':00:00.000Z' WHERE file LIKE 'app-postgres__app__20260910-%'"`,
+  { stdio: 'ignore' }
+);
+const thinned = await cloud.thinCloudBackups();
+check('vigil cloud prune keeps one backup per old day', thinned.removed === 2 && thinned.bytes === 4096, JSON.stringify(thinned));
+let left = (await cloud.listCloudBackups('app-postgres')).map((b) => b.file);
+check('prune keeps the last of that day and every recent backup', left.includes(sameDay[2]) && !left.includes(sameDay[0]) && left.includes(file), JSON.stringify(left));
+const removed = await cloud.deleteCloudBackup(sameDay[2]);
+left = (await cloud.listCloudBackups('app-postgres')).map((b) => b.file);
+check('vigil cloud delete removes one backup', removed.deleted === 1 && !left.includes(sameDay[2]));
+try {
+  await cloud.deleteCloudBackup(sameDay[2]);
+  check('deleting a missing backup is a 404', false);
+} catch (e) {
+  check('deleting a missing backup is a 404', /not found/i.test(e.message));
+}
 
 // ── Telegram linking through the official bot ─────────────────────────
 r = await fetch(`${B}/api/app/telegram/link`, { method: 'POST', headers: pro.headers });

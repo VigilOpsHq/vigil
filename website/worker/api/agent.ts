@@ -6,6 +6,7 @@ import { newId, sha256Hex } from '../lib/crypto';
 import { requireDb } from '../lib/auth';
 import { entitlementFor } from '../lib/plans';
 import { formatBytes, sendTelegram } from '../lib/telegram';
+import { thinBackups } from '../lib/thin';
 
 export const PART_SIZE = 50 * 1024 * 1024;
 const MAX_BACKUP_BYTES = 50 * 1024 ** 3;
@@ -215,4 +216,28 @@ export async function agentDownload(ctx: RequestContext): Promise<Response> {
   return new Response(object.body, {
     headers: { 'Content-Type': 'application/gzip', 'Content-Length': String(object.size), 'Cache-Control': 'no-store' },
   });
+}
+
+/** A server deletes one of its own backups from the cloud. */
+export async function agentDelete(ctx: RequestContext): Promise<Response> {
+  const server = await authServer(ctx.env, ctx.request);
+  const file = decodeURIComponent(ctx.params.file);
+  if (!FILE_RE.test(file)) throw new HttpError(400, 'Invalid backup file name');
+
+  const db = requireDb(ctx.env);
+  const { results } = await db
+    .prepare("SELECT id, r2_key, size_bytes FROM backups WHERE server_id = ? AND file = ?")
+    .bind(server.id, file)
+    .all<{ id: string; r2_key: string; size_bytes: number }>();
+  if (!results.length) throw new HttpError(404, 'Backup not found in VigilOps Cloud');
+
+  if (ctx.env.BACKUPS) await ctx.env.BACKUPS.delete(results.map((r) => r.r2_key));
+  await db.batch(results.map((r) => db.prepare('DELETE FROM backups WHERE id = ?').bind(r.id)));
+  return json({ deleted: results.length, bytes: results.reduce((s, r) => s + (r.size_bytes ?? 0), 0) });
+}
+
+/** A server thins its own old backups to one a day right now, instead of waiting for the nightly run. */
+export async function agentThin(ctx: RequestContext): Promise<Response> {
+  const server = await authServer(ctx.env, ctx.request);
+  return json(await thinBackups(ctx.env, new Date(), server.id));
 }

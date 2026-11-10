@@ -20,6 +20,8 @@ VigilOps Cloud is the hosted side of VigilOps, included with the [Pro and Team p
 
 The newest backup of each database is always kept, however old it is.
 
+Backups from the last 3 days are all kept. Older ones are thinned to one a day (the last of each day, per database) — so an hourly schedule fits the plan, and you can still go back to any day in the retention window. Run `vigil cloud prune` on a server to thin it straight away when space runs short.
+
 ## Get started
 
 <Steps>
@@ -62,6 +64,8 @@ With VigilOps Cloud, your own Telegram bot is optional. Add one to `/opt/vigil/.
 | `vigil cloud connect <token>` | Connect this server |
 | `vigil cloud status` | Show the server name and plan it's connected to |
 | `vigil cloud backups [container]` | List backups stored in the cloud |
+| `vigil cloud delete <file>...` | Delete backups from the cloud to free space |
+| `vigil cloud prune` | Free cloud space now: keep every backup from the last 3 days, then one a day |
 | `vigil cloud disconnect` | Stop sending backups to the cloud. Stored backups are kept |
 | `vigil restore <file>` | Restore a backup, downloading it from the cloud if needed |
 

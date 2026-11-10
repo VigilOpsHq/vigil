@@ -461,7 +461,7 @@ export const appCommand: CLICommand = {
 export const cloudCommand: CLICommand = {
   name: 'cloud',
   description: 'Connect this server to VigilOps Cloud',
-  usage: 'vigil cloud connect <token> | status | backups [container] | disconnect',
+  usage: 'vigil cloud connect <token> | status | backups [container] | delete <file>... | prune | disconnect',
   handler: async (args) => {
     const [sub, arg] = args;
     const gb = (n: number) => formatSize(n);
@@ -503,12 +503,40 @@ export const cloudCommand: CLICommand = {
       return;
     }
 
+    if (sub === 'delete') {
+      const files = args.slice(1);
+      if (files.length === 0) {
+        console.error('❌ Usage: vigil cloud delete <file> [file...]   (see: vigil cloud backups)');
+        process.exit(1);
+      }
+      let freed = 0;
+      for (const file of files) {
+        try {
+          const r = await cloud.deleteCloudBackup(file);
+          freed += r.bytes;
+          console.log(`   🗑  ${file}`);
+        } catch (err) {
+          console.log(`   ❌ ${file} — ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+      console.log(`\nFreed ${gb(freed)} in VigilOps Cloud.\n`);
+      return;
+    }
+
+    if (sub === 'prune') {
+      const r = await cloud.thinCloudBackups();
+      console.log(r.removed
+        ? `\n☁️  Kept every backup from the last 3 days and one a day before that.\n   Removed ${r.removed} older backup(s), freed ${gb(r.bytes)}.\n`
+        : '\n☁️  Nothing to prune — older backups are already one a day.\n');
+      return;
+    }
+
     if (sub === 'disconnect') {
       console.log(cloud.disconnect() ? '\nDisconnected from VigilOps Cloud. Backups already stored there are kept.\n' : '\nThis server was not connected (or uses VIGIL_CLOUD_TOKEN in .env).\n');
       return;
     }
 
-    console.error('❌ Usage: vigil cloud connect <token> | status | backups [container] | disconnect');
+    console.error('❌ Usage: vigil cloud connect <token> | status | backups [container] | delete <file>... | prune | disconnect');
     process.exit(1);
   },
 };
@@ -592,6 +620,8 @@ CLOUD (Pro and Team):
   cloud connect <token>                   Connect this server to VigilOps Cloud
   cloud status                            Show connection and plan
   cloud backups [container]               List backups stored in the cloud
+  cloud delete <file>...                  Delete backups from the cloud
+  cloud prune                             Free cloud space: keep 3 days of backups, then one a day
   cloud disconnect                        Stop sending backups to the cloud
   help                Show this help
 

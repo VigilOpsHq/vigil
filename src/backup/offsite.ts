@@ -1,5 +1,6 @@
 import fs from 'fs';
 import os from 'os';
+import path from 'path';
 import { pipeline } from 'stream/promises';
 import { Readable } from 'stream';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
@@ -55,6 +56,30 @@ async function sendToTelegram(filePath: string, fileName: string): Promise<boole
   return true;
 }
 
+/**
+ * A full cloud only showed up in Vigil's own log ("Copies: server disk only"), so backups
+ * quietly stopped leaving the server for days. Tell the operator once a day while it lasts.
+ * Each backup can be its own `vigil backup` process, so the once-a-day mark is a file.
+ */
+async function warnCloudFull(err: unknown): Promise<void> {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (!/storage full/i.test(msg)) return;
+
+  const mark = path.join(process.env.BACKUP_DIR ?? '/var/backups/vigil', '.cloud-full-alerted');
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    if (fs.readFileSync(mark, 'utf8').trim() === today) return;
+  } catch { /* not alerted yet */ }
+  try {
+    fs.writeFileSync(mark, today);
+  } catch { /* still alert */ }
+
+  await notifyText(
+    `🛑 VigilOps Cloud is full — backups are only being kept on this server.\n${msg}\n\n`
+    + 'Free space now: vigil cloud prune (keeps 3 days, then one a day), or delete backups at https://vigilops.cloud/app/'
+  );
+}
+
 export async function deliverOffsite(
   filePath: string,
   fileName: string,
@@ -69,6 +94,7 @@ export async function deliverOffsite(
       delivered.push('VigilOps Cloud');
     } catch (err) {
       error('[backup] Upload to VigilOps Cloud failed', err);
+      await warnCloudFull(err);
     }
   }
 

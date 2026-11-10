@@ -3,6 +3,7 @@
 import type { Env } from './lib/env';
 import { LIMITS, type PaidPlan } from './lib/plans';
 import { sendTelegram } from './lib/telegram';
+import { thinBackups } from './lib/thin';
 
 const OFFLINE_AFTER_MS = 15 * 60 * 1000;
 const GRACE_MS = { hourly: 45 * 60 * 1000, daily: 3 * 3600 * 1000, weekly: 3 * 3600 * 1000 };
@@ -132,6 +133,8 @@ export async function runScheduled(env: Env, now = new Date()): Promise<void> {
     await db.batch(expired.map((e) => db.prepare('DELETE FROM backups WHERE id = ?').bind(e.id)));
   }
 
+  await thinBackups(env, now);
+
   const { results: quota } = await db
     .prepare(
       `SELECT a.id, a.telegram_chat_id, (
@@ -169,7 +172,7 @@ export async function runScheduled(env: Env, now = new Date()): Promise<void> {
         env,
         `quota:${account.id}:full`,
         account.telegram_chat_id,
-        `🛑 Your VigilOps Cloud storage is full (${gb(account.bytes)} of ${gb(limits.storageBytes)}).\nNew backups will be rejected until old ones expire${plan === 'pro' ? ', or you move up to Team' : ''}: https://vigilops.cloud/app/`
+        `🛑 Your VigilOps Cloud storage is full (${gb(account.bytes)} of ${gb(limits.storageBytes)}).\nNew backups will be rejected until old ones expire. Free space now with "vigil cloud prune" on your server, or delete backups at https://vigilops.cloud/app/${plan === 'pro' ? ' — or move up to Team' : ''}.`
       );
     } else if (pct >= 80) {
       await alertOnce(
