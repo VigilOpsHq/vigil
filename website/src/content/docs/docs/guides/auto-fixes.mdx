@@ -5,14 +5,14 @@ description: What VigilOps fixes on its own, what it escalates to AI, what needs
 
 import { Aside } from '@astrojs/starlight/components';
 
-Every minute VigilOps takes a snapshot of the server and checks it against built-in rules. Problems with a known, safe fix are fixed automatically. Everything else is escalated to AI or reported to you.
+Every minute VigilOps takes a snapshot of the server and checks it against built-in rules. Problems with a known, safe fix are fixed automatically. A container that keeps failing is [investigated](/docs/guides/diagnose/) first; what that doesn't explain is escalated to AI or reported to you.
 
 ## Built-in rules
 
 | Problem | What VigilOps does | Setting |
 |---|---|---|
-| A container has exited or died | Restarts it | `EXCLUDED_CONTAINERS` to ignore containers |
-| A container keeps crashing (3 restarts within 10 minutes) | Stops restarting it, alerts you and asks AI to diagnose | `CRASH_LOOP_THRESHOLD`, `CRASH_LOOP_WINDOW_MINUTES` |
+| A container has exited or died | Restarts it. Finished one-off jobs (no restart policy, like a leftover `npm ci` build container) are left alone | `EXCLUDED_CONTAINERS` to ignore containers |
+| A container keeps crashing (3 restarts within 10 minutes), or is stuck in Docker's restart loop | Stops restarting it, [finds out why](/docs/guides/diagnose/) and tells you, and asks AI only if no known cause matches | `CRASH_LOOP_THRESHOLD`, `CRASH_LOOP_WINDOW_MINUTES` |
 | Disk usage ≥ 85% | Removes unused Docker images (`docker image prune -f`, `docker system prune -f --volumes=false`) | `DISK_ALERT_PERCENT` |
 | Memory usage ≥ 90% | Alerts you. No automatic fix, because it's too risky | `MEMORY_ALERT_PERCENT` |
 | Nothing answers on port 80 | Alerts you | — |
@@ -38,7 +38,7 @@ HEALTH_CHECK_CONTAINER_MAP=https://api.myapp.com/health:myapp-api,https://myapp.
 
 ## AI escalation
 
-When a rule raises an alert, or VigilOps sees something unusual that no rule covers, it sends the snapshot to your AI provider. The AI replies with one of three decisions:
+When a rule raises an alert, or VigilOps sees something unusual that no rule covers, it first [investigates](/docs/guides/diagnose/) the failing containers. If that recognises the cause, you get the diagnosis and the AI isn't asked. Otherwise it sends the snapshot to your AI provider — together with what the investigation found: the first error of the latest start, the log, exit code and changed files. The AI replies with one of three decisions:
 
 | Decision | What happens |
 |---|---|
@@ -49,6 +49,8 @@ When a rule raises an alert, or VigilOps sees something unusual that no rule cov
 You choose the provider. Anything with an OpenAI-compatible `/chat/completions` endpoint works — OpenAI, DeepSeek, Groq, OpenRouter, Together, Mistral, or a local Ollama or vLLM — by setting `AI_API_KEY`, `AI_BASE_URL` and `AI_MODEL`. See [Configuration](/docs/reference/configuration/#ai) for the URL and model for each one.
 
 With no `AI_API_KEY` set, escalation is skipped entirely: rules still run and still alert you, and VigilOps makes no outbound AI calls. If a key is set but the call fails (invalid key, no credit, provider down), you get "AI escalation failed — manual review required" instead.
+
+The AI can't restart a container that a diagnosis has ruled out a restart for, or one Docker is already restarting — it gets an alert with the reason instead.
 
 Whatever the model suggests still has to pass the [command allowlist](#command-allowlist) below, so the provider you pick changes the quality of the diagnosis, never how much VigilOps is allowed to do.
 

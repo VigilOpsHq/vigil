@@ -107,6 +107,7 @@ Replace `root@my-server` with your own SSH target. Nothing new is exposed: the c
 
 ## Things worth asking
 
+- *The api is down, fix it* — investigates the container, then fixes the cause in your code
 - *Why is my app slow?* — reads disk, memory and container state together
 - *Show me what the worker logged before it died*
 - *Which containers restarted today?* — from the audit log
@@ -130,6 +131,9 @@ Replace `root@my-server` with your own SSH target. Nothing new is exposed: the c
 | `get_deployable_apps` | List registered apps |
 | `execute_safe_command` | Run an allowlisted command |
 | `notify` | Send a Telegram message |
+| `diagnose_container` | [Find out why a container is failing](/docs/guides/diagnose/): first error, exit code, changed files, known causes, plus a prompt to fix the code |
+| `list_incidents` | Incidents VigilOps investigated on this server |
+| `get_fix_prompt` | Everything known about an incident, as instructions for fixing the code |
 
 Package installs and anything outside the allowlist are refused here, and need a human approval on Telegram.
 

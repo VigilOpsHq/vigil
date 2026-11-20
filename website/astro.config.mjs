@@ -58,6 +58,7 @@ export default defineConfig({
             { label: 'Database backups', slug: 'docs/guides/backups' },
             { label: 'Restoring a backup', slug: 'docs/guides/restore' },
             { label: 'Off-server backup storage', slug: 'docs/guides/offsite-storage' },
+            { label: 'Finding out why it broke', slug: 'docs/guides/diagnose' },
             { label: 'Auto-fixes, AI and approvals', slug: 'docs/guides/auto-fixes' },
             { label: 'Deploying apps', slug: 'docs/guides/deploys' },
             { label: 'Updating VigilOps', slug: 'docs/guides/updating' },

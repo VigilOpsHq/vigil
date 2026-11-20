@@ -1,0 +1,124 @@
+---
+title: Finding out why it broke
+description: When a container fails, VigilOps investigates before it restarts anything — and hands the fix to your coding agent.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Most monitoring tells you something is down. VigilOps finds out **why**, says it in plain words, and gives you two fixes: one for the server now, and one for the code so it doesn't happen again.
+
+It happens on its own whenever a container fails. You can also ask: `vigil diagnose <container>` on the server, `/diagnose <container>` on Telegram, or `diagnose_container` from your editor.
+
+## What it looks at
+
+Everything is read-only. Nothing is restarted, changed or deleted while it looks.
+
+| | |
+|---|---|
+| **The first error in the latest start** | In a restart loop the last error printed is rarely the cause. VigilOps finds where the latest start begins, skips the stack traces, and takes the first error after it. |
+| **How it stopped** | Exit code, whether the kernel killed it for using too much memory, how many times it has restarted, its memory limit, Docker's own start error. |
+| **Files changed inside the container** | What was written since the container was created, and the size of anything that matters — a cache or config file that is suddenly 0 bytes. This works even while the container is stuck restarting. |
+| **The image** | Whether it was built for this server's CPU (an image built on an Apple Silicon Mac won't run on an Intel/AMD server). |
+| **The start script** | Whether it was saved with Windows line endings. |
+| **Environment variables** | Their **names** only, to tell "not set" from "set but wrong". The values are never read. |
+
+<Aside type="note" title="Secrets stay on the server">
+Logs are cleaned before they go anywhere — Telegram, your AI provider, or your editor. Passwords in connection strings, bearer tokens, API keys (`sk-…`, `ghp_…`, `AKIA…`), JWTs and Laravel's `APP_KEY` are replaced with `***`.
+</Aside>
+
+## Problems it recognises
+
+When the evidence matches a known cause, you get a diagnosis rather than a guess:
+
+| Problem | Typical sign |
+|---|---|
+| Laravel's cached config is an empty file | `Target class [config] does not exist`, `bootstrap/cache/config.php` is 0 bytes |
+| Image built for the wrong CPU | `exec format error`; image arm64, server amd64 |
+| Start script has Windows line endings | `exec /start.sh: no such file or directory` for a file that exists |
+| Start command missing or not executable | exit 126 / 127 |
+| Out of memory | killed by the kernel (OOM), `JavaScript heap out of memory`, `Allowed memory size exhausted` |
+| Disk full | `ENOSPC`, `No space left on device` |
+| An environment variable is missing | `Environment variable not found: DATABASE_URL`, `No application encryption key` |
+| The app looks for the database on `localhost` | `ECONNREFUSED 127.0.0.1:5432` — inside a container, localhost is the container |
+| Database rejects the password | `password authentication failed`, `Access denied for user` |
+| Database host doesn't resolve | `getaddrinfo ENOTFOUND db` |
+| Port already taken | `EADDRINUSE` |
+| Prisma engine doesn't match the image | `could not locate the Query Engine for runtime "linux-musl"` |
+| A Prisma migration failed | `P3009`, `migrate found failed migrations` |
+| Next.js started without a build | `Could not find a production build in the '.next' directory` |
+| A dependency is missing from the image | `Cannot find module`, `Class "…" not found`, `ModuleNotFoundError` |
+| The app can't write where it needs to | `EACCES`, `Permission denied`, Laravel's `could not be opened in append mode` |
+
+Anything else goes to [your AI provider](/docs/guides/auto-fixes/#ai-escalation) — with the same evidence, so it reasons from the actual error rather than a list of container names. Without an AI provider you still get the first error and the log.
+
+## What you get on Telegram
+
+One message per problem, not one per minute:
+
+```
+🔎 api: Laravel's cached config is an empty file
+restarting, exit 255, 66 restarts
+
+Laravel loads bootstrap/cache/config.php before anything else. The file is
+empty, so Laravel crashes — and config:cache has to boot Laravel first, so it
+can never rewrite it. Every restart fails the same way.
+
+Evidence
+• /var/www/html/bootstrap/cache/config.php is 0 bytes
+• log: "Target class [config] does not exist"
+
+Fix now
+• Delete the broken cache files and start the container again
+  UP=$(docker inspect api --format '{{.GraphDriver.Data.UpperDir}}')
+  docker stop api
+  rm -f "$UP/var/www/html/bootstrap/cache/config.php"
+  docker start api
+
+So it doesn't happen again
+Delete the cached files in the start script before any php artisan command.
+
+Vigil will not restart it: a restart cannot fix this.
+
+[🧑‍💻 Fix prompt]
+```
+
+The fix commands are for you to run. VigilOps doesn't run them itself, because they are outside its [command allowlist](/docs/guides/auto-fixes/#command-allowlist).
+
+## Restarts that can't help are skipped
+
+A missing env var, a broken image or an empty config file survives a restart. Once a diagnosis says so, VigilOps stops restarting that container — whether a rule or the AI wanted to — and it never restarts a container Docker is already restarting. Out-of-memory and database-still-starting are the exceptions, where a restart can help.
+
+## Hand the fix to your coding agent
+
+The server fix gets you back up. The real fix is usually in the code: a start script, a Dockerfile, a missing dependency. Your coding agent has the repository but not the server — the **Fix prompt** gives it everything VigilOps found:
+
+- the diagnosis and the suggested permanent fix
+- the errors of the latest start, in order
+- the log of the latest start, secrets removed
+- the files changed inside the container, with sizes
+- the names of the environment variables set
+
+Three ways to get it:
+
+**Telegram** — tap **🧑‍💻 Fix prompt** under the alert. Long prompts arrive as a `.md` file you can drop into Cursor or Claude Code.
+
+**The server**
+
+```bash
+vigil diagnose api --prompt      # investigate now
+vigil incidents                   # past incidents
+vigil incidents <id> --prompt     # prompt for one of them
+```
+
+**Your editor** — with the [MCP server](/docs/guides/mcp/) connected, just ask:
+
+```
+you:    the api is down, fix it
+
+claude: [diagnose_container api]  restart loop: bootstrap/cache/config.php is 0 bytes
+        → edits docker/start.sh to clear the cache before artisan runs
+```
+
+## Incidents
+
+Every investigation is saved as an incident in `logs/incidents/` on the server (the latest 100). List them with `vigil incidents`, `/incidents` on Telegram, or the `list_incidents` MCP tool.
