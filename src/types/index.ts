@@ -5,6 +5,10 @@ export interface ContainerStatus {
   state: string;
   status: string;
   runningFor: string;
+  /** Docker restart policy (no, always, unless-stopped, on-failure). Only set for stopped containers. */
+  restartPolicy?: string;
+  /** Last exit code. Only set for stopped containers. */
+  exitCode?: number;
 }
 
 export interface DiskStatus {

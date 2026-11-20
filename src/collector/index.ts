@@ -22,12 +22,40 @@ export async function getContainers(): Promise<ContainerStatus[]> {
     const { stdout } = await execAsync(
       `docker ps -a --format '{"id":"{{.ID}}","name":"{{.Names}}","state":"{{.State}}","status":"{{.Status}}","runningFor":"{{.RunningFor}}"}'`
     );
-    return stdout.trim().split('\n').filter(Boolean)
+    const containers = stdout.trim().split('\n').filter(Boolean)
       .map((line) => JSON.parse(line) as ContainerStatus)
       .filter((c) => !EXCLUDED_CONTAINERS.includes(c.name));
+    await addStopDetails(containers);
+    return containers;
   } catch (err) {
     error('Failed to fetch container statuses', err);
     return [];
+  }
+}
+
+/**
+ * Restart policy and exit code for stopped containers, so the rules can tell a crashed service
+ * from a one-off job that finished (a build step's `npm ci`, a migration run) — restarting those
+ * reruns the job every few minutes.
+ */
+async function addStopDetails(containers: ContainerStatus[]): Promise<void> {
+  const stopped = containers.filter((c) => c.state === 'exited' || c.state === 'dead');
+  if (stopped.length === 0) return;
+  try {
+    const { stdout } = await execFileAsync('docker', [
+      'inspect', '--format', '{{.Id}} {{.HostConfig.RestartPolicy.Name}} {{.State.ExitCode}}',
+      ...stopped.map((c) => c.id),
+    ]);
+    for (const line of stdout.trim().split('\n')) {
+      const [id, policy, code] = line.trim().split(/\s+/);
+      const c = stopped.find((s) => id?.startsWith(s.id));
+      if (!c) continue;
+      c.restartPolicy = policy || 'no';
+      c.exitCode = Number(code);
+    }
+  } catch (err) {
+    // Without the details every stopped container still counts as down, as before.
+    error('Failed to inspect stopped containers', err);
   }
 }
 

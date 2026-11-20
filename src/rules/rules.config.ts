@@ -1,4 +1,5 @@
 import { Rule, SystemSnapshot, RestartHistory } from '../types';
+import { isOneOffJob } from './containers';
 
 const DISK_ALERT = parseInt(process.env.DISK_ALERT_PERCENT ?? '85', 10);
 const MEMORY_ALERT = parseInt(process.env.MEMORY_ALERT_PERCENT ?? '90', 10);
@@ -24,7 +25,7 @@ function isInCrashLoop(containerName: string, history: RestartHistory): boolean 
 
 function downContainers(snapshot: SystemSnapshot) {
   return snapshot.containers.filter(
-    (c) => c.state === 'exited' || c.state === 'dead'
+    (c) => (c.state === 'exited' || c.state === 'dead') && !isOneOffJob(c)
   );
 }
 
