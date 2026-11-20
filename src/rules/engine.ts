@@ -1,5 +1,6 @@
 import { SystemSnapshot, RuleMatch, RestartHistory } from '../types';
 import { rules } from './rules.config';
+import { isOneOffJob } from './containers';
 
 export function evaluate(
   snapshot: SystemSnapshot,
@@ -20,10 +21,11 @@ export function evaluate(
 /**
  * A container that was created but never started is not a failure: compose leaves these behind
  * when a recreate is interrupted, and treating them as "down" sent the same question to the AI
- * every minute. Exited, dead, restarting and paused containers still count.
+ * every minute. The same goes for a finished one-off job (see isOneOffJob). Exited, dead,
+ * restarting and paused services still count.
  */
 function troubled(snapshot: SystemSnapshot) {
-  return snapshot.containers.filter((c) => c.state !== 'running' && c.state !== 'created');
+  return snapshot.containers.filter((c) => c.state !== 'running' && c.state !== 'created' && !isOneOffJob(c));
 }
 
 export function hasAnomalies(snapshot: SystemSnapshot): boolean {
