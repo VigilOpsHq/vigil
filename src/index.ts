@@ -7,7 +7,9 @@ import {
   ESCALATION_COOLDOWN_MS, FAILED_COMMAND_COOLDOWN_MS, clearAlerts, hasOpenAlerts,
   recentlyFailed, recentlySucceeded, recordResult, shouldAlert,
 } from './memory';
-import { notify, requestApproval } from './telegram/bot';
+import { notify, notifyIncident, requestApproval } from './telegram/bot';
+import { Diagnosis, diagnosisKey, formatTelegram, investigate, restartCanHelp, saveIncident } from './diagnose';
+import { isOneOffJob } from './rules/containers';
 import { startWebhookServer } from './webhook/server';
 import { startBackupScheduler } from './backup/schedule';
 import { currentVersion, takeUpdateResult } from './update';
@@ -18,6 +20,11 @@ import crypto from 'crypto';
 
 const restartHistory: RestartHistory = {};
 let isRunning = false;
+
+/** The latest diagnosis per container, so a restart it rules out isn't tried again and again. */
+const diagnosed = new Map<string, { diagnosis: Diagnosis; at: number }>();
+const DIAGNOSIS_TTL_MS = 60 * 60 * 1000;
+const MAX_INVESTIGATIONS = 3;
 
 const POLL_SECONDS = parseInt(process.env.POLL_INTERVAL_SECONDS ?? '60', 10);
 
@@ -31,6 +38,62 @@ function recordRestart(containerName: string): void {
   restartHistory[containerName] = restartHistory[containerName].filter(
     (t) => t > oneHourAgo
   );
+}
+
+const HEALTH_CHECK_CONTAINER_MAP: Record<string, string> = Object.fromEntries(
+  (process.env.HEALTH_CHECK_CONTAINER_MAP ?? '').split(',').map((p) => p.trim()).filter(Boolean)
+    .map((p) => [p.slice(0, p.lastIndexOf(':')).trim(), p.slice(p.lastIndexOf(':') + 1).trim()])
+);
+
+/** Containers worth investigating: failing services, plus apps behind a failing health check. */
+function suspects(snapshot: SystemSnapshot): string[] {
+  const failing = snapshot.containers
+    .filter((c) => (c.state === 'restarting' || c.state === 'exited' || c.state === 'dead') && !isOneOffJob(c))
+    .map((c) => c.name);
+  const behindChecks = snapshot.healthChecks.filter((h) => !h.healthy)
+    .map((h) => HEALTH_CHECK_CONTAINER_MAP[h.url]).filter((n): n is string => Boolean(n));
+  return [...new Set([...failing, ...behindChecks])].slice(0, MAX_INVESTIGATIONS);
+}
+
+/** Investigate, store and report each suspect. One alert per container and cause. */
+async function investigateSuspects(snapshot: SystemSnapshot): Promise<Diagnosis[]> {
+  const context = [
+    ...snapshot.healthChecks.filter((h) => !h.healthy).map((h) => `health check ${h.url} → ${h.statusCode ?? 'no response'}`),
+    snapshot.disk.usedPercent >= parseInt(process.env.DISK_ALERT_PERCENT ?? '85', 10) ? `disk ${snapshot.disk.usedPercent}% full` : '',
+    snapshot.memory.usedPercent >= parseInt(process.env.MEMORY_ALERT_PERCENT ?? '90', 10) ? `memory ${snapshot.memory.usedPercent}% used` : '',
+  ].filter(Boolean);
+
+  const out: Diagnosis[] = [];
+  for (const name of suspects(snapshot)) {
+    try {
+      const d = await investigate(name, context);
+      out.push(d);
+      diagnosed.set(name, { diagnosis: d, at: Date.now() });
+      saveIncident(d);
+      const f = d.findings[0];
+      log({ trigger: 'rule', ruleId: 'diagnose', result: 'alert', message: `${name}: ${f ? f.title : `no known pattern — ${d.evidence.errors[0] ?? d.evidence.state}`}` });
+      if (shouldAlert(diagnosisKey(d))) await notifyIncident(formatTelegram(d), d.id);
+    } catch (err) {
+      error(`Investigation of ${name} failed`, err);
+    }
+  }
+  return out;
+}
+
+/**
+ * Why `docker restart X` should not run, or null when it may. A container Docker is already
+ * restarting, or one whose diagnosis says the cause survives a restart, only gets worse for it.
+ */
+function restartBlocked(command: string, snapshot: SystemSnapshot): string | null {
+  const name = /^docker restart (.+)$/.exec(command)?.[1];
+  if (!name) return null;
+  const known = diagnosed.get(name);
+  if (known && Date.now() - known.at < DIAGNOSIS_TTL_MS && !restartCanHelp(known.diagnosis)) {
+    return `${name}: ${known.diagnosis.findings[0].title} — a restart cannot fix that`;
+  }
+  const c = snapshot.containers.find((x) => x.name === name);
+  if (c?.state === 'restarting') return `${name} is already in Docker's restart loop — another restart changes nothing`;
+  return null;
 }
 
 /** Send an alert unless the same one went out within the cooldown. */
@@ -79,6 +142,11 @@ async function handleDecision(
     const approvalId = crypto.randomBytes(4).toString('hex');
     await requestApproval(approvalId, [decision.command], `🤖 AI wants to run: ${decision.message}`, snapshot);
     log({ trigger: 'ai', action: decision.command, result: 'pending_approval', message: decision.message });
+  } else if (decision.type === 'AUTO_FIX' && restartBlocked(decision.command, snapshot)) {
+    // The AI asked for a restart a diagnosis (or Docker's own loop) has already ruled out.
+    const reason = restartBlocked(decision.command, snapshot)!;
+    await alertOnce(`ai:alert:${anomalySignature(snapshot)}`, `🤖 *AI Alert*: ${decision.message}\n\nNot restarting: ${reason}.`);
+    log({ trigger: 'ai', action: decision.command, result: 'alert', message: `restart blocked: ${reason}` });
   } else if (decision.type === 'AUTO_FIX') {
     const failedBefore = recentlyFailed(decision.command);
     const ran = await runFix(decision.command, { trigger: 'ai', message: decision.message });
@@ -128,11 +196,12 @@ async function loop(): Promise<void> {
       const { action } = ruleMatch;
 
       if (action.tier === 'auto' && action.commands.length > 0) {
-        const runnable = action.commands.filter((c) => !recentlyFailed(c) && !recentlySucceeded(c));
+        const blocked = action.commands.filter((c) => restartBlocked(c, snapshot));
+        const runnable = action.commands.filter((c) => !blocked.includes(c) && !recentlyFailed(c) && !recentlySucceeded(c));
 
         if (runnable.length > 0) {
           await notify(`🔧 *Auto-fix*: ${action.message}`);
-          for (const cmd of action.commands) {
+          for (const cmd of runnable) {
             const failedBefore = recentlyFailed(cmd);
             const ran = await runFix(cmd, { trigger: 'rule', ruleId: action.ruleId, message: action.message });
             if (!ran || failedBefore) continue;
@@ -141,9 +210,11 @@ async function loop(): Promise<void> {
           return;
         }
 
-        // Every fix was already tried and the problem is still here: say so once, and let the
-        // AI look at it instead of repeating the same fix every minute.
-        await alertOnce(`rule:${action.ruleId}:stuck`, `⚠️ ${action.message}\n\nAlready tried — it is still happening. This needs a person.`);
+        // Every fix was already tried (or ruled out by a diagnosis) and the problem is still
+        // here: say so once, and investigate instead of repeating the same fix every minute.
+        if (blocked.length < action.commands.length) {
+          await alertOnce(`rule:${action.ruleId}:stuck`, `⚠️ ${action.message}\n\nAlready tried — it is still happening. This needs a person.`);
+        }
       }
 
       else if (action.tier === 'suggest' && action.commands.length > 0) {
@@ -167,12 +238,7 @@ async function loop(): Promise<void> {
     }
 
     if (needsEscalation) {
-      if (!aiEnabled) {
-        info('No AI provider configured — skipping escalation');
-        return;
-      }
-
-      // The same problem, already put to the AI: its answer won't change, so don't ask again
+      // The same problem, already investigated: the answer won't change, so don't look again
       // every minute.
       const signature = anomalySignature(snapshot);
       if (lastEscalation && lastEscalation.signature === signature && Date.now() - lastEscalation.at < ESCALATION_COOLDOWN_MS) {
@@ -180,8 +246,23 @@ async function loop(): Promise<void> {
       }
       lastEscalation = { signature, at: Date.now() };
 
+      // Look first, with or without AI: the evidence is on this server.
+      const diagnoses = await investigateSuspects(snapshot);
+      const otherTrouble = snapshot.disk.usedPercent >= parseInt(process.env.DISK_ALERT_PERCENT ?? '85', 10)
+        || snapshot.memory.usedPercent >= parseInt(process.env.MEMORY_ALERT_PERCENT ?? '90', 10)
+        || !snapshot.nginx.running;
+      if (diagnoses.length > 0 && diagnoses.every((d) => d.findings.length > 0) && !otherTrouble) {
+        info('Every failing container has a diagnosis — not asking the AI');
+        return;
+      }
+
+      if (!aiEnabled) {
+        info('No AI provider configured — skipping escalation');
+        return;
+      }
+
       info('Escalating to AI...');
-      const decision = await escalate(snapshot);
+      const decision = await escalate(snapshot, diagnoses);
 
       if (!decision) {
         await alertOnce('ai:failed', '⚠️ AI escalation failed — manual review required.');

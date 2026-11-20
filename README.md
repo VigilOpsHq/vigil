@@ -14,6 +14,8 @@ Three jobs, one container: **keep it running**, **keep it recoverable**, **keep 
 
 ## What it does
 
+- **Finds out why it broke:** when a container fails, Vigil investigates before anything else — the first error in its latest start, exit code and OOM kills, empty or changed files inside it, image built for the wrong CPU — and recognises the usual causes (broken Laravel cache, missing env var, database on `localhost`, Prisma engine, missing Next.js build, Windows line endings in a start script…). One alert that says what is wrong and how to fix it, and no restarts that can't help
+- **Hands the fix to your coding agent:** every incident comes with a **Fix prompt** for Cursor or Claude Code — the diagnosis, errors and log with secrets removed — so the code gets fixed too, not just the server
 - **Fixes the usual problems:** restarts stopped containers, clears old Docker images when the disk fills up, restarts apps whose health check fails
 - **Backs up databases:** Postgres, MySQL/MariaDB and MongoDB, on a schedule, with copies off the server and restores that take a safety backup first
 - **Proves the backup works:** `vigil restore test` loads it into a throwaway container and checks the tables and rows actually arrived
@@ -41,6 +43,8 @@ Full steps, including creating the Telegram bot: [Install](https://vigilops.clou
 
 ```bash
 vigil status                                       # containers, disk, memory, health checks
+vigil diagnose myapp                               # why is it failing?
+vigil diagnose myapp --prompt                      # …as a prompt for your coding agent
 vigil backup myapp-postgres                        # back up a database now
 vigil backup schedule myapp-postgres daily 02:00   # and every night
 vigil backups                                      # list backups
@@ -48,7 +52,7 @@ vigil restore <file>                               # restore (safety backup take
 vigil update                                       # update VigilOps
 ```
 
-The same things work from Telegram: `/status`, `/backup myapp-postgres`, `/backups`, `/restore <file>`, `/update`.
+The same things work from Telegram: `/status`, `/diagnose myapp`, `/incidents`, `/backup myapp-postgres`, `/backups`, `/restore <file>`, `/update`.
 
 ## Use it from your editor
 
@@ -59,14 +63,13 @@ claude mcp add vigilops -- ssh root@my-server docker exec -i -e MCP_MODE=stdio v
 ```
 
 ```
-you:    the app is down
+you:    the api is down, fix it
 
-claude: [get_container_status]  worker exited, code 137
-        [get_container_logs]    out of memory in the resize job
-        [restart_container]     worker is running again
+claude: [diagnose_container api]  restart loop: bootstrap/cache/config.php is 0 bytes
+        → edits docker/start.sh to clear the cache before artisan runs
 ```
 
-Thirteen tools: container state, logs, restarts, disk, memory, health checks, audit history, deploys. What the assistant can *do* is bounded by the same command allowlist as everything else — anything outside it is refused, and risky actions still wait for your approval on Telegram.
+Sixteen tools: container state, logs, restarts, disk, memory, health checks, audit history, deploys, and incidents (`diagnose_container`, `list_incidents`, `get_fix_prompt`). What the assistant can *do* is bounded by the same command allowlist as everything else — anything outside it is refused, and risky actions still wait for your approval on Telegram.
 
 Config for Cursor, VS Code and Claude Desktop is in [the guide](https://vigilops.cloud/docs/guides/mcp/).
 
