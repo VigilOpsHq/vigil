@@ -24,6 +24,8 @@ Run `vigil help` on the server for a short version of this page.
 | `vigil containers` | All containers with ID, state and uptime |
 | `vigil logs <container> [lines]` | Last lines of a container's logs (default 50) |
 | `vigil restart <container>` | Restart a container |
+| `vigil diagnose <container> [--prompt]` | [Find out why a container is failing](/docs/guides/diagnose/). `--prompt` prints it as a prompt for your coding agent |
+| `vigil incidents [id] [--prompt]` | Incidents VigilOps investigated, or one of them |
 | `vigil disk` | Disk usage |
 | `vigil memory` | Memory usage |
 | `vigil health` | Run the health checks from `HEALTH_CHECK_URLS` |

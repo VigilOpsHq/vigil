@@ -317,4 +317,61 @@ export function registerTools(server: McpServer): void {
     }
   );
 
+  server.registerTool(
+    'diagnose_container',
+    {
+      description: 'Investigate why a container is failing: exit code, OOM kills, the first error in its latest start, empty or changed files inside it, CPU architecture mismatches, and known failure patterns (Laravel cache, missing env vars, database unreachable, Prisma, Next.js build, CRLF scripts, permissions…). Read-only. Returns the diagnosis and a ready-made prompt for fixing the code. Secrets in logs are removed and env var values are never read.',
+      inputSchema: {
+        name: z.string().describe('Container name'),
+      },
+    },
+    async ({ name }) => {
+      info(`[mcp] diagnose_container ${name}`);
+      try {
+        const { investigate, saveIncident, formatText, fixPrompt } = await import('../diagnose');
+        const d = await investigate(name);
+        saveIncident(d);
+        return { content: [{ type: 'text', text: `${formatText(d)}\n\n---\n\n${fixPrompt(d)}` }] };
+      } catch (err) {
+        return { content: [{ type: 'text', text: `Investigation failed: ${err instanceof Error ? err.message : String(err)}` }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
+    'list_incidents',
+    {
+      description: 'Recent incidents Vigil investigated on this server, newest first: when, which container, and the diagnosis. Use get_fix_prompt with an id for the full detail.',
+      inputSchema: {
+        limit: z.number().int().min(1).max(100).optional().describe('How many (default 10)'),
+        container: z.string().optional().describe('Only this container'),
+      },
+    },
+    async ({ limit, container }) => {
+      const { listIncidents } = await import('../diagnose');
+      const list = listIncidents(limit ?? 10, container).map((d) => ({
+        id: d.id, createdAt: d.createdAt, container: d.evidence.container, state: d.evidence.state,
+        exitCode: d.evidence.exitCode, diagnosis: d.findings[0]?.title ?? null, firstError: d.evidence.errors[0] ?? null,
+      }));
+      return { content: [{ type: 'text', text: list.length ? JSON.stringify(list, null, 2) : 'No incidents stored on this server.' }] };
+    }
+  );
+
+  server.registerTool(
+    'get_fix_prompt',
+    {
+      description: 'Everything Vigil knows about an incident — diagnosis, errors, log of the latest start, changed files, env var names — written as instructions for fixing the code in this repository. Pass an incident id, or a container name for its latest incident.',
+      inputSchema: {
+        incident_id: z.string().optional().describe('Incident id from list_incidents or the Telegram alert'),
+        container: z.string().optional().describe('Container name: uses its most recent incident'),
+      },
+    },
+    async ({ incident_id, container }) => {
+      const { loadIncident, listIncidents, fixPrompt } = await import('../diagnose');
+      const d = incident_id ? loadIncident(incident_id) : container ? listIncidents(1, container)[0] ?? null : listIncidents(1)[0] ?? null;
+      if (!d) return { content: [{ type: 'text', text: 'No matching incident. Use diagnose_container to investigate now.' }] };
+      return { content: [{ type: 'text', text: fixPrompt(d) }] };
+    }
+  );
+
 }

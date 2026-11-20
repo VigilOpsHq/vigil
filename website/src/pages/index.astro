@@ -18,9 +18,16 @@ const checks = [
 
 const capabilities = [
   {
+    icon: 'search',
+    name: 'Diagnosis',
+    wide: true,
+    body: 'When a container keeps failing, finds out why: the first real error, an empty config file, a missing env var, an image built for the wrong CPU. One alert with the fix, and a prompt for your coding agent.',
+    href: '/docs/guides/diagnose/',
+  },
+  {
     icon: 'activity',
     name: 'Auto-fixes',
-    body: 'Restarts containers that exited. Prunes images when the disk passes your threshold. A container that keeps crashing is escalated instead of restarted again.',
+    body: 'Restarts containers that exited. Prunes images when the disk passes your threshold. A container that keeps crashing is investigated instead of restarted again.',
     href: '/docs/guides/auto-fixes/',
   },
   {
@@ -59,7 +66,7 @@ const pillars = [
   {
     icon: 'activity',
     name: 'Keeps it running',
-    body: 'Checks containers, disk, memory, nginx and your health URLs every 60 seconds. Restarts what died, clears space when the disk fills, and stops restarting anything stuck in a crash loop.',
+    body: 'Checks containers, disk, memory, nginx and your health URLs every 60 seconds. Restarts what died and clears space when the disk fills. When something keeps failing, it finds out why instead of restarting it again.',
   },
   {
     icon: 'database',
@@ -82,6 +89,13 @@ const auditLog = [
   { time: '11:02:55', kind: 'ai', text: 'api health check timing out', action: 'docker restart api', result: 'awaiting approval' },
 ];
 
+const diagnosisFacts = [
+  ['State', 'restarting · exit 255 · 66 restarts'],
+  ['First error', 'Target class [config] does not exist'],
+  ['Found', 'bootstrap/cache/config.php is 0 bytes'],
+  ['Restart helps', 'no — the file survives a restart'],
+];
+
 const allowlist = [
   'docker restart <container>',
   'docker image prune -f',
@@ -93,15 +107,15 @@ const allowlist = [
 
 <Marketing
   title="VigilOps: an ops engineer that lives on your server"
-  description="VigilOps watches your Docker server, fixes what it safely can, and keeps database backups it has actually restored. It runs a short allowlist on its own, asks before anything risky, and can undo what it did."
+  description="VigilOps watches your Docker server, finds out why things break, fixes what it safely can, and keeps database backups it has actually restored. It runs a short allowlist on its own, asks before anything risky, and can undo what it did."
 >
   <section class="hero">
     <div class="container hero-grid">
       <div class="hero-copy">
         <h1>An ops engineer that lives on your server.</h1>
         <p class="lead">
-          VigilOps watches your containers, fixes what it safely can, and keeps database backups it has actually
-          restored — on the one Docker server you already have. It runs a short allowlist on its own, asks before
+          VigilOps watches your containers, finds out why they break, fixes what it safely can, and keeps database
+          backups it has actually restored — on the one Docker server you already have. It runs a short allowlist on its own, asks before
           anything risky, and can undo what it did. Reach it from Telegram, or from Cursor and Claude Code.
         </p>
         <div class="video-wrap">
@@ -194,9 +208,9 @@ const allowlist = [
       </div>
       <div class="caps stagger" data-reveal>
         {capabilities.map((c, i) => (
-          <a class="cap" href={c.href} style={`--i:${i}`}>
+          <a class={`cap${c.wide ? ' cap-wide' : ''}`} href={c.href} style={`--i:${i}`}>
             <span class="cap-icon"><Icon name={c.icon} size={20} /></span>
-            <h3>{c.name}</h3>
+            <h3>{c.name}{c.wide && <span class="new">New</span>}</h3>
             <p>{c.body}</p>
           </a>
         ))}
@@ -255,7 +269,14 @@ const allowlist = [
               <div class="buttons"><span>✅ Approve</span><span>❌ Deny</span></div>
               <span class="t">11:02</span>
             </div>
-            <div class="msg me" style="--d:1.7s">/backups api-postgres<span class="t">11:04</span></div>
+            <div class="msg" style="--d:1.7s">
+              <strong>🔎 api:</strong> Laravel's cached config is an empty file<br />
+              <code>bootstrap/cache/config.php</code> is 0 bytes, so every start crashes. A restart can't fix it —
+              delete the file and start it.
+              <div class="buttons"><span>🧑‍💻 Fix prompt</span></div>
+              <span class="t">14:20</span>
+            </div>
+            <div class="msg me" style="--d:2.1s">/backups api-postgres<span class="t">14:31</span></div>
           </div>
         </div>
       </div>
@@ -264,6 +285,44 @@ const allowlist = [
 
   <section class="section section-soft">
     <div class="container feature">
+      <div class="feature-copy" data-reveal>
+        <h2>A restart is not a diagnosis.</h2>
+        <p>
+          Most monitoring tells you it's down. When a container keeps failing, VigilOps reads it the way you would — the
+          logs of the latest start, the exit code, the files inside it — and tells you why, in plain words.
+        </p>
+        <ul class="points">
+          <li>The first error of the latest start, not the last line of a restart loop</li>
+          <li>Recognises the usual causes: a broken Laravel cache, a missing env var, a database on <code>localhost</code>, Prisma, Next.js builds, Windows line endings</li>
+          <li>Stops restarting what a restart can't fix</li>
+          <li>A <strong>Fix prompt</strong> for Cursor or Claude Code, so the code gets fixed too</li>
+          <li>Secrets are removed from logs; env var values are never read</li>
+        </ul>
+        <a class="more" href="/docs/guides/diagnose/">How it finds the cause <span aria-hidden="true">→</span></a>
+      </div>
+      <div class="panel verify" data-reveal>
+        <div class="panel-head"><span>vigil diagnose api</span><span class="badge">diagnosed</span></div>
+        <dl class="verify-facts">
+          {diagnosisFacts.map(([k, v]) => (
+            <div><dt>{k}</dt><dd>{v}</dd></div>
+          ))}
+        </dl>
+        <div class="diag-body">
+          <p class="diag-title">Laravel's cached config is an empty file</p>
+          <p>
+            Laravel loads it before anything else and gets nothing back. <code>config:cache</code> has to boot Laravel
+            first, so it can never rewrite it: every restart fails the same way.
+          </p>
+          <p class="diag-label">So it doesn't happen again</p>
+          <p>Delete <code>bootstrap/cache/*.php</code> in the start script, before any <code>php artisan</code> command.</p>
+        </div>
+        <div class="panel-foot"><code>vigil diagnose api --prompt</code></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container feature reverse">
       <div class="feature-copy" data-reveal>
         <h2>A backup you have never restored is a guess.</h2>
         <p>
@@ -301,8 +360,8 @@ const allowlist = [
     </div>
   </section>
 
-  <section class="section">
-    <div class="container feature reverse">
+  <section class="section section-soft">
+    <div class="container feature">
       <div class="feature-copy" data-reveal>
         <h2>It can only run what you allow.</h2>
         <p>
@@ -330,7 +389,7 @@ const allowlist = [
   </section>
 
   <section class="section">
-    <div class="container feature">
+    <div class="container feature reverse">
       <div class="feature-copy" data-reveal>
         <h2>Reach it from where you already work.</h2>
         <p>
@@ -338,7 +397,7 @@ const allowlist = [
           the real state of your server and act on it — inside the same allowlist as everything else.
         </p>
         <ul class="points">
-          <li>Thirteen tools: container state, logs, restarts, disk, memory, deploys, audit history</li>
+          <li>Sixteen tools: container state, logs, restarts, disk, memory, deploys, audit history — and <code>diagnose_container</code></li>
           <li>Reached over your own SSH key; nothing new is exposed</li>
           <li>Your assistant sees your code and your server at once</li>
         </ul>
@@ -347,11 +406,11 @@ const allowlist = [
       <div class="panel code" data-reveal>
         <div class="panel-head"><span>cursor</span><span class="badge">mcp</span></div>
         <ul class="rules chat-lines">
-          <li><span class="who">you</span><code>the app is down</code></li>
-          <li><span class="who ai">claude</span><code>[get_container_status] worker exited, code 137</code></li>
-          <li><span class="who"></span><code>[get_container_logs] out of memory in the resize job</code></li>
-          <li><span class="who"></span><code>[restart_container] worker is running again</code></li>
-          <li><span class="who"></span><code>Raising the memory limit needs your approval — send it?</code></li>
+          <li><span class="who">you</span><code>the api is down, fix it</code></li>
+          <li><span class="who ai">claude</span><code>[diagnose_container api] restart loop</code></li>
+          <li><span class="who"></span><code>cause: bootstrap/cache/config.php is 0 bytes</code></li>
+          <li><span class="who"></span><code>editing docker/start.sh: clear the cache before artisan</code></li>
+          <li><span class="who"></span><code>Server fix: delete the file and start api — run it?</code></li>
         </ul>
       </div>
     </div>
@@ -479,6 +538,9 @@ const allowlist = [
   .cap h3 { font-size: 16px; font-family: var(--display); font-weight: 600; }
   .cap:hover h3 { color: var(--brand); }
   .cap p { color: var(--muted); margin-top: 10px; font-size: 15px; }
+  .cap-wide { grid-column: 1 / -1; }
+  .cap-wide p { max-width: 720px; }
+  .new { margin-left: 10px; padding: 3px 7px; border-radius: 999px; background: var(--brand-soft); color: var(--brand); font: 600 11px/1 var(--mono); vertical-align: 3px; }
   @media (min-width: 700px) { .caps { grid-template-columns: repeat(2, 1fr); } }
   @media (min-width: 1040px) { .caps { grid-template-columns: repeat(3, 1fr); } }
 
@@ -494,6 +556,11 @@ const allowlist = [
   .verify-facts dd { margin: 0; color: var(--ink-2); overflow-wrap: anywhere; }
   .match { font: 600 12px var(--mono); color: var(--brand); }
   .verify table td:nth-child(2) { font-variant-numeric: tabular-nums; text-align: right; }
+  .diag-body { padding: 16px 18px; display: grid; gap: 8px; font-size: 14.5px; color: var(--ink-2); border-bottom: 1px solid var(--line); }
+  .diag-body p { margin: 0; }
+  .diag-body code { font-size: 13px; background: var(--bg); border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px; }
+  .diag-title { font: 600 16px/1.35 var(--display); color: var(--ink); }
+  .diag-label { margin-top: 6px !important; font: 600 12px var(--mono); color: var(--brand); text-transform: uppercase; letter-spacing: .04em; }
 
   .tiers { display: grid; gap: 20px; margin-top: 40px; align-items: start; }
   .tier {

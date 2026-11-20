@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { SystemSnapshot, AIDecision } from '../types';
+import type { Diagnosis } from '../diagnose/types';
 import { error, info } from '../logger';
 import { autoAllowedExamples, systemctlAvailable } from '../executor';
 
@@ -59,7 +60,12 @@ ${systemctlAvailable() ? '' : '\nThere is no systemctl here: never suggest a sys
 SUGGEST is only for installing or removing packages (sudo apt update | upgrade -y | install -y <pkg> | remove -y <pkg>).
 Anything else — docker rm, docker compose, editing files — Vigil cannot run even with approval:
 choose ALERT and put the exact command in the message for the operator to run themselves.
-Containers in the "created" state that were never started are usually leftovers of a deploy; never suggest removing a running container.`;
+Containers in the "created" state that were never started are usually leftovers of a deploy; never suggest removing a running container.
+
+Restarts:
+- A container in the "restarting" state is already being restarted by Docker. Never AUTO_FIX a docker restart for it.
+- When the investigation shows a container crashing on startup (a config, dependency, env or code error), a restart repeats the same crash: choose ALERT, name the cause from the errors, and say what to change.
+- Base your diagnosis on the "Investigation" section: the first error in the latest start is usually the cause, the later ones are consequences.`;
 }
 
 function validateDecision(raw: unknown): AIDecision | null {
@@ -101,13 +107,13 @@ function parseJson(text: string): unknown {
   }
 }
 
-export async function escalateForMonitoring(snapshot: SystemSnapshot): Promise<AIDecision | null> {
+export async function escalateForMonitoring(snapshot: SystemSnapshot, diagnoses: Diagnosis[] = []): Promise<AIDecision | null> {
   if (!aiEnabled) {
     info('[ai] No provider configured — skipping escalation');
     return null;
   }
 
-  const snapshotSummary = buildMonitoringPrompt(snapshot);
+  const snapshotSummary = buildMonitoringPrompt(snapshot, diagnoses);
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -144,7 +150,7 @@ export async function escalateForMonitoring(snapshot: SystemSnapshot): Promise<A
   return null;
 }
 
-function buildMonitoringPrompt(snapshot: SystemSnapshot): string {
+function buildMonitoringPrompt(snapshot: SystemSnapshot, diagnoses: Diagnosis[] = []): string {
   const lines: string[] = [];
 
   lines.push(`Timestamp: ${snapshot.timestamp.toISOString()}`);
@@ -183,6 +189,20 @@ function buildMonitoringPrompt(snapshot: SystemSnapshot): string {
         `  ${h.url} → ${h.healthy ? 'healthy' : 'UNHEALTHY'} (${h.statusCode ?? 'no response'}, ${h.responseTimeMs}ms)`
       );
     }
+  }
+
+  for (const d of diagnoses) {
+    const e = d.evidence;
+    lines.push('');
+    lines.push(`=== Investigation: ${e.container} ===`);
+    lines.push(`  state ${e.state}${e.exitCode !== null ? `, exit ${e.exitCode}` : ''}${e.oomKilled ? ', OOM-killed' : ''}, ${e.restartCount} restarts, image ${e.image}${e.imageArch ? ` (${e.imageArch}, server ${e.hostArch})` : ''}`);
+    if (d.findings.length) lines.push(`  Known pattern: ${d.findings.map((f) => `${f.title} — ${f.cause}`).join(' | ')}`);
+    if (e.errors.length) lines.push(`  Errors in the latest start, in order:\n${e.errors.slice(0, 6).map((x) => `    - ${x.slice(0, 300)}`).join('\n')}`);
+    const tail = (e.lastCycle.length ? e.lastCycle : e.logTail).slice(-30).join('\n');
+    if (tail) lines.push(`  Log of the latest start (secrets removed):\n${tail.slice(-3000)}`);
+    const sized = Object.entries(e.fileSizes).map(([f, n]) => `${f} (${n} bytes)`);
+    if (sized.length) lines.push(`  Changed files: ${sized.join(', ')}`);
+    if (e.gaps.length) lines.push(`  Could not read: ${e.gaps.join(', ')}`);
   }
 
   return lines.join('\n');

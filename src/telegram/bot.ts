@@ -69,6 +69,72 @@ export async function notify(message: string): Promise<void> {
   }
 }
 
+/** An investigation result (already HTML), with a button that hands it to a coding agent. */
+export async function notifyIncident(htmlText: string, incidentId: string): Promise<void> {
+  if (!telegramEnabled) return;
+  try {
+    await bot.sendMessage(CHAT_ID, htmlText, {
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+      reply_markup: { inline_keyboard: [[{ text: '🧑‍💻 Fix prompt', callback_data: `fixprompt:${incidentId}` }]] },
+    });
+  } catch (err) {
+    error('Failed to send incident to Telegram', err);
+  }
+}
+
+const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/**
+ * The prompt for Cursor / Claude Code. Short ones come as a message to copy; long ones (most,
+ * because of the log) as a .md file, which drops straight into an editor.
+ */
+async function sendFixPrompt(incidentId: string): Promise<void> {
+  const { loadIncident, fixPrompt } = await import('../diagnose');
+  const d = loadIncident(incidentId);
+  if (!d) {
+    await notify(`Incident \`${incidentId}\` is no longer stored on this server.`);
+    return;
+  }
+  const prompt = fixPrompt(d);
+  const hint = `Paste into Cursor, Claude Code or Copilot chat, in the repository of \`${d.evidence.container}\`.\n`
+    + `With the Vigil MCP server connected, you can also just ask: "get the fix prompt for incident ${d.id}".`;
+  try {
+    if (prompt.length <= 3800) {
+      await bot.sendMessage(CHAT_ID, `<pre>${escapeHtml(prompt)}</pre>`, { parse_mode: 'HTML' });
+    } else {
+      await bot.sendDocument(CHAT_ID, Buffer.from(prompt, 'utf8'), {},
+        { filename: `vigil-fix-${d.evidence.container}-${d.id}.md`, contentType: 'text/markdown' });
+    }
+    await notify(hint);
+  } catch (err) {
+    error('Failed to send fix prompt', err);
+  }
+}
+
+async function handleDiagnose(container: string): Promise<void> {
+  const { investigate, saveIncident, formatTelegram } = await import('../diagnose');
+  await notify(`🔎 Investigating \`${container}\`…`);
+  try {
+    const d = await investigate(container);
+    saveIncident(d);
+    await notifyIncident(formatTelegram(d), d.id);
+  } catch (err) {
+    await notify(`❌ ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+async function handleIncidents(): Promise<void> {
+  const { listIncidents } = await import('../diagnose');
+  const list = listIncidents(10);
+  if (list.length === 0) {
+    await notify('No incidents stored on this server.');
+    return;
+  }
+  const lines = list.map((d) => `• \`${d.id}\` ${d.createdAt.slice(0, 16).replace('T', ' ')} — *${d.evidence.container}*: ${d.findings[0]?.title ?? 'no known pattern'}`);
+  await notify(`🗂 *Recent incidents*\n${lines.join('\n')}\n\nFix prompt for one: \`/fixprompt <id>\``);
+}
+
 async function handleStatus(): Promise<void> {
   const { collect } = await import('../collector');
   const snapshot = await collect();
@@ -221,6 +287,18 @@ bot.onText(/\/apps/, (msg) => { if (fromOwner(msg.chat.id)) void handleApps(); }
 
 bot.onText(/\/help/, (msg) => { if (fromOwner(msg.chat.id)) void handleHelp(); });
 
+bot.onText(/^\/diagnose(?:@\w+)?(?:\s+([a-zA-Z0-9][a-zA-Z0-9_.-]*))?\s*$/, (msg, match) => {
+  if (!fromOwner(msg.chat.id)) return;
+  if (!match?.[1]) { void notify('Usage: `/diagnose <container>`'); return; }
+  void handleDiagnose(match[1]);
+});
+
+bot.onText(/^\/incidents(?:@\w+)?\s*$/, (msg) => { if (fromOwner(msg.chat.id)) void handleIncidents(); });
+
+bot.onText(/^\/fixprompt(?:@\w+)?\s+([a-z0-9]+)\s*$/, (msg, match) => {
+  if (fromOwner(msg.chat.id) && match?.[1]) void sendFixPrompt(match[1]);
+});
+
 bot.onText(/\/approve_([a-zA-Z0-9]+)/, async (msg, match) => {
   if (!fromOwner(msg.chat.id)) return;
   const approvalId = match?.[1];
@@ -279,6 +357,11 @@ bot.on('callback_query', async (query) => {
     if (id === 'status') await handleStatus();
     else if (id === 'apps') await handleApps();
     else if (id === 'help') await handleHelp();
+    return;
+  }
+
+  if (prefix === 'fixprompt') {
+    await sendFixPrompt(id);
     return;
   }
 

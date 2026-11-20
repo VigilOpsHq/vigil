@@ -9,6 +9,7 @@ VigilOps is an **ops engineer that lives on your server** — one you can safely
 
 - **Watches** your containers, disk, memory and health-check URLs every minute
 - **Fixes** known problems on its own, like restarting a stopped container or clearing old Docker images when the disk fills up
+- **Finds out why** a container is failing — the first real error, an empty config file, a missing env var, an image built for the wrong CPU — and hands the fix to your coding agent
 - **Backs up** your Postgres, MySQL and MongoDB databases, and **proves a backup restores** by loading it into a throwaway container and counting the rows
 - **Asks you** on Telegram before doing anything risky, and tells you what it did
 - **Deploys** your apps with a health check and automatic rollback
@@ -42,9 +43,10 @@ Every minute (configurable), VigilOps:
 
 1. **Collects a snapshot:** container states, disk, memory, whether port 80 answers, and your health-check URLs.
 2. **Checks built-in rules.** Known problems with a safe fix, like a stopped container or a full disk, are fixed right away.
-3. **Escalates anything unusual to AI**, using whichever provider you configure. The AI proposes a fix, a suggestion that needs your approval, or an alert.
-4. **Runs only allowlisted commands.** Anything outside a short list of safe commands is blocked, including AI suggestions.
-5. **Logs every action** to an audit log and reports anything important on Telegram.
+3. **Investigates what keeps failing.** It reads the container's logs, state and files, and recognises the usual causes. You get one alert that says what is wrong and how to fix it — [more](/docs/guides/diagnose/).
+4. **Escalates anything else to AI**, with the evidence it found, using whichever provider you configure. The AI proposes a fix, a suggestion that needs your approval, or an alert.
+5. **Runs only allowlisted commands.** Anything outside a short list of safe commands is blocked, including AI suggestions.
+6. **Logs every action** to an audit log and reports anything important on Telegram.
 
 Backups, deploys and updates run whenever you ask for them, or on a schedule.
 

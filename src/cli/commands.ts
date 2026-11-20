@@ -608,6 +608,8 @@ COMMANDS:
   containers          List all containers
   logs <name>         Get logs from container
   restart <name>      Restart a container
+  diagnose <name>     Find out why a container is failing (--prompt: for your coding agent)
+  incidents [id]      Incidents Vigil investigated
   disk                Show disk usage
   memory              Show memory usage
   health              Run health checks
@@ -653,7 +655,52 @@ Docs: https://vigilops.cloud/docs/
   },
 };
 
+export const diagnoseCommand: CLICommand = {
+  name: 'diagnose',
+  description: 'Find out why a container is failing, and get a prompt for your coding agent',
+  usage: 'vigil diagnose <container> [--prompt]',
+  handler: async (args) => {
+    const name = args.find((a) => !a.startsWith('-'));
+    if (!name) {
+      console.error('❌ Usage: vigil diagnose <container> [--prompt]');
+      process.exit(1);
+    }
+    const { investigate, saveIncident, formatText, fixPrompt } = await import('../diagnose');
+    const d = await investigate(name);
+    saveIncident(d);
+    console.log(args.includes('--prompt') ? fixPrompt(d) : formatText(d));
+  },
+};
+
+export const incidentsCommand: CLICommand = {
+  name: 'incidents',
+  description: 'Incidents Vigil investigated, newest first',
+  usage: 'vigil incidents [id] [--prompt]',
+  handler: async (args) => {
+    const { listIncidents, loadIncident, formatText, fixPrompt } = await import('../diagnose');
+    const id = args.find((a) => !a.startsWith('-'));
+    if (id) {
+      const d = loadIncident(id);
+      if (!d) throw new Error(`No incident ${id}`);
+      console.log(args.includes('--prompt') ? fixPrompt(d) : formatText(d));
+      return;
+    }
+    const list = listIncidents(20);
+    if (list.length === 0) {
+      console.log('\nNo incidents stored yet.\n');
+      return;
+    }
+    console.log('\n🗂  INCIDENTS\n');
+    for (const d of list) {
+      console.log(`   ${d.id}  ${d.createdAt.slice(0, 16).replace('T', ' ')}  ${d.evidence.container.padEnd(24)} ${d.findings[0]?.title ?? 'no known pattern'}`);
+    }
+    console.log('\n   vigil incidents <id> --prompt   prints a prompt for your coding agent\n');
+  },
+};
+
 export const commands: CLICommand[] = [
+  diagnoseCommand,
+  incidentsCommand,
   statusCommand,
   containersCommand,
   logsCommand,

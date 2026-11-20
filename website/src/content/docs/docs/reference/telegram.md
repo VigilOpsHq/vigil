@@ -10,6 +10,9 @@ Send these to your VigilOps bot. Backup and update commands only respond in the 
 | Command | What it does |
 |---|---|
 | `/status` | Containers, disk, memory, nginx and health checks |
+| `/diagnose <container>` | [Find out why a container is failing](/docs/guides/diagnose/) |
+| `/incidents` | Recent incidents and their diagnosis |
+| `/fixprompt <id>` | The prompt for your coding agent, for one incident (same as the **Fix prompt** button) |
 | `/help` | Buttons for the most-used commands |
 
 ## Backups
@@ -50,6 +53,7 @@ Send these to your VigilOps bot. Backup and update commands only respond in the 
 |---|---|
 | VigilOps starts or stops | `🟢 VigilOps 1.2.4 started` / `🔴 VigilOps stopped` |
 | A rule fixes something | `🔧 Auto-fix: ...` followed by each command's result |
+| A container keeps failing | `🔎 <container>: <cause>` with evidence, the fix, and a **🧑‍💻 Fix prompt** button |
 | A problem needs attention | `🚨 ...` and, with AI enabled, the AI's diagnosis |
 | An action needs your approval | `⚠️ Approval Required` with **Approve** / **Deny** buttons |
 | A backup finishes or fails | `✅ Backup done: ...` / `❌ Backup FAILED: ...`, plus the file if under 50 MB |
